@@ -5,6 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
@@ -18,6 +19,10 @@ import { useAuth } from "@/contexts/AuthContext";
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const MAX_IMAGES = 6;
 const CONDITIONS = Object.entries(CONDITION_LABELS);
+const FRANCHISE_OPTIONS: { key: "pokemon" | "one_piece"; label: string; color: string }[] = [
+  { key: "pokemon", label: "Pokémon", color: Colors.pokemon },
+  { key: "one_piece", label: "One Piece", color: Colors.onePiece },
+];
 
 function showAlert(title: string, message: string) {
   if (Platform.OS === "web") {
@@ -35,6 +40,7 @@ export default function SellScreen() {
 
   const [images, setImages] = useState<string[]>([]);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [franchise, setFranchise] = useState<"pokemon" | "one_piece" | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
@@ -60,6 +66,7 @@ export default function SellScreen() {
       await queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
       showAlert("Listed!", "Your card is now live on the marketplace.");
       setImages([]);
+      setFranchise(null);
       setTitle("");
       setDescription("");
       setPrice("");
@@ -105,7 +112,7 @@ export default function SellScreen() {
     });
   };
 
-  const canSubmit = images.length > 0 && title.trim().length >= 3 && franchiseOk && parseFloat(price || "0") >= 0.5;
+  const canSubmit = images.length > 0 && !!franchise && title.trim().length >= 3 && franchiseOk && parseFloat(price || "0") >= 0.5;
 
   if (!user) {
     return (
@@ -117,9 +124,28 @@ export default function SellScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.lg, paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + Spacing.xxl }}>
-      <Text style={styles.screenTitle}>Sell a Card</Text>
-      <Text style={styles.sectionTitle}>Photos ({images.length}/{MAX_IMAGES})</Text>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xxl }}>
+      <LinearGradient colors={["#1C1040", "#3B1E6B", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
+        <Text style={styles.screenTitle}>Sell a Card</Text>
+        <Text style={styles.headerSubtitle}>List a Pokémon or One Piece card in minutes</Text>
+      </LinearGradient>
+
+      <View style={{ padding: Spacing.lg }}>
+        <Text style={styles.sectionTitle}>What are you selling?</Text>
+        <Text style={styles.helper}>Pick the franchise this card belongs to.</Text>
+        <View style={styles.franchiseRow}>
+          {FRANCHISE_OPTIONS.map((opt) => {
+            const active = franchise === opt.key;
+            return (
+              <Pressable key={opt.key} onPress={() => setFranchise(opt.key)} style={[styles.franchiseCard, { borderColor: opt.color }, active && { backgroundColor: opt.color }]}>
+                <Feather name={opt.key === "pokemon" ? "zap" : "anchor"} size={22} color={active ? Colors.white : opt.color} />
+                <Text style={[styles.franchiseCardText, { color: active ? Colors.white : opt.color }]}>{opt.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={styles.sectionTitle}>Photos ({images.length}/{MAX_IMAGES})</Text>
       <Text style={styles.helper}>Add up to 6 photos. Scan with the camera or upload from your library — swipe through them on the listing page.</Text>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: Spacing.sm }}>
@@ -202,6 +228,7 @@ export default function SellScreen() {
       </View>
 
       <Button title="List this card" onPress={() => submitMutation.mutate()} loading={submitMutation.isPending} disabled={!canSubmit} style={{ marginTop: Spacing.lg }} />
+      </View>
 
       <CardScannerModal visible={scannerOpen} onClose={() => setScannerOpen(false)} onCapture={handleScanCapture} />
     </ScrollView>
@@ -212,9 +239,14 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   center: { alignItems: "center", justifyContent: "center", gap: Spacing.sm },
   emptyText: { color: Colors.textSecondary, ...Typography.body },
-  screenTitle: { ...Typography.h2, color: Colors.text, marginBottom: Spacing.xs },
+  header: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg },
+  screenTitle: { ...Typography.h2, color: Colors.white, marginBottom: Spacing.xs },
+  headerSubtitle: { ...Typography.small, color: "rgba(255,255,255,0.85)" },
   sectionTitle: { ...Typography.bodyBold, color: Colors.text, marginTop: Spacing.lg, marginBottom: Spacing.xs },
   helper: { ...Typography.small, color: Colors.textSecondary },
+  franchiseRow: { flexDirection: "row", gap: Spacing.md },
+  franchiseCard: { flex: 1, alignItems: "center", gap: 6, paddingVertical: Spacing.lg, borderRadius: BorderRadius.md, borderWidth: 2, backgroundColor: Colors.surface },
+  franchiseCardText: { ...Typography.bodyBold, fontSize: 15 },
   thumbWrap: { marginRight: Spacing.sm, alignItems: "center" },
   thumb: { width: 84, height: 108, borderRadius: BorderRadius.sm, backgroundColor: Colors.surfaceAlt },
   removeThumb: { position: "absolute", top: -6, right: -6, backgroundColor: Colors.danger, borderRadius: 10, padding: 4 },

@@ -123,6 +123,8 @@ export default function ListingDetailScreen() {
         </Pressable>
       </View>
 
+      <View style={styles.separator} />
+
       <View style={styles.body}>
         <View style={[styles.franchiseChip, { backgroundColor: listing.franchise === "pokemon" ? Colors.pokemon : listing.franchise === "one_piece" ? Colors.onePiece : Colors.gold }]}>
           <Text style={styles.franchiseChipText}>{franchiseLabel}</Text>
@@ -148,6 +150,8 @@ export default function ListingDetailScreen() {
             </View>
           ) : null}
         </View>
+
+        <View style={styles.separatorInline} />
 
         <Text style={styles.sectionTitle}>Description</Text>
         <Text style={styles.description}>{listing.description || "No description provided."}</Text>
@@ -202,6 +206,8 @@ const styles = StyleSheet.create({
   dotIndicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.6)" },
   dotIndicatorActive: { backgroundColor: Colors.white, width: 18 },
   favoriteFloating: { position: "absolute", top: Spacing.md, right: Spacing.md, backgroundColor: Colors.overlay, padding: 10, borderRadius: BorderRadius.pill },
+  separator: { height: 3, backgroundColor: Colors.primary },
+  separatorInline: { height: 2, backgroundColor: Colors.primary, marginVertical: Spacing.sm, opacity: 0.85 },
   body: { padding: Spacing.lg, gap: Spacing.sm },
   franchiseChip: { alignSelf: "flex-start", paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.pill },
   franchiseChipText: { color: Colors.white, fontWeight: "800", fontSize: 12 },

@@ -6,9 +6,10 @@ import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
+import { GalaxyBackground } from "@/components/GalaxyBackground";
+import { RotatingHoloCard } from "@/components/RotatingHoloCard";
 import { AuthStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
-import { useAuth } from "@/contexts/AuthContext";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "Welcome">;
 
@@ -23,7 +24,6 @@ function showAlert(title: string, message: string) {
 export default function WelcomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-  const { signIn } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
@@ -48,42 +48,51 @@ export default function WelcomeScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + Spacing.xxl, paddingBottom: insets.bottom + Spacing.xl }]}>
-      <View style={styles.hero}>
-        <View style={styles.logoCircle}>
-          <Feather name="zap" size={40} color={Colors.white} />
+    <GalaxyBackground>
+      <View style={[styles.container, { paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl }]}>
+        <View style={styles.brandRow}>
+          <Image source={require("@/assets/icon-mark-only.png")} style={styles.logoMark} resizeMode="contain" />
+          <View>
+            <Text style={styles.title}>PullMarket</Text>
+            <Text style={styles.titleAccent}>TCG</Text>
+          </View>
         </View>
-        <Text style={styles.title}>PullMarket TCG</Text>
-        <Text style={styles.subtitle}>Buy and sell Pokémon &amp; One Piece cards</Text>
-      </View>
 
-      <View style={styles.actions}>
-        <Button title="Continue with phone number" variant="gold" icon={<Feather name="phone" size={18} color="#3A2A00" />} onPress={() => navigation.navigate("PhoneSignIn")} />
-        <Button title="Continue with email" variant="white" icon={<Feather name="mail" size={18} color="#3A2A00" />} onPress={() => navigation.navigate("EmailSignIn")} />
-        <Button title="Continue with Google" variant="outlineOnDark" loading={googleLoading} icon={<Feather name="chrome" size={18} color={Colors.white} />} onPress={handleGoogleSignIn} />
-      </View>
+        <View style={styles.hero}>
+          <RotatingHoloCard />
+          <Text style={styles.subtitle}>Buy and sell Pokémon &amp; One Piece cards</Text>
+        </View>
 
-      <Text style={styles.terms}>By continuing you agree this is a demo build — see the README for what's needed to go fully live.</Text>
-    </View>
+        <View style={styles.panel}>
+          <View style={styles.actions}>
+            <Button title="Continue with phone number" variant="gold" icon={<Feather name="phone" size={17} color="#3A2A00" />} onPress={() => navigation.navigate("PhoneSignIn")} style={styles.actionButton} />
+            <Button title="Continue with email" variant="white" icon={<Feather name="mail" size={17} color="#3A2A00" />} onPress={() => navigation.navigate("EmailSignIn")} style={styles.actionButton} />
+            <Button title="Continue with Google" variant="outlineOnDark" loading={googleLoading} icon={<Feather name="chrome" size={17} color={Colors.white} />} onPress={handleGoogleSignIn} style={styles.actionButton} />
+          </View>
+          <Text style={styles.terms}>By continuing you agree this is a demo build — see the README for what's needed to go fully live.</Text>
+        </View>
+      </View>
+    </GalaxyBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.primary, paddingHorizontal: Spacing.xl, justifyContent: "space-between" },
-  hero: { alignItems: "center", gap: Spacing.sm, marginTop: Spacing.xxl },
-  logoCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: Colors.goldDark,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: Spacing.md,
-    borderWidth: 4,
-    borderColor: Colors.white,
+  container: { flex: 1, paddingHorizontal: Spacing.xl, justifyContent: "space-between" },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, alignSelf: "center" },
+  logoMark: { width: 44, height: 44 },
+  title: { ...Typography.h2, color: Colors.white, lineHeight: 24 },
+  titleAccent: { ...Typography.h3, color: Colors.gold, letterSpacing: 3, lineHeight: 18 },
+  hero: { alignItems: "center", justifyContent: "center", flex: 1, gap: Spacing.lg },
+  subtitle: { ...Typography.body, color: "rgba(255,255,255,0.85)", textAlign: "center" },
+  panel: {
+    backgroundColor: "rgba(20, 12, 40, 0.55)",
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.14)",
+    padding: Spacing.lg,
+    gap: Spacing.md,
   },
-  title: { ...Typography.h1, color: Colors.white },
-  subtitle: { ...Typography.body, color: "rgba(255,255,255,0.85)" },
-  actions: { gap: Spacing.md },
-  terms: { ...Typography.small, color: "rgba(255,255,255,0.7)", textAlign: "center" },
+  actions: { alignItems: "center", gap: Spacing.md },
+  actionButton: { paddingHorizontal: Spacing.xxl, minWidth: 260 },
+  terms: { ...Typography.small, color: "rgba(255,255,255,0.55)", textAlign: "center" },
 });
