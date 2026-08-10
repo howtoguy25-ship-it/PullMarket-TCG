@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Text, ScrollView, TextInput, Pressable, Image, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
 import { Button } from "@/components/ui";
@@ -31,6 +32,37 @@ function showAlert(title: string, message: string) {
     return;
   }
   Alert.alert(title, message);
+}
+
+function FranchiseOptionCard({ label, color, icon, active, onPress }: { label: string; color: string; icon: FeatherIcon; active: boolean; onPress: () => void }) {
+  const tilt = useSharedValue(0);
+
+  useEffect(() => {
+    // A quick tilt-and-settle "pop" every time this option becomes selected —
+    // not just a color swap — so picking a franchise feels like a real choice.
+    tilt.value = active ? withSpring(1, { damping: 6, stiffness: 180 }) : withSpring(0, { damping: 10, stiffness: 200 });
+  }, [active]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: 1 + tilt.value * 0.06 },
+      { rotate: `${tilt.value * -3}deg` },
+    ],
+  }));
+
+  return (
+    <Animated.View style={[styles.franchiseCard, { borderColor: color }, active && { backgroundColor: color }, animatedStyle, active && Shadow.card]}>
+      <Pressable onPress={onPress} style={styles.franchiseCardPressable} hitSlop={4}>
+        <Feather name={icon} size={22} color={active ? Colors.white : color} />
+        <Text style={[styles.franchiseCardText, { color: active ? Colors.white : color }]}>{label}</Text>
+        {active ? (
+          <View style={styles.franchiseCheck}>
+            <Feather name="check-circle" size={14} color={Colors.white} />
+          </View>
+        ) : null}
+      </Pressable>
+    </Animated.View>
+  );
 }
 
 function Section({ icon, title, helper, children }: { icon: FeatherIcon; title: string; helper?: string; children: React.ReactNode }) {
@@ -149,15 +181,16 @@ export default function SellScreen() {
       <View style={styles.body}>
         <Section icon="tag" title="What are you selling?" helper="Pick the franchise this card belongs to.">
           <View style={styles.franchiseRow}>
-            {FRANCHISE_OPTIONS.map((opt) => {
-              const active = franchise === opt.key;
-              return (
-                <Pressable key={opt.key} onPress={() => setFranchise(opt.key)} style={[styles.franchiseCard, { borderColor: opt.color }, active && { backgroundColor: opt.color }]}>
-                  <Feather name={opt.key === "pokemon" ? "zap" : "anchor"} size={22} color={active ? Colors.white : opt.color} />
-                  <Text style={[styles.franchiseCardText, { color: active ? Colors.white : opt.color }]}>{opt.label}</Text>
-                </Pressable>
-              );
-            })}
+            {FRANCHISE_OPTIONS.map((opt) => (
+              <FranchiseOptionCard
+                key={opt.key}
+                label={opt.label}
+                color={opt.color}
+                icon={opt.key === "pokemon" ? "zap" : "anchor"}
+                active={franchise === opt.key}
+                onPress={() => setFranchise(opt.key)}
+              />
+            ))}
           </View>
         </Section>
 
@@ -269,8 +302,10 @@ const styles = StyleSheet.create({
   sectionTitle: { ...Typography.bodyBold, color: Colors.text, fontSize: 16 },
   helper: { ...Typography.small, color: Colors.textSecondary, marginTop: 4, lineHeight: 18 },
   franchiseRow: { flexDirection: "row", gap: Spacing.md },
-  franchiseCard: { flex: 1, alignItems: "center", gap: 6, paddingVertical: Spacing.lg, borderRadius: BorderRadius.md, borderWidth: 2, backgroundColor: Colors.surface },
+  franchiseCard: { flex: 1, borderRadius: BorderRadius.md, borderWidth: 2, backgroundColor: Colors.surface, overflow: "visible" },
+  franchiseCardPressable: { alignItems: "center", gap: 6, paddingVertical: Spacing.lg },
   franchiseCardText: { ...Typography.bodyBold, fontSize: 15 },
+  franchiseCheck: { position: "absolute", top: -8, right: -8, backgroundColor: "rgba(0,0,0,0.25)", borderRadius: 10 },
   thumbWrap: { marginRight: Spacing.sm, alignItems: "center" },
   thumb: { width: 84, height: 108, borderRadius: BorderRadius.sm, backgroundColor: Colors.surfaceAlt },
   removeThumb: { position: "absolute", top: -6, right: -6, backgroundColor: Colors.danger, borderRadius: 10, padding: 4 },
