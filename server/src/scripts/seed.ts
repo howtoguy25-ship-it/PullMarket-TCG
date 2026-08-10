@@ -1,10 +1,19 @@
 import "dotenv/config";
+import fs from "fs";
+import path from "path";
+import { randomUUID } from "crypto";
 import { db, pool } from "../db";
 import { users, listings, listingImages } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { UPLOAD_DIR_PATH } from "../lib/upload";
 
 // Demo data only — real listings come from real sellers through the real
 // upload flow (POST /api/listings). Run with `npm run seed`.
+// Images are copied from server/src/seed-assets into the same uploads dir
+// (and served the same /api/uploads/* way) that real seller uploads use —
+// no dependency on an external image host.
+const SEED_ASSETS_DIR = path.resolve(process.cwd(), "server/src/seed-assets");
+
 const DEMO_LISTINGS: Array<{
   title: string;
   description: string;
@@ -12,15 +21,23 @@ const DEMO_LISTINGS: Array<{
   condition: "brand_new" | "great_condition" | "used";
   franchise: "pokemon" | "one_piece";
   quantity: number;
-  color: string;
+  imageSlug: string;
 }> = [
-  { title: "Charizard VMAX Pokémon Rainbow Rare", description: "Champion's Path CHR, near mint, straight from a booster box.", priceCents: 45000, condition: "brand_new", franchise: "pokemon", quantity: 1, color: "F97316" },
-  { title: "Luffy Gear 5 One Piece Leader Parallel", description: "OP-07 leader rare, pulled and sleeved immediately.", priceCents: 32000, condition: "brand_new", franchise: "one_piece", quantity: 2, color: "EF4444" },
-  { title: "Pikachu Pokémon Illustrator Promo Reprint", description: "Great condition, light play from a binder.", priceCents: 8000, condition: "great_condition", franchise: "pokemon", quantity: 3, color: "FACC15" },
-  { title: "Trafalgar Law One Piece Super Rare Alt Art", description: "OP-05, used but no creases, sleeved since day one.", priceCents: 12000, condition: "used", franchise: "one_piece", quantity: 1, color: "3B82F6" },
-  { title: "Mewtwo Pokémon Base Set Shadowless Holo", description: "Vintage grail, great condition with light edge wear.", priceCents: 60000, condition: "great_condition", franchise: "pokemon", quantity: 1, color: "A855F7" },
-  { title: "Shanks One Piece Red Hair Special Card", description: "Brand new from a manga box promo pack.", priceCents: 15000, condition: "brand_new", franchise: "one_piece", quantity: 4, color: "DC2626" },
+  { title: "Charizard VMAX Pokémon Rainbow Rare", description: "Champion's Path CHR, near mint, straight from a booster box.", priceCents: 45000, condition: "brand_new", franchise: "pokemon", quantity: 1, imageSlug: "charizard" },
+  { title: "Luffy Gear 5 One Piece Leader Parallel", description: "OP-07 leader rare, pulled and sleeved immediately.", priceCents: 32000, condition: "brand_new", franchise: "one_piece", quantity: 2, imageSlug: "luffy" },
+  { title: "Pikachu Pokémon Illustrator Promo Reprint", description: "Great condition, light play from a binder.", priceCents: 8000, condition: "great_condition", franchise: "pokemon", quantity: 3, imageSlug: "pikachu" },
+  { title: "Trafalgar Law One Piece Super Rare Alt Art", description: "OP-05, used but no creases, sleeved since day one.", priceCents: 12000, condition: "used", franchise: "one_piece", quantity: 1, imageSlug: "law" },
+  { title: "Mewtwo Pokémon Base Set Shadowless Holo", description: "Vintage grail, great condition with light edge wear.", priceCents: 60000, condition: "great_condition", franchise: "pokemon", quantity: 1, imageSlug: "mewtwo" },
+  { title: "Shanks One Piece Red Hair Special Card", description: "Brand new from a manga box promo pack.", priceCents: 15000, condition: "brand_new", franchise: "one_piece", quantity: 4, imageSlug: "shanks" },
 ];
+
+function copySeedImage(slug: string, variant: "front" | "back"): string {
+  const src = path.join(SEED_ASSETS_DIR, `${slug}-${variant}.jpg`);
+  const filename = `seed-${slug}-${variant}-${randomUUID().slice(0, 8)}.jpg`;
+  const dest = path.join(UPLOAD_DIR_PATH, filename);
+  fs.copyFileSync(src, dest);
+  return `/api/uploads/${filename}`;
+}
 
 async function main() {
   const ownerPhone = process.env.OWNER_PHONE_NUMBER || "+61474011265";
@@ -56,8 +73,8 @@ async function main() {
       .returning();
 
     await db.insert(listingImages).values([
-      { listingId: listing.id, url: `https://placehold.co/800x1000/${item.color}/ffffff.png?text=${encodeURIComponent(item.title.split(" ").slice(0, 3).join("+"))}`, position: 0 },
-      { listingId: listing.id, url: `https://placehold.co/800x1000/${item.color}/ffffff.png?text=Back`, position: 1 },
+      { listingId: listing.id, url: copySeedImage(item.imageSlug, "front"), position: 0 },
+      { listingId: listing.id, url: copySeedImage(item.imageSlug, "back"), position: 1 },
     ]);
   }
 

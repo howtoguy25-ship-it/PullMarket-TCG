@@ -8,6 +8,7 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button, Badge } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
+import { resolveImageUrl } from "@/lib/media";
 import { REPORT_REASON_LABELS } from "@shared/validation";
 
 type Rt = RouteProp<RootStackParamList, "OwnerReportDetail">;
@@ -78,7 +79,7 @@ export default function OwnerReportDetailScreen() {
           {report.listing.images.length ? (
             <ScrollView horizontal style={{ marginTop: Spacing.sm }}>
               {report.listing.images.map((img, i) => (
-                <Image key={i} source={{ uri: img }} style={styles.listingImage} />
+                <Image key={i} source={{ uri: resolveImageUrl(img) }} style={styles.listingImage} />
               ))}
             </ScrollView>
           ) : null}

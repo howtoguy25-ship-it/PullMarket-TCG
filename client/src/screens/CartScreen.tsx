@@ -12,6 +12,7 @@ import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/t
 import { Button, PriceTag, EmptyState } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
+import { resolveImageUrl } from "@/lib/media";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -97,7 +98,7 @@ export default function CartScreen() {
 
           {group.items.map((item) => (
             <View key={item.id} style={styles.itemRow}>
-              {item.image ? <Image source={{ uri: item.image }} style={styles.itemImage} /> : <View style={[styles.itemImage, styles.itemImagePlaceholder]} />}
+              {item.image ? <Image source={{ uri: resolveImageUrl(item.image) }} style={styles.itemImage} /> : <View style={[styles.itemImage, styles.itemImagePlaceholder]} />}
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemTitle} numberOfLines={2}>
                   {item.title}

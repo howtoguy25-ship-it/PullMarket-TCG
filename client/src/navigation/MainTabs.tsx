@@ -24,16 +24,15 @@ export function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerTintColor: Colors.text,
-        headerStyle: { backgroundColor: Colors.background },
+        headerShown: false,
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarIcon: ({ color, size }) => <Feather name={ICONS[route.name as keyof MainTabsParamList]} size={size} color={color} />,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: "PullMarket TCG" }} />
+      <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
-      <Tab.Screen name="Sell" component={SellScreen} options={{ title: "Sell a Card" }} />
+      <Tab.Screen name="Sell" component={SellScreen} />
       <Tab.Screen name="Favorites" component={FavoritesScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

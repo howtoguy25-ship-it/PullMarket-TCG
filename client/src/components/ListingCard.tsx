@@ -4,6 +4,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, BorderRadius, Typography, Shadow } from "@/constants/theme";
 import { apiJson, ApiError } from "@/lib/api";
+import { resolveImageUrl } from "@/lib/media";
 import { PriceTag, Badge } from "./ui";
 import { CONDITION_LABELS } from "@shared/validation";
 
@@ -49,7 +50,7 @@ export function ListingCard({ listing, onPress, onRequireAuth }: { listing: List
     <Pressable onPress={onPress} style={[styles.card, Shadow.card]}>
       <View style={styles.imageWrap}>
         {listing.images[0] ? (
-          <Image source={{ uri: listing.images[0] }} style={styles.image} resizeMode="cover" />
+          <Image source={{ uri: resolveImageUrl(listing.images[0]) }} style={styles.image} resizeMode="cover" />
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]}>
             <Feather name="image" size={28} color={Colors.textMuted} />

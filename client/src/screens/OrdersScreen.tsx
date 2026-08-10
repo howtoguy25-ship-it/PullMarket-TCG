@@ -10,6 +10,7 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Badge, EmptyState, PriceTag } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { resolveImageUrl } from "@/lib/media";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Orders">;
 
@@ -63,7 +64,7 @@ export default function OrdersScreen() {
           const firstItem = item.items[0];
           return (
             <Pressable style={styles.card} onPress={() => navigation.navigate("OrderDetail", { orderId: item.id })}>
-              {firstItem?.imageUrlSnapshot ? <Image source={{ uri: firstItem.imageUrlSnapshot }} style={styles.thumb} /> : <View style={[styles.thumb, styles.thumbPlaceholder]} />}
+              {firstItem?.imageUrlSnapshot ? <Image source={{ uri: resolveImageUrl(firstItem.imageUrlSnapshot) }} style={styles.thumb} /> : <View style={[styles.thumb, styles.thumbPlaceholder]} />}
               <View style={{ flex: 1 }}>
                 <Text style={styles.title} numberOfLines={1}>
                   {firstItem?.titleSnapshot ?? "Order"}

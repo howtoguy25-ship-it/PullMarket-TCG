@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { View, StyleSheet, Text, ScrollView, TextInput, Pressable, Image, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as ImagePicker from "expo-image-picker";
@@ -31,7 +30,6 @@ function showAlert(title: string, message: string) {
 export default function SellScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -111,7 +109,7 @@ export default function SellScreen() {
 
   if (!user) {
     return (
-      <View style={[styles.container, styles.center, { paddingTop: headerHeight }]}>
+      <View style={[styles.container, styles.center, { paddingTop: insets.top + Spacing.xxl }]}>
         <Feather name="lock" size={32} color={Colors.textMuted} />
         <Text style={styles.emptyText}>Sign in to list a card for sale.</Text>
       </View>
@@ -119,7 +117,8 @@ export default function SellScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.lg, paddingTop: headerHeight + Spacing.md, paddingBottom: insets.bottom + Spacing.xxl }}>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.lg, paddingTop: insets.top + Spacing.md, paddingBottom: insets.bottom + Spacing.xxl }}>
+      <Text style={styles.screenTitle}>Sell a Card</Text>
       <Text style={styles.sectionTitle}>Photos ({images.length}/{MAX_IMAGES})</Text>
       <Text style={styles.helper}>Add up to 6 photos. Scan with the camera or upload from your library — swipe through them on the listing page.</Text>
 
@@ -213,6 +212,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   center: { alignItems: "center", justifyContent: "center", gap: Spacing.sm },
   emptyText: { color: Colors.textSecondary, ...Typography.body },
+  screenTitle: { ...Typography.h2, color: Colors.text, marginBottom: Spacing.xs },
   sectionTitle: { ...Typography.bodyBold, color: Colors.text, marginTop: Spacing.lg, marginBottom: Spacing.xs },
   helper: { ...Typography.small, color: Colors.textSecondary },
   thumbWrap: { marginRight: Spacing.sm, alignItems: "center" },

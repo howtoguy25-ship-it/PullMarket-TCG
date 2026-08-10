@@ -10,6 +10,7 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button, Badge, PriceTag } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
+import { resolveImageUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
 import { COURIER_LABELS, isValidTrackingNumber } from "@shared/validation";
 
@@ -120,7 +121,7 @@ export default function OrderDetailScreen() {
 
       {order.items.map((item, i) => (
         <View key={i} style={styles.itemRow}>
-          {item.imageUrlSnapshot ? <Image source={{ uri: item.imageUrlSnapshot }} style={styles.itemImage} /> : <View style={[styles.itemImage, styles.itemImagePlaceholder]} />}
+          {item.imageUrlSnapshot ? <Image source={{ uri: resolveImageUrl(item.imageUrlSnapshot) }} style={styles.itemImage} /> : <View style={[styles.itemImage, styles.itemImagePlaceholder]} />}
           <View style={{ flex: 1 }}>
             <Text style={styles.itemTitle}>{item.titleSnapshot}</Text>
             <Text style={styles.itemMeta}>Qty {item.quantity}</Text>

@@ -10,6 +10,7 @@ import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/t
 import { Button, PriceTag } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
+import { resolveImageUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
 import { CONDITION_LABELS, SHIPPING_DEADLINE_BUSINESS_DAYS } from "@shared/validation";
 
@@ -98,7 +99,7 @@ export default function ListingDetailScreen() {
           {(listing.images.length ? listing.images : [null]).map((img, i) => (
             <Pressable key={i} onPress={() => img && navigation.navigate("ImageViewer", { images: listing.images, startIndex: i })} style={{ width }}>
               {img ? (
-                <Image source={{ uri: img }} style={styles.heroImage} resizeMode="cover" />
+                <Image source={{ uri: resolveImageUrl(img) }} style={styles.heroImage} resizeMode="cover" />
               ) : (
                 <View style={[styles.heroImage, styles.heroPlaceholder]}>
                   <Feather name="image" size={48} color={Colors.textMuted} />

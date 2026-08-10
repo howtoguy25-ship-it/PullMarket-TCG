@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { Colors, Spacing } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/types";
+import { resolveImageUrl } from "@/lib/media";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ImageViewer">;
 type Rt = RouteProp<RootStackParamList, "ImageViewer">;
@@ -34,7 +35,7 @@ export default function ImageViewerScreen() {
         onMomentumScrollEnd={(e) => setIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
         renderItem={({ item }) => (
           <View style={{ width, height, alignItems: "center", justifyContent: "center" }}>
-            <Image source={{ uri: item }} style={styles.image} resizeMode="contain" />
+            <Image source={{ uri: resolveImageUrl(item) }} style={styles.image} resizeMode="contain" />
           </View>
         )}
       />
