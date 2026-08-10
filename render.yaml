@@ -13,7 +13,11 @@ services:
     # preDeployCommand isn't available on Render's free plan, so the DB
     # migration runs as the last build step instead (still runs before the
     # new version goes live, just not in its own isolated pre-deploy phase).
-    buildCommand: npm install && npm run web:build && npm run server:build && npm run db:push
+    # --include=dev is required: NODE_ENV=production (set below) makes plain
+    # `npm install` skip devDependencies, but babel-plugin-module-resolver,
+    # esbuild, and drizzle-kit (all devDependencies) are needed to run this
+    # build itself.
+    buildCommand: npm install --include=dev && npm run web:build && npm run server:build && npm run db:push
     startCommand: npm run server:start
     envVars:
       - key: NODE_ENV
