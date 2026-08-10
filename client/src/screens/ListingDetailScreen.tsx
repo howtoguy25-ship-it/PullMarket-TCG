@@ -8,6 +8,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
 import { Button, PriceTag } from "@/components/ui";
+import { MascotAvatar } from "@/components/MascotAvatar";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/media";
@@ -163,9 +164,7 @@ export default function ListingDetailScreen() {
 
         {listing.seller ? (
           <View style={styles.sellerRow}>
-            <View style={styles.sellerAvatar}>
-              <Text style={styles.sellerAvatarText}>{listing.seller.username.slice(0, 1).toUpperCase()}</Text>
-            </View>
+            <MascotAvatar seed={listing.seller.username} size={38} />
             <Text style={styles.sellerName}>@{listing.seller.username}</Text>
           </View>
         ) : null}
@@ -221,8 +220,6 @@ const styles = StyleSheet.create({
   shippingNote: { flexDirection: "row", gap: Spacing.sm, alignItems: "flex-start", backgroundColor: "#FEF3E2", padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.md },
   shippingNoteText: { flex: 1, ...Typography.small, color: "#92650B" },
   sellerRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginTop: Spacing.lg },
-  sellerAvatar: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.secondary, alignItems: "center", justifyContent: "center" },
-  sellerAvatarText: { color: Colors.white, fontWeight: "800" },
   sellerName: { ...Typography.bodyBold, color: Colors.text },
   reportRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: Spacing.lg },
   reportText: { ...Typography.small, color: Colors.textSecondary, textDecorationLine: "underline" },

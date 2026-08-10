@@ -51,9 +51,21 @@ function AuthNavigator() {
 
 function MainNavigator() {
   return (
-    <RootStack.Navigator screenOptions={{ headerTintColor: Colors.text, headerStyle: { backgroundColor: Colors.background } }}>
+    <RootStack.Navigator
+      screenOptions={{
+        headerTintColor: Colors.text,
+        headerStyle: { backgroundColor: Colors.background },
+        // Explicit, not just the default: on iOS a plain-style native header
+        // can render as a translucent glass bar that blurs/overlays the
+        // content scrolling underneath it (recent iOS versions do this by
+        // default). Product photos need a solid bar above them, not behind
+        // one, so every screen in this stack forces an opaque header.
+        headerTransparent: false,
+        headerBlurEffect: "none",
+      }}
+    >
       <RootStack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
-      <RootStack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "" }} />
+      <RootStack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "", headerTransparent: false, headerStyle: { backgroundColor: Colors.background } }} />
       <RootStack.Screen name="ImageViewer" component={ImageViewerScreen} options={{ headerShown: false, presentation: "fullScreenModal" }} />
       <RootStack.Screen name="Cart" component={CartScreen} options={{ title: "Your Cart" }} />
       <RootStack.Screen name="CheckoutReturn" component={CheckoutReturnScreen} options={{ title: "", headerBackVisible: false }} />

@@ -7,6 +7,7 @@ import { Feather } from "@expo/vector-icons";
 import { useMutation } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
+import { MascotAvatar } from "@/components/MascotAvatar";
 import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { apiJson } from "@/lib/api";
@@ -67,9 +68,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl, paddingHorizontal: Spacing.lg }}>
       <View style={styles.header}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{user.username.slice(0, 1).toUpperCase()}</Text>
-        </View>
+        <MascotAvatar seed={user.username} size={56} />
         <View>
           <Text style={styles.username}>@{user.username}</Text>
           <Text style={styles.contact}>{user.email ?? user.phoneNumber}</Text>
@@ -113,8 +112,6 @@ const styles = StyleSheet.create({
   center: { alignItems: "center", justifyContent: "center" },
   notSignedIn: { ...Typography.body, color: Colors.textSecondary },
   header: { flexDirection: "row", alignItems: "center", gap: Spacing.md, marginBottom: Spacing.lg },
-  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: Colors.secondary, alignItems: "center", justifyContent: "center" },
-  avatarText: { color: Colors.white, fontWeight: "800", fontSize: 22 },
   username: { ...Typography.h3, color: Colors.text },
   contact: { ...Typography.small, color: Colors.textSecondary },
   sectionHeader: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginTop: Spacing.lg, marginBottom: Spacing.xs, letterSpacing: 0.5 },
