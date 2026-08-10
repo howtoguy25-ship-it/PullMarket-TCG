@@ -113,6 +113,37 @@ router.post("/signup/complete", async (req, res) => {
 });
 
 // ── Google Sign-In ────────────────────────────────────────────────────────
+// Shared by both the native id-token flow and the web authorization-code
+// flow below: looks up (or flags as new) the Google account behind a
+// verified idToken.
+async function resolveGoogleIdentity(idToken: string, clientId: string, res: import("express").Response) {
+  const client = new OAuth2Client(clientId);
+  const ticket = await client.verifyIdToken({ idToken, audience: clientId });
+  const payload = ticket.getPayload();
+  if (!payload?.sub || !payload.email) {
+    res.status(400).json({ message: "Could not verify Google account" });
+    return;
+  }
+
+  const [existing] = await db.select().from(users).where(eq(users.googleId, payload.sub));
+  if (existing) {
+    const token = signAuthToken({ userId: existing.id, tokenVersion: existing.tokenVersion ?? 0 });
+    res.json({ status: "signed_in", token, user: existing });
+    return;
+  }
+
+  const [byEmail] = await db.select().from(users).where(eq(users.email, payload.email));
+  if (byEmail) {
+    const [updated] = await db.update(users).set({ googleId: payload.sub }).where(eq(users.id, byEmail.id)).returning();
+    const token = signAuthToken({ userId: updated.id, tokenVersion: updated.tokenVersion ?? 0 });
+    res.json({ status: "signed_in", token, user: updated });
+    return;
+  }
+
+  res.json({ status: "needs_username", googleId: payload.sub, email: payload.email, displayName: payload.name, avatarUrl: payload.picture });
+}
+
+// Native flow (future EAS build): client already holds a verified Google idToken.
 router.post("/google", async (req, res) => {
   const schema = z.object({ idToken: z.string().min(10) });
   const parsed = schema.safeParse(req.body);
@@ -126,27 +157,38 @@ router.post("/google", async (req, res) => {
   }
 
   try {
-    const client = new OAuth2Client(clientId);
-    const ticket = await client.verifyIdToken({ idToken: parsed.data.idToken, audience: clientId });
-    const payload = ticket.getPayload();
-    if (!payload?.sub || !payload.email) return res.status(400).json({ message: "Could not verify Google account" });
-
-    const [existing] = await db.select().from(users).where(eq(users.googleId, payload.sub));
-    if (existing) {
-      const token = signAuthToken({ userId: existing.id, tokenVersion: existing.tokenVersion ?? 0 });
-      return res.json({ status: "signed_in", token, user: existing });
-    }
-
-    const [byEmail] = await db.select().from(users).where(eq(users.email, payload.email));
-    if (byEmail) {
-      const [updated] = await db.update(users).set({ googleId: payload.sub }).where(eq(users.id, byEmail.id)).returning();
-      const token = signAuthToken({ userId: updated.id, tokenVersion: updated.tokenVersion ?? 0 });
-      return res.json({ status: "signed_in", token, user: updated });
-    }
-
-    res.json({ status: "needs_username", googleId: payload.sub, email: payload.email, displayName: payload.name, avatarUrl: payload.picture });
+    await resolveGoogleIdentity(parsed.data.idToken, clientId, res);
   } catch (err) {
     console.error("Google sign-in failed:", err);
+    res.status(400).json({ message: "Google sign-in failed" });
+  }
+});
+
+// Web flow: browser popup (Google Identity Services authorization-code UX)
+// hands the client a one-time code instead of an idToken, since GIS's popup
+// code flow is far less prone to being blocked by browser privacy features
+// than the One Tap / idToken flow. The server exchanges it for tokens.
+router.post("/google/code", async (req, res) => {
+  const schema = z.object({ code: z.string().min(10) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+
+  const clientId = process.env.GOOGLE_WEB_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    return res.status(503).json({
+      message: "Google Sign-In isn't configured yet. Set GOOGLE_WEB_CLIENT_ID and GOOGLE_CLIENT_SECRET (see .env.example) to enable it.",
+    });
+  }
+
+  try {
+    // "postmessage" is the redirect_uri Google expects for its JS popup code flow.
+    const codeClient = new OAuth2Client(clientId, clientSecret, "postmessage");
+    const { tokens } = await codeClient.getToken(parsed.data.code);
+    if (!tokens.id_token) return res.status(400).json({ message: "Google sign-in failed" });
+    await resolveGoogleIdentity(tokens.id_token, clientId, res);
+  } catch (err) {
+    console.error("Google sign-in (code exchange) failed:", err);
     res.status(400).json({ message: "Google sign-in failed" });
   }
 });

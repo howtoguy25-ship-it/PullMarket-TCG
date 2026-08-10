@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, StyleSheet, Text, Image, Platform, Alert } from "react-native";
+import Constants from "expo-constants";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
@@ -10,6 +11,8 @@ import { GalaxyBackground } from "@/components/GalaxyBackground";
 import { RotatingHoloCard } from "@/components/RotatingHoloCard";
 import { AuthStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { signInWithGoogleWeb } from "@/lib/googleAuth";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "Welcome">;
 
@@ -21,26 +24,54 @@ function showAlert(title: string, message: string) {
   Alert.alert(title, message);
 }
 
+type GoogleAuthResult =
+  | { status: "signed_in"; token: string; user: any }
+  | { status: "needs_username"; googleId: string; email: string; displayName?: string; avatarUrl?: string };
+
 export default function WelcomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const { signIn } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
-    // Real Google Sign-In requires GOOGLE_WEB_CLIENT_ID (+ iOS/Android client
-    // IDs for native builds) from https://console.cloud.google.com — once
-    // set, wire @react-native-google-signin/google-signin (native) or
-    // Google Identity Services (web) here to obtain an idToken and POST it
-    // to /api/auth/google. Left as a clear call-to-action until those
-    // credentials exist so the button doesn't silently pretend to work.
+    const clientId = Constants.expoConfig?.extra?.GOOGLE_WEB_CLIENT_ID as string | undefined;
+
+    if (Platform.OS !== "web") {
+      // Native Google Sign-In needs GOOGLE_IOS_CLIENT_ID / GOOGLE_ANDROID_CLIENT_ID
+      // and the @react-native-google-signin/google-signin native module, which
+      // only works in an EAS-built app (not Expo Go). Wire it here once those
+      // credentials exist and a dev/production build is available.
+      showAlert("Not available in this preview", "Google Sign-In on iOS/Android needs a native app build (via EAS) — it's already working on the web version.");
+      return;
+    }
+
+    if (!clientId) {
+      showAlert("Google Sign-In not set up yet", "Missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID.");
+      return;
+    }
+
     setGoogleLoading(true);
     try {
-      await apiJson("POST", "/api/auth/google", { idToken: "placeholder" });
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 503) {
-        showAlert("Google Sign-In not set up yet", err.message);
+      const code = await signInWithGoogleWeb(clientId);
+      const result = await apiJson<GoogleAuthResult>("POST", "/api/auth/google/code", { code });
+      if (result.status === "signed_in") {
+        await signIn(result.token, result.user);
       } else {
-        showAlert("Google Sign-In not set up yet", "Add GOOGLE_WEB_CLIENT_ID in your .env, then wire the native Google SDK here — see the code comment in WelcomeScreen.tsx.");
+        navigation.navigate("UsernameSetup", {
+          googleId: result.googleId,
+          email: result.email,
+          displayName: result.displayName,
+          avatarUrl: result.avatarUrl,
+        });
+      }
+    } catch (err) {
+      if (err instanceof ApiError) {
+        showAlert("Google Sign-In failed", err.message);
+      } else if (err instanceof Error && /cancelled/i.test(err.message)) {
+        // user closed the popup — no need to show an error
+      } else {
+        showAlert("Google Sign-In failed", err instanceof Error ? err.message : "Please try again.");
       }
     } finally {
       setGoogleLoading(false);
