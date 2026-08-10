@@ -8,24 +8,27 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://your-dev-api.example.com",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_..."
+        "EXPO_PUBLIC_API_URL": "https://pullmarkettcg.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878738587499-f1m1h9scgone6mb3md478ikqj4qlbed2.apps.googleusercontent.com",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
       }
     },
     "preview": {
       "distribution": "internal",
       "channel": "preview",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://your-staging-api.example.com",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_test_..."
+        "EXPO_PUBLIC_API_URL": "https://pullmarkettcg.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878738587499-f1m1h9scgone6mb3md478ikqj4qlbed2.apps.googleusercontent.com",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://your-production-api.example.com",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_live_..."
+        "EXPO_PUBLIC_API_URL": "https://pullmarkettcg.com",
+        "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878738587499-f1m1h9scgone6mb3md478ikqj4qlbed2.apps.googleusercontent.com",
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
       }
     }
   },
