@@ -60,7 +60,9 @@ export function Button({
       ) : (
         <View style={styles.buttonContent}>
           {icon}
-          <Text style={[styles.buttonText, { color: textColor }]}>{title}</Text>
+          <Text style={[styles.buttonText, { color: textColor }]} numberOfLines={1} ellipsizeMode="tail">
+            {title}
+          </Text>
         </View>
       )}
     </Pressable>

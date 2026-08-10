@@ -69,7 +69,6 @@ export default function WelcomeScreen() {
             <Button title="Continue with email" variant="white" icon={<Feather name="mail" size={17} color="#3A2A00" />} onPress={() => navigation.navigate("EmailSignIn")} style={styles.actionButton} />
             <Button title="Continue with Google" variant="outlineOnDark" loading={googleLoading} icon={<Feather name="chrome" size={17} color={Colors.white} />} onPress={handleGoogleSignIn} style={styles.actionButton} />
           </View>
-          <Text style={styles.terms}>By continuing you agree this is a demo build — see the README for what's needed to go fully live.</Text>
         </View>
       </View>
     </GalaxyBackground>
@@ -77,7 +76,7 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: Spacing.xl, justifyContent: "space-between" },
+  container: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", paddingHorizontal: Spacing.xl, justifyContent: "space-between" },
   brandRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, alignSelf: "center" },
   logoMark: { width: 44, height: 44 },
   title: { ...Typography.h2, color: Colors.white, lineHeight: 24 },
@@ -90,9 +89,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.14)",
     padding: Spacing.lg,
-    gap: Spacing.md,
   },
-  actions: { alignItems: "center", gap: Spacing.md },
-  actionButton: { paddingHorizontal: Spacing.xxl, minWidth: 260 },
-  terms: { ...Typography.small, color: "rgba(255,255,255,0.55)", textAlign: "center" },
+  actions: { alignItems: "stretch", gap: Spacing.md },
+  actionButton: { width: "100%", paddingHorizontal: Spacing.lg },
 });
