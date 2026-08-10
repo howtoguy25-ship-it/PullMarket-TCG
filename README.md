@@ -44,9 +44,21 @@ npm run dev                 # runs the API (:5050) and Expo web (:8090) together
 
 Open http://localhost:8090 for the web build, or run `npm run dev:client` alone and scan the QR code with Expo Go for a real device.
 
-## Deploying the API + database
+## Deploying the API + web app — making it live and public
 
-The server (`server/`) is a standard Node/Express app — deploy it to Render (or any Node host) as a web service, with a managed Postgres database attached. Set every env var from `.env.example` in the host's dashboard. Build command: `npm run server:build`. Start command: `npm run server:start`.
+A single Node process serves both the JSON API and the exported web build (production-tested locally: `npm run web:build && npm run server:build && npm run server:start` serves everything from one port) — no separate frontend host needed.
+
+**One-click path (recommended):** this repo includes `render.yaml`, a [Render Blueprint](https://render.com/docs/blueprint-spec). In the Render dashboard: **New → Blueprint** → connect the `PullMarket-TCG` GitHub repo → Render reads `render.yaml` and provisions a free Postgres database and a web service together automatically, with `DATABASE_URL` and `JWT_SECRET` wired up for you.
+
+After the first deploy finishes:
+1. Copy the URL Render assigned the service (top of its dashboard page, looks like `https://pullmarket-tcg.onrender.com`).
+2. Service → **Environment** → set both `APP_BASE_URL` and `EXPO_PUBLIC_API_URL` to that exact URL.
+3. Add the Stripe/Twilio/SMTP/Google values from the setup steps below as you get them (each one is optional at first — the app degrades gracefully, not silently, when one is missing).
+4. Click **Manual Deploy → Deploy latest commit** to pick up the env var changes.
+
+Your app is then live and public at that URL — open it in any browser for the web version, and point `EXPO_PUBLIC_API_URL` at it for the mobile build (see below) so the app in your pocket talks to the same live backend.
+
+**Manual path (any Node host):** build command `npm run web:build && npm run server:build`, pre-deploy/migration command `npm run db:push`, start command `npm run server:start`. Set every env var from `.env.example`.
 
 ## Building & submitting the mobile app (via expo.dev / EAS)
 

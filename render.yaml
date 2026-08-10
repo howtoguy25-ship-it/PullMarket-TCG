@@ -1,0 +1,71 @@
+databases:
+  - name: pullmarket-tcg-db
+    plan: free
+    databaseName: pullmarket_tcg
+    user: pullmarket_tcg
+
+services:
+  - type: web
+    name: pullmarket-tcg
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm install && npm run web:build && npm run server:build
+    preDeployCommand: npm run db:push
+    startCommand: npm run server:start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: pullmarket-tcg-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: OWNER_PHONE_NUMBER
+        value: "+61474011265"
+      - key: PLATFORM_FEE_CENTS
+        value: "200"
+      # These two need the URL Render assigns this service on first deploy
+      # (visible at the top of the service dashboard, looks like
+      # https://pullmarket-tcg.onrender.com). Paste it into both after the
+      # first deploy finishes, then trigger a manual redeploy.
+      - key: APP_BASE_URL
+        sync: false
+      - key: EXPO_PUBLIC_API_URL
+        sync: false
+      # Fill these in via the Render dashboard (Environment tab) once you
+      # have real values — see README.md "Setup steps" for where each one
+      # comes from. Until set, the app degrades gracefully (OTP codes log
+      # instead of sending, Stripe endpoints return a clear "not configured"
+      # message) rather than failing silently.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: OWNER_REPORT_EMAIL
+        sync: false
+      - key: GOOGLE_WEB_CLIENT_ID
+        sync: false
+      - key: EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID
+        sync: false
