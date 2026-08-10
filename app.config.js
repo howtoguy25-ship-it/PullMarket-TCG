@@ -1,4 +1,16 @@
+// Google's iOS OAuth client IDs look like "12345-abc.apps.googleusercontent.com" —
+// the URL scheme @react-native-google-signin needs iOS configured with is that
+// same string with the two labels swapped: "com.googleusercontent.apps.12345-abc".
+function iosClientIdToUrlScheme(iosClientId) {
+  const suffix = ".apps.googleusercontent.com";
+  if (!iosClientId.endsWith(suffix)) return null;
+  return `com.googleusercontent.apps.${iosClientId.slice(0, -suffix.length)}`;
+}
+
 module.exports = () => {
+  const googleIosClientId = process.env.GOOGLE_IOS_CLIENT_ID || "";
+  const googleIosUrlScheme = googleIosClientId ? iosClientIdToUrlScheme(googleIosClientId) : null;
+
   return {
     expo: {
       name: "PullMarket TCG",
@@ -67,11 +79,17 @@ module.exports = () => {
             backgroundColor: "#0B0716",
           },
         ],
+        // Only registers the native iOS URL scheme once GOOGLE_IOS_CLIENT_ID is
+        // set — harmless to include the plugin either way, but the scheme is
+        // required for Google's sign-in redirect to return to the app on iOS.
+        ...(googleIosUrlScheme ? [["@react-native-google-signin/google-signin", { iosUrlScheme: googleIosUrlScheme }]] : []),
       ],
       extra: {
         API_URL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:5050",
         STRIPE_PUBLISHABLE_KEY: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
         GOOGLE_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || "",
+        GOOGLE_IOS_CLIENT_ID: googleIosClientId,
+        GOOGLE_ANDROID_CLIENT_ID: process.env.GOOGLE_ANDROID_CLIENT_ID || "",
         OWNER_PHONE_NUMBER: process.env.OWNER_PHONE_NUMBER || "+61474011265",
       },
     },

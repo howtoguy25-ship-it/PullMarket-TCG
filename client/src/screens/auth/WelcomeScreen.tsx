@@ -34,18 +34,47 @@ export default function WelcomeScreen() {
   const { signIn } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const handleGoogleSignIn = async () => {
-    const clientId = Constants.expoConfig?.extra?.GOOGLE_WEB_CLIENT_ID as string | undefined;
+  const handleGoogleResult = async (result: GoogleAuthResult) => {
+    if (result.status === "signed_in") {
+      await signIn(result.token, result.user);
+    } else {
+      navigation.navigate("UsernameSetup", {
+        googleId: result.googleId,
+        email: result.email,
+        displayName: result.displayName,
+        avatarUrl: result.avatarUrl,
+      });
+    }
+  };
 
-    if (Platform.OS !== "web") {
-      // Native Google Sign-In needs GOOGLE_IOS_CLIENT_ID / GOOGLE_ANDROID_CLIENT_ID
-      // and the @react-native-google-signin/google-signin native module, which
-      // only works in an EAS-built app (not Expo Go). Wire it here once those
-      // credentials exist and a dev/production build is available.
-      showAlert("Not available in this preview", "Google Sign-In on iOS/Android needs a native app build (via EAS) — it's already working on the web version.");
+  const handleGoogleSignInWeb = async (clientId: string) => {
+    const code = await signInWithGoogleWeb(clientId);
+    const result = await apiJson<GoogleAuthResult>("POST", "/api/auth/google/code", { code });
+    await handleGoogleResult(result);
+  };
+
+  const handleGoogleSignInNative = async (webClientId: string) => {
+    const iosClientId = Constants.expoConfig?.extra?.GOOGLE_IOS_CLIENT_ID as string | undefined;
+    if (Platform.OS === "ios" && !iosClientId) {
+      showAlert("Google Sign-In not set up yet", "Missing GOOGLE_IOS_CLIENT_ID — create an iOS OAuth client at console.cloud.google.com and set it in your environment.");
       return;
     }
 
+    const { GoogleSignin, isSuccessResponse } = await import("@react-native-google-signin/google-signin");
+    GoogleSignin.configure({ webClientId, iosClientId });
+    if (Platform.OS === "android") await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+    const response = await GoogleSignin.signIn();
+    if (!isSuccessResponse(response)) return; // user cancelled — not an error
+    const idToken = response.data.idToken;
+    if (!idToken) throw new Error("Google didn't return an ID token");
+
+    const result = await apiJson<GoogleAuthResult>("POST", "/api/auth/google", { idToken });
+    await handleGoogleResult(result);
+  };
+
+  const handleGoogleSignIn = async () => {
+    const clientId = Constants.expoConfig?.extra?.GOOGLE_WEB_CLIENT_ID as string | undefined;
     if (!clientId) {
       showAlert("Google Sign-In not set up yet", "Missing EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID.");
       return;
@@ -53,23 +82,18 @@ export default function WelcomeScreen() {
 
     setGoogleLoading(true);
     try {
-      const code = await signInWithGoogleWeb(clientId);
-      const result = await apiJson<GoogleAuthResult>("POST", "/api/auth/google/code", { code });
-      if (result.status === "signed_in") {
-        await signIn(result.token, result.user);
+      if (Platform.OS === "web") {
+        await handleGoogleSignInWeb(clientId);
       } else {
-        navigation.navigate("UsernameSetup", {
-          googleId: result.googleId,
-          email: result.email,
-          displayName: result.displayName,
-          avatarUrl: result.avatarUrl,
-        });
+        // Only works in a native app built via EAS — the native Google Sign-In
+        // module isn't available inside Expo Go or the web preview.
+        await handleGoogleSignInNative(clientId);
       }
     } catch (err) {
       if (err instanceof ApiError) {
         showAlert("Google Sign-In failed", err.message);
       } else if (err instanceof Error && /cancelled/i.test(err.message)) {
-        // user closed the popup — no need to show an error
+        // user closed the popup/sheet — no need to show an error
       } else {
         showAlert("Google Sign-In failed", err instanceof Error ? err.message : "Please try again.");
       }
