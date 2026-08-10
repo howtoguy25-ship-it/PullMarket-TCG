@@ -1,0 +1,159 @@
+import React, { useMemo, useState } from "react";
+import { View, StyleSheet, Text, FlatList, Pressable, TextInput, RefreshControl, Platform, Alert } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Feather } from "@expo/vector-icons";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
+import { ListingCard, ListingSummary } from "@/components/ListingCard";
+import { EmptyState } from "@/components/ui";
+import { RootStackParamList } from "@/navigation/types";
+import { apiJson } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { useCartCount } from "@/hooks/useCartCount";
+import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const FRANCHISE_FILTERS: { key: string; label: string; color: string }[] = [
+  { key: "pokemon", label: "Pokémon", color: Colors.pokemon },
+  { key: "one_piece", label: "One Piece", color: Colors.onePiece },
+];
+
+export default function HomeScreen() {
+  const navigation = useNavigation<Nav>();
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [query, setQuery] = useState("");
+  const [franchises, setFranchises] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const cartCount = useCartCount();
+  const unreadCount = useUnreadNotifications();
+
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (franchises.length) params.set("franchise", franchises.join(","));
+    const s = params.toString();
+    return s ? `?${s}` : "";
+  }, [query, franchises]);
+
+  const { data: listings, isLoading } = useQuery<ListingSummary[]>({
+    queryKey: [`/api/listings${queryString}`],
+  });
+
+  const { data: favorites } = useQuery<ListingSummary[]>({ queryKey: ["/api/favorites"], enabled: !!user });
+  const favoritedIds = useMemo(() => new Set((favorites ?? []).map((f) => f.id)), [favorites]);
+
+  const toggleFranchise = (key: string) => {
+    setFranchises((prev) => (prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]));
+  };
+
+  const requireAuth = () => {
+    if (!user) {
+      if (Platform.OS === "web") window.alert("Sign in to do that");
+      else Alert.alert("Sign in required", "Sign in to favorite or buy cards.");
+      return false;
+    }
+    return true;
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+    setRefreshing(false);
+  };
+
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>PullMarket TCG</Text>
+        <View style={styles.headerIcons}>
+          <Pressable onPress={() => navigation.navigate("Notifications")} style={styles.iconButton} hitSlop={8}>
+            <Feather name="bell" size={22} color={Colors.text} />
+            {unreadCount > 0 ? <View style={styles.dot} /> : null}
+          </Pressable>
+          <Pressable onPress={() => navigation.navigate("Cart")} style={styles.iconButton} hitSlop={8}>
+            <Feather name="shopping-cart" size={22} color={Colors.text} />
+            {cartCount > 0 ? (
+              <View style={styles.cartBadge}>
+                <Text style={styles.cartBadgeText}>{cartCount}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.searchBar}>
+        <Feather name="search" size={18} color={Colors.textMuted} />
+        <TextInput style={styles.searchInput} placeholder="Search cards, sets, characters…" placeholderTextColor={Colors.textMuted} value={query} onChangeText={setQuery} />
+        {query ? (
+          <Pressable onPress={() => setQuery("")} hitSlop={8}>
+            <Feather name="x" size={18} color={Colors.textMuted} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      <View style={styles.chipsRow}>
+        {FRANCHISE_FILTERS.map((f) => {
+          const active = franchises.includes(f.key);
+          return (
+            <Pressable key={f.key} onPress={() => toggleFranchise(f.key)} style={[styles.chip, { backgroundColor: active ? f.color : Colors.surface, borderColor: f.color }]}>
+              <Text style={[styles.chipText, { color: active ? Colors.white : f.color }]}>{f.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <FlatList
+        data={listings ?? []}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+        renderItem={({ item }) => (
+          <ListingCard
+            listing={{ ...item, isFavorited: favoritedIds.has(item.id) }}
+            onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })}
+            onRequireAuth={requireAuth}
+          />
+        )}
+        ListEmptyComponent={
+          !isLoading ? (
+            <EmptyState icon={<Feather name="inbox" size={40} color={Colors.textMuted} />} title="No cards yet" subtitle="Be the first to list a Pokémon or One Piece card!" />
+          ) : null
+        }
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: Colors.background },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
+  headerTitle: { ...Typography.h2, color: Colors.primary },
+  headerIcons: { flexDirection: "row", gap: Spacing.md },
+  iconButton: { position: "relative" },
+  dot: { position: "absolute", top: -2, right: -2, width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.danger },
+  cartBadge: { position: "absolute", top: -6, right: -8, backgroundColor: Colors.primary, borderRadius: 10, minWidth: 16, height: 16, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
+  cartBadgeText: { color: Colors.white, fontSize: 10, fontWeight: "800" },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 10,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.pill,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  searchInput: { flex: 1, color: Colors.text, fontSize: 15 },
+  chipsRow: { flexDirection: "row", gap: Spacing.sm, paddingHorizontal: Spacing.lg, marginTop: Spacing.md },
+  chip: { paddingHorizontal: Spacing.md, paddingVertical: 8, borderRadius: BorderRadius.pill, borderWidth: 1.5 },
+  chipText: { ...Typography.small, fontWeight: "700" },
+});

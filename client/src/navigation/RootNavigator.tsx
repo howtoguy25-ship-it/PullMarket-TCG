@@ -1,0 +1,104 @@
+import React from "react";
+import { View, ActivityIndicator } from "react-native";
+import { NavigationContainer, DefaultTheme, LinkingOptions } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import * as Linking from "expo-linking";
+import { useAuth } from "@/contexts/AuthContext";
+import { Colors } from "@/constants/theme";
+import { AuthStackParamList, RootStackParamList } from "./types";
+import { MainTabs } from "./MainTabs";
+
+import WelcomeScreen from "@/screens/auth/WelcomeScreen";
+import PhoneSignInScreen from "@/screens/auth/PhoneSignInScreen";
+import EmailSignInScreen from "@/screens/auth/EmailSignInScreen";
+import OtpVerifyScreen from "@/screens/auth/OtpVerifyScreen";
+import UsernameSetupScreen from "@/screens/auth/UsernameSetupScreen";
+
+import ListingDetailScreen from "@/screens/ListingDetailScreen";
+import ImageViewerScreen from "@/screens/ImageViewerScreen";
+import CartScreen from "@/screens/CartScreen";
+import CheckoutReturnScreen from "@/screens/CheckoutReturnScreen";
+import OrdersScreen from "@/screens/OrdersScreen";
+import OrderDetailScreen from "@/screens/OrderDetailScreen";
+import NotificationsScreen from "@/screens/NotificationsScreen";
+import ReportScreen from "@/screens/ReportScreen";
+import SellerPayoutSetupScreen from "@/screens/SellerPayoutSetupScreen";
+import IdentityVerificationScreen from "@/screens/IdentityVerificationScreen";
+import NotificationFiltersScreen from "@/screens/NotificationFiltersScreen";
+import OwnerPanelScreen from "@/screens/owner/OwnerPanelScreen";
+import OwnerReportDetailScreen from "@/screens/owner/OwnerReportDetailScreen";
+import OwnerUsersScreen from "@/screens/owner/OwnerUsersScreen";
+
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const RootStack = createNativeStackNavigator<RootStackParamList>();
+
+const navTheme = {
+  ...DefaultTheme,
+  colors: { ...DefaultTheme.colors, background: Colors.background, primary: Colors.primary },
+};
+
+function AuthNavigator() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShadowVisible: false, headerTitle: "", headerTintColor: Colors.text, headerTransparent: true }}>
+      <AuthStack.Screen name="Welcome" component={WelcomeScreen} options={{ headerShown: false }} />
+      <AuthStack.Screen name="PhoneSignIn" component={PhoneSignInScreen} />
+      <AuthStack.Screen name="EmailSignIn" component={EmailSignInScreen} />
+      <AuthStack.Screen name="OtpVerify" component={OtpVerifyScreen} />
+      <AuthStack.Screen name="UsernameSetup" component={UsernameSetupScreen} options={{ headerBackVisible: false, gestureEnabled: false }} />
+    </AuthStack.Navigator>
+  );
+}
+
+function MainNavigator() {
+  return (
+    <RootStack.Navigator screenOptions={{ headerTintColor: Colors.text, headerStyle: { backgroundColor: Colors.background } }}>
+      <RootStack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+      <RootStack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "" }} />
+      <RootStack.Screen name="ImageViewer" component={ImageViewerScreen} options={{ headerShown: false, presentation: "fullScreenModal" }} />
+      <RootStack.Screen name="Cart" component={CartScreen} options={{ title: "Your Cart" }} />
+      <RootStack.Screen name="CheckoutReturn" component={CheckoutReturnScreen} options={{ title: "", headerBackVisible: false }} />
+      <RootStack.Screen name="Orders" component={OrdersScreen} options={{ title: "My Orders" }} />
+      <RootStack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ title: "Order Details" }} />
+      <RootStack.Screen name="Notifications" component={NotificationsScreen} options={{ title: "Notifications" }} />
+      <RootStack.Screen name="Report" component={ReportScreen} options={{ title: "Report a listing", presentation: "modal" }} />
+      <RootStack.Screen name="SellerPayoutSetup" component={SellerPayoutSetupScreen} options={{ title: "Payout Setup" }} />
+      <RootStack.Screen name="IdentityVerification" component={IdentityVerificationScreen} options={{ title: "Verify Identity" }} />
+      <RootStack.Screen name="NotificationFilters" component={NotificationFiltersScreen} options={{ title: "New Card Alerts" }} />
+      <RootStack.Screen name="OwnerPanel" component={OwnerPanelScreen} options={{ title: "Owner Panel" }} />
+      <RootStack.Screen name="OwnerReportDetail" component={OwnerReportDetailScreen} options={{ title: "Incident Report" }} />
+      <RootStack.Screen name="OwnerUsers" component={OwnerUsersScreen} options={{ title: "All Users" }} />
+    </RootStack.Navigator>
+  );
+}
+
+// Lets Stripe's hosted checkout redirect straight back into the app —
+// `checkout-return` resolves to `pullmarket://checkout-return` on native
+// and `<web origin>/checkout-return` on web (see CartScreen, which builds
+// the same URL via Linking.createURL to hand Stripe as success/cancel_url).
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: [Linking.createURL("/")],
+  config: {
+    screens: {
+      MainTabs: "",
+      CheckoutReturn: "checkout-return",
+    },
+  },
+};
+
+export function RootNavigator() {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: Colors.background }}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer theme={navTheme} linking={user ? linking : undefined}>
+      {user ? <MainNavigator /> : <AuthNavigator />}
+    </NavigationContainer>
+  );
+}

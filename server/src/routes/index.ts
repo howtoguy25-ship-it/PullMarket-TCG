@@ -1,0 +1,33 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import express from "express";
+import authRoutes from "./auth";
+import listingsRoutes from "./listings";
+import favoritesRoutes from "./favorites";
+import cartRoutes from "./cart";
+import checkoutRoutes from "./checkout";
+import ordersRoutes from "./orders";
+import notificationsRoutes from "./notifications";
+import reportsRoutes from "./reports";
+import ownerRoutes from "./owner";
+import { UPLOAD_DIR_PATH } from "../lib/upload";
+import { COURIER_LABELS, CONDITION_LABELS, REPORT_REASON_LABELS } from "@shared/validation";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  app.use("/api/uploads", express.static(UPLOAD_DIR_PATH, { maxAge: "30d" }));
+
+  app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+  app.get("/api/lookups", (_req, res) => res.json({ couriers: COURIER_LABELS, conditions: CONDITION_LABELS, reportReasons: REPORT_REASON_LABELS }));
+
+  app.use("/api/auth", authRoutes);
+  app.use("/api/listings", listingsRoutes);
+  app.use("/api/favorites", favoritesRoutes);
+  app.use("/api/cart", cartRoutes);
+  app.use("/api/checkout", checkoutRoutes);
+  app.use("/api/orders", ordersRoutes);
+  app.use("/api/notifications", notificationsRoutes);
+  app.use("/api/reports", reportsRoutes);
+  app.use("/api/owner", ownerRoutes);
+
+  return createServer(app);
+}

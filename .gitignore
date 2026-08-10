@@ -1,0 +1,14 @@
+node_modules/
+.expo/
+web-build/
+server-dist/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+ios/
+android/
+.metro-cache/
+uploads/
+*.tsbuildinfo
