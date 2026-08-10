@@ -1,4 +1,9 @@
 import "dotenv/config";
+// Patches Express 4's router so a rejected promise inside an async route
+// handler reaches setupErrorHandler() below instead of becoming an
+// unhandled rejection — which crashes the whole process in modern Node,
+// taking down every in-flight request, not just the one that failed.
+import "express-async-errors";
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import path from "path";

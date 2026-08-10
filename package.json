@@ -47,6 +47,7 @@
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "~15.0.11",
     "express": "^4.21.2",
+    "express-async-errors": "^3.1.1",
     "google-auth-library": "^10.5.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^1.4.5-lts.1",
@@ -82,7 +83,7 @@
     "concurrently": "^9.1.2",
     "drizzle-kit": "^0.31.4",
     "esbuild": "^0.25.12",
-    "typescript": "^5.9.3",
-    "tsx": "^4.20.6"
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
   }
 }
