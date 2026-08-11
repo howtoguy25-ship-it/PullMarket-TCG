@@ -44,7 +44,7 @@ function AuthNavigator() {
       <AuthStack.Screen name="PhoneSignIn" component={PhoneSignInScreen} />
       <AuthStack.Screen name="EmailSignIn" component={EmailSignInScreen} />
       <AuthStack.Screen name="OtpVerify" component={OtpVerifyScreen} />
-      <AuthStack.Screen name="UsernameSetup" component={UsernameSetupScreen} options={{ headerBackVisible: false, gestureEnabled: false }} />
+      <AuthStack.Screen name="UsernameSetup" component={UsernameSetupScreen} />
     </AuthStack.Navigator>
   );
 }
