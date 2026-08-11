@@ -30,8 +30,8 @@ export class ApiError extends Error {
 // generic "Not authenticated" error while the rest of the app still acts
 // signed in, treat it as a real sign-out everywhere. AuthContext registers
 // the handler on mount.
-let onUnauthorized: (() => void) | null = null;
-export function setUnauthorizedHandler(handler: (() => void) | null): void {
+let onUnauthorized: ((message: string) => void) | null = null;
+export function setUnauthorizedHandler(handler: ((message: string) => void) | null): void {
   onUnauthorized = handler;
 }
 
@@ -55,7 +55,7 @@ export async function apiRequest(method: string, path: string, body?: unknown, i
     } catch {
       // response wasn't JSON
     }
-    if (res.status === 401 || res.status === 410) onUnauthorized?.();
+    if (res.status === 401 || res.status === 410) onUnauthorized?.(message);
     throw new ApiError(res.status, message);
   }
 

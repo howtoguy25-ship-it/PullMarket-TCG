@@ -23,7 +23,13 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
     const payload = verifyAuthToken(token);
     const [user] = await db.select().from(users).where(eq(users.id, payload.userId));
     if (!user) return res.status(401).json({ message: "Not authenticated" });
-    if (user.tokenVersion !== payload.tokenVersion) return res.status(401).json({ message: "Session expired" });
+    // Tokens are always signed with tokenVersion normalized to 0 (see
+    // signAuthToken callers: `existing.tokenVersion ?? 0`) — normalize the
+    // DB side the same way, or an account whose token_version column is
+    // NULL (e.g. an older row from before this column existed) would fail
+    // this check on every single request, immediately after every sign-in,
+    // regardless of method, with no visible error.
+    if ((user.tokenVersion ?? 0) !== payload.tokenVersion) return res.status(401).json({ message: "Session expired" });
     if (user.isSuspended) return res.status(403).json({ message: "This account has been suspended", suspensionReason: user.suspensionReason });
     if (user.deletedAt) return res.status(410).json({ message: "Account deleted" });
 
