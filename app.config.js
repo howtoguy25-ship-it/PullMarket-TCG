@@ -72,6 +72,8 @@ module.exports = () => {
           },
         ],
         "expo-web-browser",
+        // Adds the required com.apple.developer.applesignin entitlement.
+        "expo-apple-authentication",
         [
           "expo-splash-screen",
           {

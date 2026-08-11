@@ -23,7 +23,7 @@ const USERNAME_RE = /^[a-zA-Z0-9_]{3,24}$/;
 
 export default function UsernameSetupScreen() {
   const route = useRoute<Rt>();
-  const { destination, channel, googleId, email, displayName } = route.params;
+  const { destination, channel, googleId, appleId, email, displayName } = route.params;
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { signIn } = useAuth();
@@ -39,7 +39,9 @@ export default function UsernameSetupScreen() {
     try {
       const result = googleId
         ? await apiJson<{ token: string; user: any }>("POST", "/api/auth/google/signup/complete", { googleId, email, displayName, username })
-        : await apiJson<{ token: string; user: any }>("POST", "/api/auth/signup/complete", { destination, channel, username });
+        : appleId
+          ? await apiJson<{ token: string; user: any }>("POST", "/api/auth/apple/signup/complete", { appleId, email, displayName, username })
+          : await apiJson<{ token: string; user: any }>("POST", "/api/auth/signup/complete", { destination, channel, username });
       await signIn(result.token, result.user);
     } catch (err) {
       showAlert("Couldn't create account", err instanceof ApiError ? err.message : "Please try again.");

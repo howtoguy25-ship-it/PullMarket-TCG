@@ -26,6 +26,7 @@ export const users = pgTable(
     phoneNumber: text("phone_number").unique(),
     email: text("email").unique(),
     googleId: text("google_id").unique(),
+    appleId: text("apple_id").unique(),
     displayName: text("display_name"),
     avatarUrl: text("avatar_url"),
 

@@ -3,7 +3,15 @@ export type AuthStackParamList = {
   PhoneSignIn: undefined;
   EmailSignIn: undefined;
   OtpVerify: { destination: string; channel: "sms" | "email" };
-  UsernameSetup: { destination?: string; channel?: "sms" | "email"; googleId?: string; email?: string; displayName?: string; avatarUrl?: string };
+  UsernameSetup: {
+    destination?: string;
+    channel?: "sms" | "email";
+    googleId?: string;
+    appleId?: string;
+    email?: string;
+    displayName?: string;
+    avatarUrl?: string;
+  };
 };
 
 export type RootStackParamList = {

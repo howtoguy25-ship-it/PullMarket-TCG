@@ -12,3 +12,5 @@ android/
 .metro-cache/
 uploads/
 *.tsbuildinfo
+*.p8
+credentials/

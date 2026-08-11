@@ -7,12 +7,16 @@ import { issueOtp, verifyOtp } from "../lib/otp";
 import { signAuthToken } from "../lib/jwt";
 import { authenticateToken } from "../middleware/auth";
 import { OAuth2Client } from "google-auth-library";
+import appleSignin from "apple-signin-auth";
 import { getStripe, isStripeConfigured } from "../lib/stripeClient";
 
 const router = Router();
 
 const E164_RE = /^\+[1-9]\d{6,14}$/; // covers every country calling code
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Must match app.config.js's ios.bundleIdentifier — that's the audience Apple
+// signs native Sign in with Apple tokens for.
+const APPLE_BUNDLE_ID = "com.pullmarket.tcg";
 
 function isOwnerIdentity(phoneNumber?: string | null, email?: string | null): boolean {
   const ownerPhone = process.env.OWNER_PHONE_NUMBER;
@@ -191,6 +195,73 @@ router.post("/google/code", async (req, res) => {
     console.error("Google sign-in (code exchange) failed:", err);
     res.status(400).json({ message: "Google sign-in failed" });
   }
+});
+
+// ── Sign in with Apple (native only) ────────────────────────────────────
+// Apple requires this whenever an app also offers a third-party sign-in
+// (App Store Review Guideline 4.8) — mirrors the Google idToken flow above.
+// Apple only sends the user's name on their very FIRST sign-in, so the
+// client passes it along here if present; every sign-in after that omits it.
+router.post("/apple", async (req, res) => {
+  const schema = z.object({
+    identityToken: z.string().min(10),
+    fullName: z.object({ givenName: z.string().optional(), familyName: z.string().optional() }).optional(),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+
+  try {
+    const payload = await appleSignin.verifyIdToken(parsed.data.identityToken, { audience: APPLE_BUNDLE_ID });
+    const appleId = payload.sub;
+    const email = payload.email;
+
+    const [existing] = await db.select().from(users).where(eq(users.appleId, appleId));
+    if (existing) {
+      const token = signAuthToken({ userId: existing.id, tokenVersion: existing.tokenVersion ?? 0 });
+      return res.json({ status: "signed_in", token, user: existing });
+    }
+
+    if (email) {
+      const [byEmail] = await db.select().from(users).where(eq(users.email, email));
+      if (byEmail) {
+        const [updated] = await db.update(users).set({ appleId }).where(eq(users.id, byEmail.id)).returning();
+        const token = signAuthToken({ userId: updated.id, tokenVersion: updated.tokenVersion ?? 0 });
+        return res.json({ status: "signed_in", token, user: updated });
+      }
+    }
+
+    const { givenName, familyName } = parsed.data.fullName ?? {};
+    const displayName = [givenName, familyName].filter(Boolean).join(" ") || undefined;
+    res.json({ status: "needs_username", appleId, email, displayName });
+  } catch (err) {
+    console.error("Apple sign-in failed:", err);
+    res.status(400).json({ message: "Apple sign-in failed" });
+  }
+});
+
+router.post("/apple/signup/complete", async (req, res) => {
+  const schema = z.object({
+    appleId: z.string(),
+    email: z.string().email().optional(),
+    displayName: z.string().optional(),
+    username: z.string().min(3).max(24).regex(/^[a-zA-Z0-9_]+$/),
+  });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+  const { appleId, email, displayName, username } = parsed.data;
+
+  const [usernameTaken] = await db.select().from(users).where(eq(users.username, username));
+  if (usernameTaken) return res.status(409).json({ message: "That username is already taken" });
+
+  const isOwner = isOwnerIdentity(null, email ?? null);
+
+  const [user] = await db
+    .insert(users)
+    .values({ username, appleId, email: email ?? null, displayName: displayName || username, isOwner })
+    .returning();
+
+  const token = signAuthToken({ userId: user.id, tokenVersion: user.tokenVersion ?? 0 });
+  res.json({ token, user });
 });
 
 router.post("/google/signup/complete", async (req, res) => {

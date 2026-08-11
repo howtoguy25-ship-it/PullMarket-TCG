@@ -17,7 +17,7 @@ services:
     # `npm install` skip devDependencies, but babel-plugin-module-resolver,
     # esbuild, and drizzle-kit (all devDependencies) are needed to run this
     # build itself.
-    buildCommand: npm install --include=dev && npm run web:build && npm run server:build && npm run db:push
+    buildCommand: npm install --include=dev && npm run web:build && npm run server:build && npm run db:pre-push && npm run db:push
     startCommand: npm run server:start
     envVars:
       - key: NODE_ENV

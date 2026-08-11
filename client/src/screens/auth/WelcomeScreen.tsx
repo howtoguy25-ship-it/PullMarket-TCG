@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, StyleSheet, Text, Image, Platform, Alert } from "react-native";
 import Constants from "expo-constants";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation } from "@react-navigation/native";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { GalaxyBackground } from "@/components/GalaxyBackground";
@@ -28,11 +28,55 @@ type GoogleAuthResult =
   | { status: "signed_in"; token: string; user: any }
   | { status: "needs_username"; googleId: string; email: string; displayName?: string; avatarUrl?: string };
 
+type AppleAuthResult =
+  | { status: "signed_in"; token: string; user: any }
+  | { status: "needs_username"; appleId: string; email?: string; displayName?: string };
+
 export default function WelcomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "ios") return;
+    import("expo-apple-authentication").then(({ isAvailableAsync }) => {
+      isAvailableAsync().then(setAppleAvailable);
+    });
+  }, []);
+
+  const handleAppleSignIn = async () => {
+    setAppleLoading(true);
+    try {
+      const AppleAuthentication = await import("expo-apple-authentication");
+      const credential = await AppleAuthentication.signInAsync({
+        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
+      });
+      if (!credential.identityToken) throw new Error("Apple didn't return an identity token");
+
+      const result = await apiJson<AppleAuthResult>("POST", "/api/auth/apple", {
+        identityToken: credential.identityToken,
+        fullName: credential.fullName ? { givenName: credential.fullName.givenName ?? undefined, familyName: credential.fullName.familyName ?? undefined } : undefined,
+      });
+      if (result.status === "signed_in") {
+        await signIn(result.token, result.user);
+      } else {
+        navigation.navigate("UsernameSetup", { appleId: result.appleId, email: result.email, displayName: result.displayName });
+      }
+    } catch (err: any) {
+      if (err?.code === "ERR_REQUEST_CANCELED") {
+        // user dismissed the sheet — not an error
+      } else if (err instanceof ApiError) {
+        showAlert("Apple Sign-In failed", err.message);
+      } else {
+        showAlert("Apple Sign-In failed", err instanceof Error ? err.message : "Please try again.");
+      }
+    } finally {
+      setAppleLoading(false);
+    }
+  };
 
   const handleGoogleResult = async (result: GoogleAuthResult) => {
     if (result.status === "signed_in") {
@@ -123,6 +167,9 @@ export default function WelcomeScreen() {
             <Button title="Continue with phone number" variant="gold" icon={<Feather name="phone" size={17} color="#3A2A00" />} onPress={() => navigation.navigate("PhoneSignIn")} style={styles.actionButton} />
             <Button title="Continue with email" variant="white" icon={<Feather name="mail" size={17} color="#3A2A00" />} onPress={() => navigation.navigate("EmailSignIn")} style={styles.actionButton} />
             <Button title="Continue with Google" variant="outlineOnDark" loading={googleLoading} icon={<Feather name="chrome" size={17} color={Colors.white} />} onPress={handleGoogleSignIn} style={styles.actionButton} />
+            {appleAvailable && (
+              <Button title="Continue with Apple" variant="outlineOnDark" loading={appleLoading} icon={<Ionicons name="logo-apple" size={19} color={Colors.white} />} onPress={handleAppleSignIn} style={styles.actionButton} />
+            )}
           </View>
         </View>
       </View>
