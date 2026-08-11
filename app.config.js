@@ -51,6 +51,16 @@ module.exports = () => {
         output: "single",
         favicon: "./client/assets/favicon.png",
       },
+      // EAS Update (OTA): lets JS/asset-only changes reach an
+      // already-installed build without a new App Store review. Native
+      // changes (new native modules, permissions, icons) still need a
+      // full rebuild — OTA can't update those.
+      updates: {
+        url: "https://u.expo.dev/05a0dc7c-a7bb-472f-8260-671880a5b3e7",
+      },
+      runtimeVersion: {
+        policy: "appVersion",
+      },
       plugins: [
         [
           "expo-camera",
