@@ -65,16 +65,13 @@ services:
         sync: false
       - key: TWILIO_FROM_NUMBER
         sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
+      # Resend (https://resend.com), not SMTP — Render blocks outbound SMTP
+      # ports, so raw SMTP fails with a connection timeout no matter the
+      # provider/credentials. Get an API key from Resend's dashboard.
+      - key: RESEND_API_KEY
         sync: false
       - key: SMTP_FROM
-        sync: false
+        value: "PullMarket TCG <onboarding@resend.dev>"
       - key: OWNER_REPORT_EMAIL
         sync: false
       - key: GOOGLE_WEB_CLIENT_ID
