@@ -30,12 +30,17 @@ export type RootStackParamList = {
   OwnerPanel: undefined;
   OwnerReportDetail: { reportId: string };
   OwnerUsers: undefined;
+  UserSearch: undefined;
+  UserProfile: { userId: string };
+  FriendRequests: undefined;
+  ChatThread: { conversationId: string; otherUserId?: string };
 };
 
 export type MainTabsParamList = {
   Home: undefined;
   Search: undefined;
   Sell: undefined;
+  Messages: undefined;
   Favorites: undefined;
   Profile: undefined;
 };

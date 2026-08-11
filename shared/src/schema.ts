@@ -69,6 +69,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   cartItems: many(cartItems),
   notifications: many(notifications),
   franchiseSubscriptions: many(franchiseSubscriptions),
+  sentFriendRequests: many(friendRequests, { relationName: "requester" }),
+  receivedFriendRequests: many(friendRequests, { relationName: "recipient" }),
 }));
 
 // ─── OTP codes (email + SMS) ─────────────────────────────────────────────
@@ -332,6 +334,109 @@ export const reportsRelations = relations(reports, ({ one }) => ({
   order: one(orders, { fields: [reports.orderId], references: [orders.id] }),
 }));
 
+// ─── Friend requests ─────────────────────────────────────────────────────
+export const FRIEND_REQUEST_STATUSES = ["pending", "accepted", "declined"] as const;
+
+export const friendRequests = pgTable(
+  "friend_requests",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    requesterId: varchar("requester_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    recipientId: varchar("recipient_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"), // one of FRIEND_REQUEST_STATUSES
+    createdAt: timestamp("created_at").defaultNow(),
+    respondedAt: timestamp("responded_at"),
+  },
+  (table) => [
+    unique("uniq_friend_request_pair").on(table.requesterId, table.recipientId),
+    index("idx_friend_requests_requester").on(table.requesterId),
+    index("idx_friend_requests_recipient").on(table.recipientId),
+  ],
+);
+
+export const friendRequestsRelations = relations(friendRequests, ({ one }) => ({
+  requester: one(users, { fields: [friendRequests.requesterId], references: [users.id], relationName: "requester" }),
+  recipient: one(users, { fields: [friendRequests.recipientId], references: [users.id], relationName: "recipient" }),
+}));
+
+// ─── Chat: conversations, messages, attachments ─────────────────────────
+// A 1:1 conversation is created the first time either user messages the
+// other. `userAId`/`userBId` are stored in a normalized order (userAId is
+// always the lexicographically-smaller id) purely so a unique constraint on
+// the pair works regardless of who initiated — application code never
+// exposes that ordering to clients. Until the recipient accepts, the thread
+// behaves like a "message request": the initiator can send, the recipient
+// can read without the initiator seeing a read receipt, and the recipient
+// gets an Accept/Decline choice.
+export const CONVERSATION_STATUSES = ["pending", "accepted", "declined"] as const;
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userAId: varchar("user_a_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    userBId: varchar("user_b_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    initiatorId: varchar("initiator_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("pending"), // one of CONVERSATION_STATUSES
+    lastMessageAt: timestamp("last_message_at").defaultNow(),
+    lastMessagePreview: text("last_message_preview"),
+    respondedAt: timestamp("responded_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    unique("uniq_conversation_pair").on(table.userAId, table.userBId),
+    index("idx_conversations_a").on(table.userAId),
+    index("idx_conversations_b").on(table.userBId),
+  ],
+);
+
+export const conversationsRelations = relations(conversations, ({ one, many }) => ({
+  userA: one(users, { fields: [conversations.userAId], references: [users.id], relationName: "convUserA" }),
+  userB: one(users, { fields: [conversations.userBId], references: [users.id], relationName: "convUserB" }),
+  initiator: one(users, { fields: [conversations.initiatorId], references: [users.id], relationName: "convInitiator" }),
+  messages: many(messages),
+}));
+
+export const messages = pgTable(
+  "messages",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    text: text("text"),
+    deliveredAt: timestamp("delivered_at"),
+    readAt: timestamp("read_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    index("idx_messages_conversation_created").on(table.conversationId, table.createdAt),
+  ],
+);
+
+export const messagesRelations = relations(messages, ({ one, many }) => ({
+  conversation: one(conversations, { fields: [messages.conversationId], references: [conversations.id] }),
+  sender: one(users, { fields: [messages.senderId], references: [users.id] }),
+  attachments: many(messageAttachments),
+}));
+
+export const MESSAGE_ATTACHMENT_TYPES = ["image", "video"] as const;
+
+export const messageAttachments = pgTable(
+  "message_attachments",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    messageId: varchar("message_id").notNull().references(() => messages.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    type: text("type").notNull(), // one of MESSAGE_ATTACHMENT_TYPES
+    position: integer("position").notNull().default(0),
+  },
+  (table) => [index("idx_message_attachments_message").on(table.messageId)],
+);
+
+export const messageAttachmentsRelations = relations(messageAttachments, ({ one }) => ({
+  message: one(messages, { fields: [messageAttachments.messageId], references: [messages.id] }),
+}));
+
 // ─── Zod insert schemas ──────────────────────────────────────────────────
 export const insertListingSchema = createInsertSchema(listings).pick({
   title: true,
@@ -359,7 +464,14 @@ export type OrderItem = typeof orderItems.$inferSelect;
 export type Notification = typeof notifications.$inferSelect;
 export type Report = typeof reports.$inferSelect;
 export type OtpCode = typeof otpCodes.$inferSelect;
+export type FriendRequest = typeof friendRequests.$inferSelect;
+export type Conversation = typeof conversations.$inferSelect;
+export type Message = typeof messages.$inferSelect;
+export type MessageAttachment = typeof messageAttachments.$inferSelect;
 export type Condition = (typeof CONDITIONS)[number];
 export type Franchise = (typeof FRANCHISES)[number];
 export type Courier = (typeof COURIERS)[number];
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
+export type FriendRequestStatus = (typeof FRIEND_REQUEST_STATUSES)[number];
+export type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
+export type MessageAttachmentType = (typeof MESSAGE_ATTACHMENT_TYPES)[number];

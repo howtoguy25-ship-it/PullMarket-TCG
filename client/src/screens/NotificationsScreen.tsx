@@ -11,6 +11,7 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, apiRequest } from "@/lib/api";
+import { timeAgo } from "@/lib/timeAgo";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Notifications">;
 
@@ -34,16 +35,6 @@ interface Notification {
   isRead: boolean;
   createdAt: string;
   data: Record<string, unknown>;
-}
-
-function timeAgo(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
 }
 
 function confirmClearAll(): Promise<boolean> {

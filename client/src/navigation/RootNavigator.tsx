@@ -28,6 +28,10 @@ import NotificationFiltersScreen from "@/screens/NotificationFiltersScreen";
 import OwnerPanelScreen from "@/screens/owner/OwnerPanelScreen";
 import OwnerReportDetailScreen from "@/screens/owner/OwnerReportDetailScreen";
 import OwnerUsersScreen from "@/screens/owner/OwnerUsersScreen";
+import UserSearchScreen from "@/screens/UserSearchScreen";
+import UserProfileScreen from "@/screens/UserProfileScreen";
+import FriendRequestsScreen from "@/screens/FriendRequestsScreen";
+import ChatThreadScreen from "@/screens/ChatThreadScreen";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -79,6 +83,10 @@ function MainNavigator() {
       <RootStack.Screen name="OwnerPanel" component={OwnerPanelScreen} options={{ title: "Owner Panel" }} />
       <RootStack.Screen name="OwnerReportDetail" component={OwnerReportDetailScreen} options={{ title: "Incident Report" }} />
       <RootStack.Screen name="OwnerUsers" component={OwnerUsersScreen} options={{ title: "All Users" }} />
+      <RootStack.Screen name="UserSearch" component={UserSearchScreen} options={{ title: "New message" }} />
+      <RootStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: "" }} />
+      <RootStack.Screen name="FriendRequests" component={FriendRequestsScreen} options={{ title: "Friend requests" }} />
+      <RootStack.Screen name="ChatThread" component={ChatThreadScreen} options={{ title: "" }} />
     </RootStack.Navigator>
   );
 }

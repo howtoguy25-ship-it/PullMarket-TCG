@@ -30,7 +30,7 @@ function listingWithSellerAndImages() {
   };
 }
 
-async function attachImagesAndSellers(rows: (typeof listings.$inferSelect)[]) {
+export async function attachImagesAndSellers(rows: (typeof listings.$inferSelect)[]) {
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
   const sellerIds = Array.from(new Set(rows.map((r) => r.sellerId)));
