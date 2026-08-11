@@ -10,8 +10,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://pullmarkettcg.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878738587499-f1m1h9scgone6mb3md478ikqj4qlbed2.apps.googleusercontent.com",
-        "GOOGLE_IOS_CLIENT_ID": "878738587499-tpejf58kvvkjik0bjc9b8o64fqgkb0hd.apps.googleusercontent.com",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
+        "GOOGLE_IOS_CLIENT_ID": "878738587499-tpejf58kvvkjik0bjc9b8o64fqgkb0hd.apps.googleusercontent.com"
       }
     },
     "preview": {
@@ -20,8 +19,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://pullmarkettcg.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878738587499-f1m1h9scgone6mb3md478ikqj4qlbed2.apps.googleusercontent.com",
-        "GOOGLE_IOS_CLIENT_ID": "878738587499-tpejf58kvvkjik0bjc9b8o64fqgkb0hd.apps.googleusercontent.com",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
+        "GOOGLE_IOS_CLIENT_ID": "878738587499-tpejf58kvvkjik0bjc9b8o64fqgkb0hd.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -30,8 +28,7 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://pullmarkettcg.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878738587499-f1m1h9scgone6mb3md478ikqj4qlbed2.apps.googleusercontent.com",
-        "GOOGLE_IOS_CLIENT_ID": "878738587499-tpejf58kvvkjik0bjc9b8o64fqgkb0hd.apps.googleusercontent.com",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": ""
+        "GOOGLE_IOS_CLIENT_ID": "878738587499-tpejf58kvvkjik0bjc9b8o64fqgkb0hd.apps.googleusercontent.com"
       }
     }
   },

@@ -15,6 +15,7 @@ module.exports = () => {
     expo: {
       name: "PullMarket TCG",
       slug: "pullmarket-tcg",
+      owner: "adhams",
       version: "1.0.0",
       orientation: "portrait",
       icon: "./client/assets/icon.png",
@@ -91,6 +92,9 @@ module.exports = () => {
         GOOGLE_IOS_CLIENT_ID: googleIosClientId,
         GOOGLE_ANDROID_CLIENT_ID: process.env.GOOGLE_ANDROID_CLIENT_ID || "",
         OWNER_PHONE_NUMBER: process.env.OWNER_PHONE_NUMBER || "+61474011265",
+        eas: {
+          projectId: "05a0dc7c-a7bb-472f-8260-671880a5b3e7",
+        },
       },
     },
   };
