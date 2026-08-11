@@ -188,7 +188,9 @@ export default function WelcomeScreen() {
 
         <View style={styles.hero}>
           <RotatingHoloCard />
-          <Text style={styles.subtitle}>Buy and sell Pokémon &amp; One Piece cards</Text>
+          <Text style={styles.subtitle}>
+            Buy and sell Pokémon{"\n"}&amp; One Piece cards
+          </Text>
         </View>
 
         <View style={styles.panel}>
@@ -213,7 +215,7 @@ const styles = StyleSheet.create({
   title: { ...Typography.h2, color: Colors.white, lineHeight: 24 },
   titleAccent: { ...Typography.h3, color: Colors.gold, letterSpacing: 3, lineHeight: 18 },
   hero: { alignItems: "center", justifyContent: "center", flex: 1, gap: Spacing.lg },
-  subtitle: { ...Typography.body, color: "rgba(255,255,255,0.85)", textAlign: "center" },
+  subtitle: { ...Typography.h3, color: "rgba(255,255,255,0.92)", textAlign: "center", lineHeight: 24 },
   panel: {
     backgroundColor: "rgba(20, 12, 40, 0.55)",
     borderRadius: BorderRadius.xl,
