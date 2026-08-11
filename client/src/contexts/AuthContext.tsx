@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { getToken, setToken as persistToken, apiJson, ApiError } from "@/lib/api";
+import { getToken, setToken as persistToken, apiJson, ApiError, setUnauthorizedHandler } from "@/lib/api";
 import { registerPushToken, clearPushToken } from "@/lib/pushNotifications";
 
 export interface AuthUser {
@@ -54,6 +54,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     })();
   }, [refreshUser]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      void persistToken(null);
+      setUser(null);
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   const signIn = useCallback(async (token: string, nextUser: AuthUser) => {
     await persistToken(token);

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { View, StyleSheet, Text, FlatList, Pressable, TextInput } from "react-native";
+import { View, StyleSheet, Text, FlatList, Pressable, TextInput, Keyboard } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -65,6 +65,11 @@ export default function SearchScreen() {
   const activeFilterCount = franchises.length + conditions.length;
   const hasQuery = query.length > 0 || activeFilterCount > 0;
 
+  const clearSearch = () => {
+    setQuery("");
+    Keyboard.dismiss();
+  };
+
   return (
     <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
       <View style={styles.searchRow}>
@@ -76,6 +81,11 @@ export default function SearchScreen() {
           <Feather name="sliders" size={18} color={activeFilterCount > 0 ? Colors.white : Colors.text} />
           {activeFilterCount > 0 ? <Text style={styles.filterCount}>{activeFilterCount}</Text> : null}
         </Pressable>
+        {hasQuery ? (
+          <Pressable onPress={clearSearch} hitSlop={8}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </Pressable>
+        ) : null}
       </View>
 
       {filtersOpen ? (
@@ -93,13 +103,17 @@ export default function SearchScreen() {
           keyExtractor={(item) => item.id}
           numColumns={2}
           contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           renderItem={({ item }) => (
             <ListingCard listing={{ ...item, isFavorited: favoritedIds.has(item.id) }} onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })} />
           )}
           ListEmptyComponent={!isLoading ? <EmptyState icon={<Feather name="search" size={40} color={Colors.textMuted} />} title="No matches" subtitle="Try a different search or filters" /> : null}
         />
       ) : (
-        <EmptyState icon={<Feather name="search" size={40} color={Colors.textMuted} />} title="Search PullMarket" subtitle="Search by card name, or filter by franchise and condition" />
+        <Pressable style={styles.emptyFill} onPress={() => Keyboard.dismiss()}>
+          <EmptyState icon={<Feather name="search" size={40} color={Colors.textMuted} />} title="Search PullMarket" subtitle="Search by card name, or filter by franchise and condition" />
+        </Pressable>
       )}
     </View>
   );
@@ -121,6 +135,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
   searchInput: { flex: 1, color: Colors.text, fontSize: 15 },
+  cancelText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
+  emptyFill: { flex: 1 },
   filterButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
   filterButtonActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   filterCount: { position: "absolute", top: -4, right: -4, backgroundColor: Colors.gold, color: "#3A2A00", fontSize: 10, fontWeight: "800", borderRadius: 8, minWidth: 16, textAlign: "center" },

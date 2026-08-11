@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Text, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
@@ -16,6 +16,7 @@ const OPTIONS = [
 export default function NotificationFiltersScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
+  const queryClient = useQueryClient();
   const { data } = useQuery<string[]>({ queryKey: ["/api/listings/subscriptions/mine"] });
   const [selected, setSelected] = useState<string[]>([]);
 
@@ -24,7 +25,13 @@ export default function NotificationFiltersScreen() {
   }, [data]);
 
   const saveMutation = useMutation({
-    mutationFn: () => apiJson("PUT", "/api/listings/subscriptions/mine", { franchises: selected }),
+    mutationFn: () => apiJson<{ franchises: string[] }>("PUT", "/api/listings/subscriptions/mine", { franchises: selected }),
+    onSuccess: (result) => {
+      // Update the cache directly (not just invalidate) so coming back to
+      // this screen shows what was actually saved even within the query's
+      // staleTime window, instead of the pre-save snapshot.
+      queryClient.setQueryData(["/api/listings/subscriptions/mine"], result.franchises);
+    },
   });
 
   const toggle = (key: string) => setSelected((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));

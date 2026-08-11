@@ -24,6 +24,17 @@ export class ApiError extends Error {
   }
 }
 
+// A 401/410 from any authenticated endpoint means the stored token is no
+// longer valid (expired, revoked, or the account is gone) — rather than
+// leaving whichever screen happened to make that call stuck showing a
+// generic "Not authenticated" error while the rest of the app still acts
+// signed in, treat it as a real sign-out everywhere. AuthContext registers
+// the handler on mount.
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
+
 export async function apiRequest(method: string, path: string, body?: unknown, isFormData = false): Promise<Response> {
   const token = await getToken();
   const headers: Record<string, string> = {};
@@ -44,6 +55,7 @@ export async function apiRequest(method: string, path: string, body?: unknown, i
     } catch {
       // response wasn't JSON
     }
+    if (res.status === 401 || res.status === 410) onUnauthorized?.();
     throw new ApiError(res.status, message);
   }
 
