@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, StyleSheet, Text, Image, Platform, Alert } from "react-native";
+import { View, StyleSheet, Text, Image, Platform, Alert, ScrollView } from "react-native";
 import Constants from "expo-constants";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -12,7 +12,7 @@ import { RotatingHoloCard } from "@/components/RotatingHoloCard";
 import { AuthStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
-import { signInWithGoogleWeb } from "@/lib/googleAuth";
+import { signInWithGoogleWeb, preloadGoogleScript } from "@/lib/googleAuth";
 import { signInWithAppleWeb } from "@/lib/appleAuthWeb";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "Welcome">;
@@ -53,6 +53,13 @@ export default function WelcomeScreen() {
       isAvailableAsync().then(setAppleAvailable);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Preload so the sign-in click can open Google's popup synchronously —
+    // an `await` in between the click and the popup call causes Safari to
+    // silently block it (see the note in googleAuth.ts).
+    if (Platform.OS === "web") preloadGoogleScript();
   }, []);
 
   const handleAppleResult = async (result: AppleAuthResult) => {
@@ -177,7 +184,11 @@ export default function WelcomeScreen() {
 
   return (
     <GalaxyBackground>
-      <View style={[styles.container, { paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl }]}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.container, { flexGrow: 1, paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl }]}
+        bounces={false}
+      >
         <View style={styles.brandRow}>
           <Image source={require("@/assets/icon-mark-only.png")} style={styles.logoMark} resizeMode="contain" />
           <View>
@@ -203,7 +214,7 @@ export default function WelcomeScreen() {
             )}
           </View>
         </View>
-      </View>
+      </ScrollView>
     </GalaxyBackground>
   );
 }
@@ -214,7 +225,7 @@ const styles = StyleSheet.create({
   logoMark: { width: 42, height: 64 },
   title: { ...Typography.h2, color: Colors.white, lineHeight: 24 },
   titleAccent: { ...Typography.h3, color: Colors.gold, letterSpacing: 3, lineHeight: 18 },
-  hero: { alignItems: "center", justifyContent: "center", flex: 1, gap: Spacing.lg },
+  hero: { alignItems: "center", justifyContent: "center", gap: Spacing.lg, paddingVertical: Spacing.xl },
   subtitle: { ...Typography.h3, color: "rgba(255,255,255,0.92)", textAlign: "center", lineHeight: 24 },
   panel: {
     backgroundColor: "rgba(20, 12, 40, 0.55)",

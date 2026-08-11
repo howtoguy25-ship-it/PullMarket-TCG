@@ -18,8 +18,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // signs native Sign in with Apple tokens for.
 const APPLE_BUNDLE_ID = "com.pullmarket.tcg";
 // Web Sign in with Apple uses a separate "Services ID" identifier (not the
-// native Bundle ID) as the token audience — set once it's registered.
-const APPLE_SERVICES_ID = process.env.APPLE_SERVICES_ID;
+// native Bundle ID) as the token audience — same env var the client embeds
+// via EXPO_PUBLIC_APPLE_SERVICES_ID, so both sides always agree on it.
+const APPLE_SERVICES_ID = process.env.EXPO_PUBLIC_APPLE_SERVICES_ID;
 const APPLE_AUDIENCES = [APPLE_BUNDLE_ID, APPLE_SERVICES_ID].filter((v): v is string => !!v);
 
 function isOwnerIdentity(phoneNumber?: string | null, email?: string | null): boolean {

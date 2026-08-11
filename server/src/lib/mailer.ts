@@ -10,6 +10,12 @@ function getTransporter(): nodemailer.Transporter | null {
       port: Number(process.env.SMTP_PORT || 587),
       secure: Number(process.env.SMTP_PORT) === 465,
       auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined,
+      // Without these, a misconfigured or unreachable SMTP host hangs the
+      // whole request for nodemailer's multi-minute defaults instead of
+      // failing fast with a clear error.
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 8000,
     });
   }
   return transporter;
