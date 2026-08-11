@@ -17,14 +17,22 @@ import { apiJson } from "@/lib/api";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-function confirmAsync(title: string, message: string): Promise<boolean> {
+function showAlert(title: string, message: string) {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+  Alert.alert(title, message);
+}
+
+function confirmAsync(title: string, message: string, confirmLabel: string): Promise<boolean> {
   return new Promise((resolve) => {
     if (Platform.OS === "web") {
       resolve(window.confirm(`${title}\n${message}`));
     } else {
       Alert.alert(title, message, [
         { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
-        { text: "Delete", style: "destructive", onPress: () => resolve(true) },
+        { text: confirmLabel, style: "destructive", onPress: () => resolve(true) },
       ]);
     }
   });
@@ -68,17 +76,21 @@ export default function ProfileScreen() {
 
   const deleteMutation = useMutation({
     mutationFn: () => apiJson("POST", "/api/auth/account/delete"),
-    onSuccess: () => signOut(),
+    onSuccess: async () => {
+      await signOut();
+      showAlert("Account deleted", "Your PullMarket account and profile have been permanently removed.");
+    },
+    onError: () => showAlert("Couldn't delete account", "Please try again."),
   });
 
   const handleDeleteAccount = async () => {
-    const ok = await confirmAsync("Delete your account?", "This permanently removes your profile and can't be undone.");
+    const ok = await confirmAsync("Delete your account?", "This permanently removes your profile and can't be undone.", "Delete");
     if (ok) deleteMutation.mutate();
   };
 
   const handleSignOut = async () => {
-    const ok = await confirmAsync("Sign out?", "You can sign back in anytime.");
-    if (ok) signOut();
+    const ok = await confirmAsync("Sign out?", "You'll need to sign back in to use PullMarket again.", "Sign out");
+    if (ok) await signOut();
   };
 
   if (!user) {
