@@ -111,6 +111,10 @@ router.get("/:id", async (req, res) => {
 
 // ── Create listing (multipart: fields + up to 6 images) ──────────────────
 router.post("/", authenticateToken, upload.array("images", 6), async (req, res) => {
+  if (req.user!.identityVerificationStatus !== "verified") {
+    return res.status(403).json({ message: "Verify your identity before listing a card for sale." });
+  }
+
   const bodySchema = z.object({
     title: z.string().min(3).max(120),
     description: z.string().max(2000).default(""),

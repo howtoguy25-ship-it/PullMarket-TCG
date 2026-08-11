@@ -224,6 +224,25 @@ export default function SellScreen() {
     );
   }
 
+  if (user.identityVerificationStatus !== "verified") {
+    const pending = user.identityVerificationStatus === "pending";
+    const failed = user.identityVerificationStatus === "failed";
+    return (
+      <View style={[styles.container, styles.center, { paddingTop: insets.top + Spacing.xxl, paddingHorizontal: Spacing.xl, gap: Spacing.md }]}>
+        <Feather name={pending ? "clock" : "shield"} size={36} color={Colors.primary} />
+        <Text style={styles.verifyTitle}>{pending ? "Verification in progress" : failed ? "Verification didn't go through" : "Verify your identity to sell"}</Text>
+        <Text style={styles.emptyText}>
+          {pending
+            ? "We're reviewing your ID — this usually takes a few minutes. You'll be able to list cards as soon as it's approved."
+            : failed
+              ? "Something didn't match on your last attempt. Try again with a clear photo of your ID and a well-lit selfie."
+              : "To keep the marketplace safe for buyers, we verify every seller's identity (ID + selfie match) before they can list a card."}
+        </Text>
+        {!pending ? <Button title={failed ? "Try verification again" : "Start verification"} onPress={() => navigation.navigate("IdentityVerification")} /> : null}
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xxl }}>
       <LinearGradient colors={["#1C1040", "#3B1E6B", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
@@ -356,7 +375,8 @@ export default function SellScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   center: { alignItems: "center", justifyContent: "center", gap: Spacing.sm },
-  emptyText: { color: Colors.textSecondary, ...Typography.body },
+  emptyText: { color: Colors.textSecondary, ...Typography.body, textAlign: "center" },
+  verifyTitle: { ...Typography.h3, color: Colors.text, textAlign: "center" },
   header: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg },
   screenTitle: { ...Typography.h2, color: Colors.white, marginBottom: Spacing.xs, letterSpacing: 0.2 },
   headerSubtitle: { ...Typography.small, color: "rgba(255,255,255,0.85)" },
