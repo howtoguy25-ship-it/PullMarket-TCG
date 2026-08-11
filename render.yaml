@@ -83,3 +83,5 @@ services:
         sync: false
       - key: GOOGLE_CLIENT_SECRET
         sync: false
+      - key: EXPO_PUBLIC_APPLE_SERVICES_ID
+        value: com.pullmarket.tcg.web
