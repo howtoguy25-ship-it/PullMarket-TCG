@@ -17,6 +17,10 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Must match app.config.js's ios.bundleIdentifier — that's the audience Apple
 // signs native Sign in with Apple tokens for.
 const APPLE_BUNDLE_ID = "com.pullmarket.tcg";
+// Web Sign in with Apple uses a separate "Services ID" identifier (not the
+// native Bundle ID) as the token audience — set once it's registered.
+const APPLE_SERVICES_ID = process.env.APPLE_SERVICES_ID;
+const APPLE_AUDIENCES = [APPLE_BUNDLE_ID, APPLE_SERVICES_ID].filter((v): v is string => !!v);
 
 function isOwnerIdentity(phoneNumber?: string | null, email?: string | null): boolean {
   const ownerPhone = process.env.OWNER_PHONE_NUMBER;
@@ -197,11 +201,13 @@ router.post("/google/code", async (req, res) => {
   }
 });
 
-// ── Sign in with Apple (native only) ────────────────────────────────────
+// ── Sign in with Apple (native iOS + web) ─────────────────────────────────
 // Apple requires this whenever an app also offers a third-party sign-in
 // (App Store Review Guideline 4.8) — mirrors the Google idToken flow above.
 // Apple only sends the user's name on their very FIRST sign-in, so the
 // client passes it along here if present; every sign-in after that omits it.
+// Native and web tokens carry different audiences (bundle ID vs. Services
+// ID), so both are accepted here.
 router.post("/apple", async (req, res) => {
   const schema = z.object({
     identityToken: z.string().min(10),
@@ -211,7 +217,7 @@ router.post("/apple", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
 
   try {
-    const payload = await appleSignin.verifyIdToken(parsed.data.identityToken, { audience: APPLE_BUNDLE_ID });
+    const payload = await appleSignin.verifyIdToken(parsed.data.identityToken, { audience: APPLE_AUDIENCES });
     const appleId = payload.sub;
     const email = payload.email;
 

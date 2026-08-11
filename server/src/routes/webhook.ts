@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { db } from "../db";
-import { orders, listings, orderItems, notifications } from "@shared/schema";
+import { orders, listings, orderItems } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { getStripe } from "../lib/stripeClient";
 import { addBusinessDays } from "@shared/validation";
 import { SHIPPING_DEADLINE_BUSINESS_DAYS } from "@shared/validation";
 import Stripe from "stripe";
+import { notifyUser } from "../lib/notify";
 
 const router = Router();
 
@@ -68,21 +69,19 @@ async function markOrderPaid(orderId: string, session: Stripe.Checkout.Session) 
     if (l.quantityAvailable <= 0) await db.update(listings).set({ status: "sold_out" }).where(eq(listings.id, l.id));
   }
 
-  await db.insert(notifications).values([
-    {
-      userId: order.buyerId,
+  await Promise.all([
+    notifyUser(order.buyerId, {
       type: "purchase",
       title: "Order confirmed",
       body: `Your payment went through — the seller has ${SHIPPING_DEADLINE_BUSINESS_DAYS} business days to ship your order.`,
       data: { orderId },
-    },
-    {
-      userId: order.sellerId,
+    }),
+    notifyUser(order.sellerId, {
       type: "sale",
       title: "You made a sale!",
       body: `Add tracking and mark the order as shipped within ${SHIPPING_DEADLINE_BUSINESS_DAYS} business days.`,
       data: { orderId },
-    },
+    }),
   ]);
 }
 

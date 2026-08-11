@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { orders, orderItems, users, notifications } from "@shared/schema";
+import { orders, orderItems, users } from "@shared/schema";
 import { COURIERS } from "@shared/schema";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { isValidTrackingNumber } from "@shared/validation";
 import { getStripe, isStripeConfigured } from "../lib/stripeClient";
+import { notifyUser } from "../lib/notify";
 
 const router = Router();
 router.use(authenticateToken);
@@ -129,8 +130,7 @@ router.post("/:id/ship", async (req, res) => {
     .where(eq(orders.id, order.id))
     .returning();
 
-  await db.insert(notifications).values({
-    userId: order.buyerId,
+  await notifyUser(order.buyerId, {
     type: "shipped",
     title: "Your order has shipped!",
     body: `Tracking: ${trackingNumber} (${courier.replace("_", " ")}). Expect delivery in 1-5 business days.`,
@@ -149,8 +149,7 @@ router.post("/:id/mark-delivered", async (req, res) => {
 
   const [updated] = await db.update(orders).set({ status: "delivered", deliveredAt: new Date(), updatedAt: new Date() }).where(eq(orders.id, order.id)).returning();
 
-  await db.insert(notifications).values({
-    userId: order.sellerId,
+  await notifyUser(order.sellerId, {
     type: "delivered",
     title: "Delivery confirmed",
     body: `The buyer confirmed they received their order.`,
@@ -192,9 +191,9 @@ router.post("/:id/refund", async (req, res) => {
     await stripe.refunds.create({ payment_intent: order.stripePaymentIntentId, reverse_transfer: true });
     const [updated] = await db.update(orders).set({ status: "refunded", refundedAt: new Date(), updatedAt: new Date() }).where(eq(orders.id, order.id)).returning();
 
-    await db.insert(notifications).values([
-      { userId: order.buyerId, type: "refund", title: "Refund issued", body: "Your refund has been processed and should appear in 5-10 business days.", data: { orderId: order.id } },
-      { userId: order.sellerId, type: "refund", title: "Order refunded", body: `The buyer was refunded for order ${order.id.slice(0, 8)}.`, data: { orderId: order.id } },
+    await Promise.all([
+      notifyUser(order.buyerId, { type: "refund", title: "Refund issued", body: "Your refund has been processed and should appear in 5-10 business days.", data: { orderId: order.id } }),
+      notifyUser(order.sellerId, { type: "refund", title: "Order refunded", body: `The buyer was refunded for order ${order.id.slice(0, 8)}.`, data: { orderId: order.id } }),
     ]);
 
     res.json(updated);

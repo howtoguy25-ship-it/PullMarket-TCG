@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { getToken, setToken as persistToken, apiJson, ApiError } from "@/lib/api";
+import { registerPushToken, clearPushToken } from "@/lib/pushNotifications";
 
 export interface AuthUser {
   id: string;
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const me = await apiJson<AuthUser>("GET", "/api/auth/me");
       setUser(me);
+      void registerPushToken();
     } catch (err) {
       if (err instanceof ApiError && (err.status === 401 || err.status === 410)) {
         await persistToken(null);
@@ -56,9 +58,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback(async (token: string, nextUser: AuthUser) => {
     await persistToken(token);
     setUser(nextUser);
+    void registerPushToken();
   }, []);
 
   const signOut = useCallback(async () => {
+    await clearPushToken();
     await persistToken(null);
     setUser(null);
   }, []);

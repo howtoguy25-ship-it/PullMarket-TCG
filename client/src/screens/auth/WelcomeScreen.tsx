@@ -13,6 +13,7 @@ import { AuthStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { signInWithGoogleWeb } from "@/lib/googleAuth";
+import { signInWithAppleWeb } from "@/lib/appleAuthWeb";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "Welcome">;
 
@@ -40,34 +41,62 @@ export default function WelcomeScreen() {
   const [appleLoading, setAppleLoading] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
 
+  const appleServicesId = Constants.expoConfig?.extra?.APPLE_SERVICES_ID as string | undefined;
+
   useEffect(() => {
+    if (Platform.OS === "web") {
+      setAppleAvailable(!!appleServicesId);
+      return;
+    }
     if (Platform.OS !== "ios") return;
     import("expo-apple-authentication").then(({ isAvailableAsync }) => {
       isAvailableAsync().then(setAppleAvailable);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleAppleResult = async (result: AppleAuthResult) => {
+    if (result.status === "signed_in") {
+      await signIn(result.token, result.user);
+    } else {
+      navigation.navigate("UsernameSetup", { appleId: result.appleId, email: result.email, displayName: result.displayName });
+    }
+  };
+
+  const handleAppleSignInWeb = async () => {
+    if (!appleServicesId) {
+      showAlert("Apple Sign-In not set up yet", "Missing EXPO_PUBLIC_APPLE_SERVICES_ID.");
+      return;
+    }
+    const { identityToken, fullName } = await signInWithAppleWeb(appleServicesId);
+    const result = await apiJson<AppleAuthResult>("POST", "/api/auth/apple", { identityToken, fullName });
+    await handleAppleResult(result);
+  };
+
+  const handleAppleSignInNative = async () => {
+    const AppleAuthentication = await import("expo-apple-authentication");
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
+    });
+    if (!credential.identityToken) throw new Error("Apple didn't return an identity token");
+    const result = await apiJson<AppleAuthResult>("POST", "/api/auth/apple", {
+      identityToken: credential.identityToken,
+      fullName: credential.fullName ? { givenName: credential.fullName.givenName ?? undefined, familyName: credential.fullName.familyName ?? undefined } : undefined,
+    });
+    await handleAppleResult(result);
+  };
 
   const handleAppleSignIn = async () => {
     setAppleLoading(true);
     try {
-      const AppleAuthentication = await import("expo-apple-authentication");
-      const credential = await AppleAuthentication.signInAsync({
-        requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL],
-      });
-      if (!credential.identityToken) throw new Error("Apple didn't return an identity token");
-
-      const result = await apiJson<AppleAuthResult>("POST", "/api/auth/apple", {
-        identityToken: credential.identityToken,
-        fullName: credential.fullName ? { givenName: credential.fullName.givenName ?? undefined, familyName: credential.fullName.familyName ?? undefined } : undefined,
-      });
-      if (result.status === "signed_in") {
-        await signIn(result.token, result.user);
+      if (Platform.OS === "web") {
+        await handleAppleSignInWeb();
       } else {
-        navigation.navigate("UsernameSetup", { appleId: result.appleId, email: result.email, displayName: result.displayName });
+        await handleAppleSignInNative();
       }
     } catch (err: any) {
-      if (err?.code === "ERR_REQUEST_CANCELED") {
-        // user dismissed the sheet — not an error
+      if (err?.code === "ERR_REQUEST_CANCELED" || (err instanceof Error && /cancel/i.test(err.message))) {
+        // user dismissed the sheet/popup — not an error
       } else if (err instanceof ApiError) {
         showAlert("Apple Sign-In failed", err.message);
       } else {

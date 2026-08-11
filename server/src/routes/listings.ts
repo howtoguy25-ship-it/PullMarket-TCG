@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { listings, listingImages, users, favorites, franchiseSubscriptions, notifications } from "@shared/schema";
+import { listings, listingImages, users, favorites, franchiseSubscriptions } from "@shared/schema";
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { upload } from "../lib/upload";
 import { CONDITIONS, FRANCHISES } from "@shared/schema";
 import { detectFranchise } from "@shared/validation";
+import { notifyUsers } from "../lib/notify";
 
 const router = Router();
 
@@ -167,14 +168,9 @@ router.post("/", authenticateToken, upload.array("images", 6), async (req, res) 
     .from(franchiseSubscriptions)
     .where(and(inArray(franchiseSubscriptions.franchise, franchisesToNotify), sql`${franchiseSubscriptions.userId} != ${req.user!.id}`));
   if (subscribers.length > 0) {
-    await db.insert(notifications).values(
-      subscribers.map((s) => ({
-        userId: s.userId,
-        type: "new_listing_match",
-        title: "New card matching your filters",
-        body: `${title} just listed for $${(priceCents / 100).toFixed(2)}`,
-        data: { listingId: listing.id },
-      })),
+    await notifyUsers(
+      subscribers.map((s) => s.userId),
+      { type: "new_listing_match", title: "New card matching your filters", body: `${title} just listed for $${(priceCents / 100).toFixed(2)}`, data: { listingId: listing.id } },
     );
   }
 
