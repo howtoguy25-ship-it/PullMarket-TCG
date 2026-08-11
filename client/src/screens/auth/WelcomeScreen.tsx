@@ -209,7 +209,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", paddingHorizontal: Spacing.xl, justifyContent: "space-between" },
   brandRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, alignSelf: "center" },
-  logoMark: { width: 44, height: 44 },
+  logoMark: { width: 42, height: 64 },
   title: { ...Typography.h2, color: Colors.white, lineHeight: 24 },
   titleAccent: { ...Typography.h3, color: Colors.gold, letterSpacing: 3, lineHeight: 18 },
   hero: { alignItems: "center", justifyContent: "center", flex: 1, gap: Spacing.lg },
