@@ -35,6 +35,7 @@ module.exports = () => {
         infoPlist: {
           NSCameraUsageDescription: "PullMarket needs camera access to scan and photograph cards you're listing for sale.",
           NSPhotoLibraryUsageDescription: "PullMarket needs photo library access so you can upload card photos from your library.",
+          NSMotionUsageDescription: "PullMarket checks that your phone is steady so it can automatically capture card photos while scanning.",
           ITSAppUsesNonExemptEncryption: false,
         },
       },

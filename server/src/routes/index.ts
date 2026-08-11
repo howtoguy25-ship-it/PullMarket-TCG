@@ -10,11 +10,14 @@ import ordersRoutes from "./orders";
 import notificationsRoutes from "./notifications";
 import reportsRoutes from "./reports";
 import ownerRoutes from "./owner";
+import compositeRoutes from "./composite";
 import { UPLOAD_DIR_PATH } from "../lib/upload";
+import { BACKGROUNDS_DIR } from "../lib/cardBackgrounds";
 import { COURIER_LABELS, CONDITION_LABELS, REPORT_REASON_LABELS } from "@shared/validation";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/uploads", express.static(UPLOAD_DIR_PATH, { maxAge: "30d" }));
+  app.use("/api/backgrounds", express.static(BACKGROUNDS_DIR, { maxAge: "7d" }));
 
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
   app.get("/api/lookups", (_req, res) => res.json({ couriers: COURIER_LABELS, conditions: CONDITION_LABELS, reportReasons: REPORT_REASON_LABELS }));
@@ -28,6 +31,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/notifications", notificationsRoutes);
   app.use("/api/reports", reportsRoutes);
   app.use("/api/owner", ownerRoutes);
+  app.use("/api/composite", compositeRoutes);
 
   return createServer(app);
 }

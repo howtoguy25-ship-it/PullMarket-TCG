@@ -11,6 +11,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { CardScannerModal } from "@/components/CardScannerModal";
+import { BackgroundPickerModal } from "@/components/BackgroundPickerModal";
 import { RootStackParamList } from "@/navigation/types";
 import { apiRequest, ApiError } from "@/lib/api";
 import { appendImageToFormData } from "@/lib/formDataImage";
@@ -141,6 +142,7 @@ export default function SellScreen() {
 
   const [images, setImages] = useState<string[]>([]);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [pendingScanUri, setPendingScanUri] = useState<string | null>(null);
   const [franchise, setFranchise] = useState<"pokemon" | "one_piece" | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -198,8 +200,13 @@ export default function SellScreen() {
   };
 
   const handleScanCapture = (uri: string) => {
-    setImages((prev) => (prev.length < MAX_IMAGES ? [...prev, uri] : prev));
     setScannerOpen(false);
+    setPendingScanUri(uri);
+  };
+
+  const handleBackgroundDone = (finalUri: string) => {
+    setImages((prev) => (prev.length < MAX_IMAGES ? [...prev, finalUri] : prev));
+    setPendingScanUri(null);
   };
 
   const removeImage = (index: number) => setImages((prev) => prev.filter((_, i) => i !== index));
@@ -368,6 +375,7 @@ export default function SellScreen() {
       </View>
 
       <CardScannerModal visible={scannerOpen} onClose={() => setScannerOpen(false)} onCapture={handleScanCapture} />
+      <BackgroundPickerModal visible={!!pendingScanUri} photoUri={pendingScanUri} onDone={handleBackgroundDone} onCancel={() => setPendingScanUri(null)} />
     </ScrollView>
   );
 }
