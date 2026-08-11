@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { View, StyleSheet, Text, TextInput, Pressable, Modal, FlatList, Platform, Alert } from "react-native";
+import * as Localization from "expo-localization";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -21,11 +22,25 @@ function showAlert(title: string, message: string) {
   Alert.alert(title, message);
 }
 
+/** Defaults the country picker to wherever the user actually is, using the
+ * device's region setting (native) or browser locale (web) — same API on
+ * both platforms. Falls back to DEFAULT_COUNTRY if detection fails or the
+ * region isn't in our dial-code list. */
+function detectCountry(): Country {
+  try {
+    const regionCode = Localization.getLocales()[0]?.regionCode;
+    const match = regionCode ? COUNTRIES.find((c) => c.code === regionCode) : undefined;
+    return match ?? DEFAULT_COUNTRY;
+  } catch {
+    return DEFAULT_COUNTRY;
+  }
+}
+
 export default function PhoneSignInScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
-  const [country, setCountry] = useState<Country>(DEFAULT_COUNTRY);
+  const [country, setCountry] = useState<Country>(detectCountry);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [number, setNumber] = useState("");

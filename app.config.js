@@ -85,6 +85,9 @@ module.exports = () => {
         "expo-web-browser",
         // Adds the required com.apple.developer.applesignin entitlement.
         "expo-apple-authentication",
+        // Reads the device's region setting so the phone sign-in screen can
+        // default its country-code picker to wherever the user actually is.
+        "expo-localization",
         [
           "expo-splash-screen",
           {
