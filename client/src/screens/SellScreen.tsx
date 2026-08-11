@@ -249,7 +249,7 @@ export default function SellScreen() {
         </Section>
 
         <Section icon="camera" title={`Photos (${images.length}/${MAX_IMAGES})`} helper="Scan with the camera or upload from your library — buyers swipe through them on the listing page.">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.thumbScrollContent}>
             {images.map((uri, i) => (
               <View key={uri + i} style={styles.thumbWrap}>
                 <Image source={{ uri }} style={styles.thumb} />
@@ -397,6 +397,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 3,
   },
+  thumbScrollContent: { paddingTop: 10, paddingRight: 4 },
   thumbWrap: { marginRight: Spacing.sm, alignItems: "center" },
   thumb: { width: 84, height: 108, borderRadius: BorderRadius.md, backgroundColor: Colors.surfaceAlt },
   removeThumb: { position: "absolute", top: -6, right: -6, backgroundColor: Colors.danger, borderRadius: 10, padding: 4 },

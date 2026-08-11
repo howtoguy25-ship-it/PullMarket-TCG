@@ -5,6 +5,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "@/lib/queryClient";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AmbientSoundProvider } from "@/contexts/AmbientSoundContext";
 import { RootNavigator } from "@/navigation/RootNavigator";
 
 export default function App() {
@@ -13,8 +14,10 @@ export default function App() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <StatusBar style="dark" />
-            <RootNavigator />
+            <AmbientSoundProvider>
+              <StatusBar style="dark" />
+              <RootNavigator />
+            </AmbientSoundProvider>
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

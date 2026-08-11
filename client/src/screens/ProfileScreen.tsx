@@ -1,5 +1,6 @@
 import React from "react";
-import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert } from "react-native";
+import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Switch } from "react-native";
+import Slider from "@react-native-community/slider";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -10,6 +11,8 @@ import { Button } from "@/components/ui";
 import { MascotAvatar } from "@/components/MascotAvatar";
 import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAmbientSound } from "@/contexts/AmbientSoundContext";
+import { AMBIENT_SOUNDS } from "@/lib/ambientSounds";
 import { apiJson } from "@/lib/api";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -27,17 +30,32 @@ function confirmAsync(title: string, message: string): Promise<boolean> {
   });
 }
 
-function MenuRow({ icon, label, subtitle, onPress, danger }: { icon: keyof typeof Feather.glyphMap; label: string; subtitle?: string; onPress: () => void; danger?: boolean }) {
+function MenuRow({ icon, label, subtitle, onPress }: { icon: keyof typeof Feather.glyphMap; label: string; subtitle?: string; onPress: () => void }) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
-      <View style={[styles.rowIcon, danger && { backgroundColor: "#FCE4E4" }]}>
-        <Feather name={icon} size={16} color={danger ? Colors.danger : Colors.primary} />
+      <View style={styles.rowIcon}>
+        <Feather name={icon} size={16} color={Colors.primary} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.rowLabel, danger && { color: Colors.danger }]}>{label}</Text>
+        <Text style={styles.rowLabel}>{label}</Text>
         {subtitle ? <Text style={styles.rowSubtitle}>{subtitle}</Text> : null}
       </View>
       <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+    </Pressable>
+  );
+}
+
+function SoundRow({ id, label, description, active, previewing, onSelect, onPreview }: { id: string; label: string; description: string; active: boolean; previewing: boolean; onSelect: () => void; onPreview: () => void }) {
+  return (
+    <Pressable style={[styles.soundRow, active && styles.soundRowActive]} onPress={onSelect}>
+      <View style={[styles.soundRadio, active && styles.soundRadioActive]}>{active ? <View style={styles.soundRadioDot} /> : null}</View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.soundLabel, active && styles.soundLabelActive]}>{label}</Text>
+        <Text style={styles.soundDescription}>{description}</Text>
+      </View>
+      <Pressable style={styles.previewButton} onPress={onPreview} hitSlop={8}>
+        <Feather name={previewing ? "volume-2" : "play"} size={15} color={Colors.primary} />
+      </Pressable>
     </Pressable>
   );
 }
@@ -46,6 +64,7 @@ export default function ProfileScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { user, signOut, refreshUser } = useAuth();
+  const { enabled, selectedId, volume, previewingId, setEnabled, selectSound, setVolume, preview } = useAmbientSound();
 
   const deleteMutation = useMutation({
     mutationFn: () => apiJson("POST", "/api/auth/account/delete"),
@@ -55,6 +74,11 @@ export default function ProfileScreen() {
   const handleDeleteAccount = async () => {
     const ok = await confirmAsync("Delete your account?", "This permanently removes your profile and can't be undone.");
     if (ok) deleteMutation.mutate();
+  };
+
+  const handleSignOut = async () => {
+    const ok = await confirmAsync("Sign out?", "You can sign back in anytime.");
+    if (ok) signOut();
   };
 
   if (!user) {
@@ -98,10 +122,51 @@ export default function ProfileScreen() {
         </>
       ) : null}
 
-      <Text style={styles.sectionHeader}>Account</Text>
+      <Text style={styles.sectionHeader}>Ambient Sound</Text>
       <View style={styles.section}>
-        <MenuRow icon="log-out" label="Sign out" onPress={() => signOut()} />
-        <MenuRow icon="trash-2" label="Delete account" onPress={handleDeleteAccount} danger />
+        <View style={styles.soundToggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Play while browsing</Text>
+            <Text style={styles.rowSubtitle}>A subtle background sound — no music, just texture</Text>
+          </View>
+          <Switch value={enabled} onValueChange={setEnabled} trackColor={{ false: Colors.border, true: Colors.primary }} thumbColor={Colors.white} />
+        </View>
+
+        <View style={styles.soundList}>
+          {AMBIENT_SOUNDS.map((s) => (
+            <SoundRow
+              key={s.id}
+              id={s.id}
+              label={s.label}
+              description={s.description}
+              active={selectedId === s.id}
+              previewing={previewingId === s.id}
+              onSelect={() => selectSound(s.id)}
+              onPreview={() => preview(s.id)}
+            />
+          ))}
+        </View>
+
+        <View style={styles.volumeRow}>
+          <Feather name="volume-1" size={16} color={Colors.textSecondary} />
+          <Slider
+            style={{ flex: 1 }}
+            minimumValue={0}
+            maximumValue={1}
+            value={volume}
+            onValueChange={setVolume}
+            minimumTrackTintColor={Colors.primary}
+            maximumTrackTintColor={Colors.border}
+            thumbTintColor={Colors.primary}
+          />
+          <Feather name="volume-2" size={16} color={Colors.textSecondary} />
+        </View>
+      </View>
+
+      <Text style={styles.sectionHeader}>Account</Text>
+      <View style={styles.accountActions}>
+        <Button title="Sign out" variant="outline" icon={<Feather name="log-out" size={17} color={Colors.primary} />} onPress={handleSignOut} style={styles.accountButton} />
+        <Button title="Delete account" variant="danger" icon={<Feather name="trash-2" size={17} color={Colors.white} />} onPress={handleDeleteAccount} loading={deleteMutation.isPending} style={styles.accountButton} />
       </View>
     </ScrollView>
   );
@@ -120,4 +185,18 @@ const styles = StyleSheet.create({
   rowIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#FCE9E4", alignItems: "center", justifyContent: "center" },
   rowLabel: { ...Typography.bodyBold, color: Colors.text, fontSize: 14 },
   rowSubtitle: { ...Typography.small, color: Colors.textSecondary },
+  soundToggleRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md },
+  soundList: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
+  soundRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
+  soundRowActive: { backgroundColor: Colors.surfaceAlt },
+  soundRadio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
+  soundRadioActive: { borderColor: Colors.primary },
+  soundRadioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary },
+  soundLabel: { ...Typography.bodyBold, color: Colors.text, fontSize: 14 },
+  soundLabelActive: { color: Colors.primary },
+  soundDescription: { ...Typography.small, color: Colors.textSecondary },
+  previewButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FCE9E4", alignItems: "center", justifyContent: "center" },
+  volumeRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
+  accountActions: { gap: Spacing.sm },
+  accountButton: { width: "100%" },
 });
