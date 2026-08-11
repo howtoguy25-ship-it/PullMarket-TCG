@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "../db";
-import { orders, listings, orderItems } from "@shared/schema";
+import { orders, listings, orderItems, users } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { getStripe } from "../lib/stripeClient";
 import { addBusinessDays } from "@shared/validation";
@@ -30,6 +30,9 @@ router.post("/", async (req, res) => {
       const session = event.data.object as Stripe.Checkout.Session;
       const orderId = session.metadata?.orderId;
       if (orderId) await markOrderPaid(orderId, session);
+    } else if (event.type.startsWith("identity.verification_session.")) {
+      const session = event.data.object as Stripe.Identity.VerificationSession;
+      await handleIdentitySessionEvent(event.type, session);
     }
   } catch (err) {
     console.error("Webhook handling failed:", err);
@@ -83,6 +86,41 @@ async function markOrderPaid(orderId: string, session: Stripe.Checkout.Session) 
       data: { orderId },
     }),
   ]);
+}
+
+// ── Stripe Identity (seller KYC): the only place identityVerificationStatus
+// ever moves out of "pending" — without this, a failed or abandoned check
+// left a seller stuck showing "pending" forever with no way to retry. ─────
+async function handleIdentitySessionEvent(eventType: string, session: Stripe.Identity.VerificationSession) {
+  const userId = session.metadata?.userId;
+  if (!userId) return;
+
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  if (!user || user.identityVerificationSessionId !== session.id) return;
+
+  if (eventType === "identity.verification_session.verified") {
+    await db.update(users).set({ identityVerificationStatus: "verified", identityVerifiedAt: new Date() }).where(eq(users.id, userId));
+    await notifyUser(userId, {
+      type: "identity_verified",
+      title: "You're verified!",
+      body: "Your identity has been verified — you can now list cards for sale.",
+    });
+    return;
+  }
+
+  // "requires_input" fires both while a session is still awaiting the
+  // user's first submission and after a failed check — session.last_error
+  // is only set in the latter case, so that's what actually means "can't
+  // be verified" and should be labeled as such.
+  const failed = eventType === "identity.verification_session.canceled" || (eventType === "identity.verification_session.requires_input" && !!session.last_error);
+  if (failed) {
+    await db.update(users).set({ identityVerificationStatus: "failed" }).where(eq(users.id, userId));
+    await notifyUser(userId, {
+      type: "identity_failed",
+      title: "Verification didn't go through",
+      body: session.last_error?.reason || "We couldn't verify your identity. You can try again from your profile.",
+    });
+  }
 }
 
 export default router;

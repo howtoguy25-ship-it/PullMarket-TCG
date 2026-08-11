@@ -32,23 +32,36 @@ export default function IdentityVerificationScreen() {
   });
 
   const verified = status?.status === "verified";
+  const pending = status?.status === "pending";
+  const failed = status?.status === "failed";
+
+  const badge = verified
+    ? { label: "Verified", color: Colors.success }
+    : pending
+      ? { label: "Pending review", color: Colors.warning }
+      : failed
+        ? { label: "Verification failed", color: Colors.danger }
+        : { label: "Not verified", color: Colors.warning };
 
   return (
     <View style={[styles.container, { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl }]}>
-      <View style={[styles.iconCircle, { backgroundColor: verified ? Colors.success : Colors.secondary }]}>
-        <Feather name={verified ? "check" : "shield"} size={32} color={Colors.white} />
+      <View style={[styles.iconCircle, { backgroundColor: verified ? Colors.success : failed ? Colors.danger : Colors.secondary }]}>
+        <Feather name={verified ? "check" : failed ? "x" : "shield"} size={32} color={Colors.white} />
       </View>
       <Text style={styles.title}>Identity verification</Text>
       <Text style={styles.subtitle}>
-        To keep the marketplace safe, we verify sellers with Stripe Identity — a government ID scan and a live selfie match, plus your name, address, and date of birth. This helps prevent fraud and
-        protects buyers.
+        {failed
+          ? "We couldn't verify your identity. Double-check your ID is valid and unexpired, then try again in good lighting."
+          : "To keep the marketplace safe, we verify sellers with Stripe Identity — a government ID scan and a live selfie match, plus your name, address, and date of birth. This helps prevent fraud and protects buyers."}
       </Text>
 
       <View style={styles.statusRow}>
-        <Badge label={verified ? "Verified" : status?.status === "pending" ? "Pending review" : "Not verified"} color={verified ? Colors.success : Colors.warning} />
+        <Badge label={badge.label} color={badge.color} />
       </View>
 
-      {!verified ? <Button title="Start verification" onPress={() => startMutation.mutate()} loading={startMutation.isPending} style={{ marginTop: Spacing.lg }} /> : null}
+      {!verified && !pending ? (
+        <Button title={failed ? "Try verification again" : "Start verification"} onPress={() => startMutation.mutate()} loading={startMutation.isPending} style={{ marginTop: Spacing.lg }} />
+      ) : null}
       <Button title="Refresh status" variant="ghost" onPress={() => refetch()} style={{ marginTop: Spacing.sm }} />
     </View>
   );
