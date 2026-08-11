@@ -13,7 +13,7 @@ import { AuthStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { signInWithGoogleWeb, preloadGoogleScript } from "@/lib/googleAuth";
-import { signInWithAppleWeb } from "@/lib/appleAuthWeb";
+import { signInWithAppleWeb, preloadAppleScript } from "@/lib/appleAuthWeb";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "Welcome">;
 
@@ -56,10 +56,14 @@ export default function WelcomeScreen() {
   }, []);
 
   useEffect(() => {
-    // Preload so the sign-in click can open Google's popup synchronously —
-    // an `await` in between the click and the popup call causes Safari to
-    // silently block it (see the note in googleAuth.ts).
-    if (Platform.OS === "web") preloadGoogleScript();
+    // Preload so the sign-in click can open the Google/Apple popup
+    // synchronously — an `await` in between the click and the popup call
+    // causes Safari to silently block it (see the notes in googleAuth.ts /
+    // appleAuthWeb.ts).
+    if (Platform.OS === "web") {
+      preloadGoogleScript();
+      preloadAppleScript();
+    }
   }, []);
 
   const handleAppleResult = async (result: AppleAuthResult) => {

@@ -39,25 +39,50 @@ export interface AppleWebSignInResult {
   fullName?: { givenName?: string; familyName?: string };
 }
 
-/**
- * Opens Apple's sign-in popup and resolves with the identity token (plus
- * the user's name, only present on their very first authorization). Must be
- * called directly from a user gesture or the popup may be blocked.
- */
-export async function signInWithAppleWeb(servicesId: string): Promise<AppleWebSignInResult> {
-  await loadAppleScript();
-  if (!window.AppleID?.auth) throw new Error("Sign in with Apple script didn't load");
+/** Kicks off loading Apple's JS SDK ahead of time (e.g. on screen mount) so
+ * the actual sign-in call can open the popup synchronously within the click
+ * handler — same reasoning as preloadGoogleScript in googleAuth.ts. */
+export function preloadAppleScript(): void {
+  loadAppleScript().catch(() => {
+    // Swallow here — signInWithAppleWeb will surface a real error if the
+    // user actually tries to sign in and the script still isn't available.
+  });
+}
 
-  window.AppleID.auth.init({
+function openApplePopup(servicesId: string): Promise<AppleWebSignInResult> {
+  window.AppleID!.auth.init({
     clientId: servicesId,
     scope: "name email",
     redirectURI: window.location.origin,
     usePopup: true,
   });
 
-  const response = await window.AppleID.auth.signIn();
-  return {
+  return window.AppleID!.auth.signIn().then((response) => ({
     identityToken: response.authorization.id_token,
     fullName: response.user?.name ? { givenName: response.user.name.firstName, familyName: response.user.name.lastName } : undefined,
-  };
+  }));
+}
+
+/**
+ * Opens Apple's sign-in popup and resolves with the identity token (plus
+ * the user's name, only present on their very first authorization).
+ *
+ * Safari (and increasingly other browsers) only treats a popup as
+ * "user-initiated" if it's opened synchronously within the click handler —
+ * any `await` in between silently loses that trust, and the popup never
+ * opens with no error callback either, leaving a naive implementation stuck
+ * loading forever. So: if the script is already loaded (the normal case,
+ * since callers should call preloadAppleScript on mount), open the popup
+ * synchronously. Only fall back to the async load-then-open path if it
+ * truly isn't ready yet, and race everything against a timeout so a
+ * blocked/never-appearing popup fails clearly instead of spinning forever.
+ */
+export function signInWithAppleWeb(servicesId: string): Promise<AppleWebSignInResult> {
+  const attempt = window.AppleID?.auth ? openApplePopup(servicesId) : loadAppleScript().then(() => openApplePopup(servicesId));
+
+  const timeout = new Promise<AppleWebSignInResult>((_, reject) => {
+    setTimeout(() => reject(new Error("Apple sign-in didn't respond — your browser may have blocked the popup. Check your popup blocker and try again.")), 45000);
+  });
+
+  return Promise.race([attempt, timeout]);
 }
