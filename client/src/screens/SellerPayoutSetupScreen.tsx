@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Spacing, Typography } from "@/constants/theme";
 import { Button, Badge } from "@/components/ui";
 import { apiJson, ApiError } from "@/lib/api";
@@ -34,9 +35,15 @@ export default function SellerPayoutSetupScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl }]}>
-      <View style={styles.iconCircle}>
-        <Feather name="credit-card" size={32} color={Colors.white} />
-      </View>
+      {status?.payoutsEnabled ? (
+        <View style={[styles.iconCircle, { backgroundColor: Colors.success }]}>
+          <Feather name="check" size={32} color={Colors.white} />
+        </View>
+      ) : (
+        <LinearGradient colors={[Colors.primary, Colors.goldDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconCircle}>
+          <Feather name="credit-card" size={32} color={Colors.white} />
+        </LinearGradient>
+      )}
       <Text style={styles.title}>Get paid for your sales</Text>
       <Text style={styles.subtitle}>
         PullMarket uses Stripe to send your earnings straight to your bank account. Stripe automatically transfers your payout as soon as a sale is paid for, minus our small platform fee.
@@ -54,7 +61,7 @@ export default function SellerPayoutSetupScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, alignItems: "center", paddingHorizontal: Spacing.xl },
-  iconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: Colors.secondary, alignItems: "center", justifyContent: "center", marginBottom: Spacing.lg },
+  iconCircle: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center", marginBottom: Spacing.lg },
   title: { ...Typography.h2, color: Colors.text, textAlign: "center" },
   subtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: "center", marginTop: Spacing.sm },
   statusRow: { marginTop: Spacing.lg },

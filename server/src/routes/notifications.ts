@@ -39,4 +39,14 @@ router.post("/read-all", async (req, res) => {
   res.json({ status: "ok" });
 });
 
+router.delete("/:id", async (req, res) => {
+  await db.delete(notifications).where(and(eq(notifications.id, req.params.id), eq(notifications.userId, req.user!.id)));
+  res.json({ status: "ok" });
+});
+
+router.delete("/", async (req, res) => {
+  await db.delete(notifications).where(eq(notifications.userId, req.user!.id));
+  res.json({ status: "ok" });
+});
+
 export default router;

@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Spacing, Typography } from "@/constants/theme";
 import { Button, Badge } from "@/components/ui";
 import { apiJson, ApiError } from "@/lib/api";
@@ -45,9 +46,15 @@ export default function IdentityVerificationScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl }]}>
-      <View style={[styles.iconCircle, { backgroundColor: verified ? Colors.success : failed ? Colors.danger : Colors.secondary }]}>
-        <Feather name={verified ? "check" : failed ? "x" : "shield"} size={32} color={Colors.white} />
-      </View>
+      {verified || failed ? (
+        <View style={[styles.iconCircle, { backgroundColor: verified ? Colors.success : Colors.danger }]}>
+          <Feather name={verified ? "check" : "x"} size={32} color={Colors.white} />
+        </View>
+      ) : (
+        <LinearGradient colors={[Colors.primary, Colors.goldDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.iconCircle}>
+          <Feather name="shield" size={32} color={Colors.white} />
+        </LinearGradient>
+      )}
       <Text style={styles.title}>Identity verification</Text>
       <Text style={styles.subtitle}>
         {failed

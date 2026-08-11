@@ -81,11 +81,9 @@ export default function SearchScreen() {
           <Feather name="sliders" size={18} color={activeFilterCount > 0 ? Colors.white : Colors.text} />
           {activeFilterCount > 0 ? <Text style={styles.filterCount}>{activeFilterCount}</Text> : null}
         </Pressable>
-        {hasQuery ? (
-          <Pressable onPress={clearSearch} hitSlop={8}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </Pressable>
-        ) : null}
+        <Pressable onPress={clearSearch} hitSlop={8}>
+          <Text style={styles.cancelText}>Cancel</Text>
+        </Pressable>
       </View>
 
       {filtersOpen ? (

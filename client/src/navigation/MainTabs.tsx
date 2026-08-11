@@ -1,4 +1,5 @@
 import React from "react";
+import { Keyboard } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { Colors } from "@/constants/theme";
@@ -23,6 +24,9 @@ const ICONS: Record<keyof MainTabsParamList, keyof typeof Feather.glyphMap> = {
 export function MainTabs() {
   return (
     <Tab.Navigator
+      screenListeners={{
+        tabPress: () => Keyboard.dismiss(),
+      }}
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
