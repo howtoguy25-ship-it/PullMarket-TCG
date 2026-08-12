@@ -33,7 +33,7 @@ interface ConversationRow {
 }
 
 function useConversations() {
-  return useQuery<ConversationRow[]>({ queryKey: ["/api/chat/conversations"], refetchInterval: 5000 });
+  return useQuery<ConversationRow[]>({ queryKey: ["/api/chat/conversations"], refetchInterval: 5000, meta: { silent401: true } });
 }
 
 function useFriendRequestCount() {

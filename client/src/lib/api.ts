@@ -47,7 +47,24 @@ export function setUnauthorizedHandler(handler: ((message: string, context: stri
   onUnauthorized = handler;
 }
 
-export async function apiRequest(method: string, path: string, body?: unknown, isFormData = false): Promise<Response> {
+export interface ApiRequestOptions {
+  isFormData?: boolean;
+  // A 401/410 from a screen the user directly acted on (signing in,
+  // opening a chat, saving something) really does mean "your session is
+  // dead, go sign in again". A 401/410 from a passive background poll
+  // (an unread-count badge refetching itself every few seconds) does NOT
+  // deserve the same blast radius — one flaky response on a query nobody
+  // asked for should never be able to nuke an otherwise perfectly valid
+  // session and bounce someone back to the welcome screen. Background
+  // queries (see queryClient.ts's `meta: { silent401: true }`) pass this
+  // so their failures degrade quietly instead.
+  silent401?: boolean;
+}
+
+export async function apiRequest(method: string, path: string, body?: unknown, optionsOrIsFormData: boolean | ApiRequestOptions = false): Promise<Response> {
+  const options: ApiRequestOptions = typeof optionsOrIsFormData === "boolean" ? { isFormData: optionsOrIsFormData } : optionsOrIsFormData;
+  const isFormData = options.isFormData ?? false;
+
   const token = await getToken();
   const headers: Record<string, string> = {};
   if (token) headers["Authorization"] = `Bearer ${token}`;
@@ -83,7 +100,7 @@ export async function apiRequest(method: string, path: string, body?: unknown, i
       // response wasn't JSON
     }
     if (detail) console.error(`[api] ${method} ${path} -> ${res.status} ${message}: ${detail}`);
-    if (res.status === 401 || res.status === 410) {
+    if ((res.status === 401 || res.status === 410) && !options.silent401) {
       onUnauthorized?.(message, `${method} ${path} -> ${res.status}${token ? "" : " (no token attached)"}`);
     }
     throw new ApiError(res.status, message, detail);
@@ -92,7 +109,7 @@ export async function apiRequest(method: string, path: string, body?: unknown, i
   return res;
 }
 
-export async function apiJson<T>(method: string, path: string, body?: unknown, isFormData = false): Promise<T> {
-  const res = await apiRequest(method, path, body, isFormData);
+export async function apiJson<T>(method: string, path: string, body?: unknown, optionsOrIsFormData: boolean | ApiRequestOptions = false): Promise<T> {
+  const res = await apiRequest(method, path, body, optionsOrIsFormData);
   return res.json();
 }

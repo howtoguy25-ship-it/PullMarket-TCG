@@ -80,8 +80,8 @@ export default function ChatThreadScreen() {
   const [text, setText] = useState("");
   const [pendingMedia, setPendingMedia] = useState<PendingMedia[]>([]);
 
-  const { data: convo } = useQuery<ConversationDetail>({ queryKey: [`/api/chat/conversations/${conversationId}`], refetchInterval: 4000 });
-  const { data: messages, isLoading } = useQuery<Message[]>({ queryKey: [`/api/chat/conversations/${conversationId}/messages`], refetchInterval: 3000 });
+  const { data: convo } = useQuery<ConversationDetail>({ queryKey: [`/api/chat/conversations/${conversationId}`], refetchInterval: 4000, meta: { silent401: true } });
+  const { data: messages, isLoading } = useQuery<Message[]>({ queryKey: [`/api/chat/conversations/${conversationId}/messages`], refetchInterval: 3000, meta: { silent401: true } });
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: [`/api/chat/conversations/${conversationId}`] });

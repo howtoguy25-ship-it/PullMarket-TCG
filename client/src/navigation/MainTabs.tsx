@@ -25,7 +25,7 @@ const ICONS: Record<keyof MainTabsParamList, keyof typeof Feather.glyphMap> = {
 };
 
 function useUnreadMessageCount() {
-  const { data } = useQuery<{ count: number }>({ queryKey: ["/api/chat/unread-count"], refetchInterval: 10000 });
+  const { data } = useQuery<{ count: number }>({ queryKey: ["/api/chat/unread-count"], refetchInterval: 10000, meta: { silent401: true } });
   return data?.count ?? 0;
 }
 

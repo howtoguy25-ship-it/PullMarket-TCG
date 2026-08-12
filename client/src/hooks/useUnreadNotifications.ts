@@ -3,6 +3,6 @@ import { useAuth } from "@/contexts/AuthContext";
 
 export function useUnreadNotifications(): number {
   const { user } = useAuth();
-  const { data } = useQuery<{ count: number }>({ queryKey: ["/api/notifications/unread-count"], enabled: !!user, refetchInterval: 20_000 });
+  const { data } = useQuery<{ count: number }>({ queryKey: ["/api/notifications/unread-count"], enabled: !!user, refetchInterval: 20_000, meta: { silent401: true } });
   return data?.count ?? 0;
 }
