@@ -305,18 +305,28 @@ export const franchiseSubscriptionsRelations = relations(franchiseSubscriptions,
   user: one(users, { fields: [franchiseSubscriptions.userId], references: [users.id] }),
 }));
 
-// ─── Reports (listing reports → owner panel) ────────────────────────────
+// ─── Reports (listing/order/chat reports → owner panel) ─────────────────
 export const REPORT_STATUSES = ["pending", "reviewed", "actioned", "dismissed"] as const;
+export const REPORT_SOURCES = ["user", "ai_moderation"] as const;
 
 export const reports = pgTable(
   "reports",
   {
     id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-    reporterId: varchar("reporter_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    // Null for AI-generated reports — there's no reporting user, the
+    // moderation pass itself flagged the content.
+    reporterId: varchar("reporter_id").references(() => users.id, { onDelete: "cascade" }),
+    source: text("source").notNull().default("user"), // one of REPORT_SOURCES
     listingId: varchar("listing_id").references(() => listings.id, { onDelete: "set null" }),
     orderId: varchar("order_id").references(() => orders.id, { onDelete: "set null" }),
-    reason: text("reason").notNull(), // 'counterfeit' | 'not_as_described' | 'never_received' | 'scam' | 'inappropriate' | 'other'
+    conversationId: varchar("conversation_id").references(() => conversations.id, { onDelete: "set null" }),
+    reportedUserId: varchar("reported_user_id").references(() => users.id, { onDelete: "set null" }),
+    messageId: varchar("message_id").references(() => messages.id, { onDelete: "set null" }),
+    reason: text("reason").notNull(), // 'counterfeit' | 'not_as_described' | 'never_received' | 'scam' | 'inappropriate' | 'harassment' | 'other'
     description: text("description").notNull(),
+    // Set when source is 'ai_moderation' — the classifier's own explanation
+    // for why the message was flagged, shown to the owner for review.
+    aiReasoning: text("ai_reasoning"),
     status: text("status").notNull().default("pending"),
     ownerNotes: text("owner_notes"),
     ownerReplySentAt: timestamp("owner_reply_sent_at"),
@@ -329,9 +339,12 @@ export const reports = pgTable(
 );
 
 export const reportsRelations = relations(reports, ({ one }) => ({
-  reporter: one(users, { fields: [reports.reporterId], references: [users.id] }),
+  reporter: one(users, { fields: [reports.reporterId], references: [users.id], relationName: "reportReporter" }),
   listing: one(listings, { fields: [reports.listingId], references: [listings.id] }),
   order: one(orders, { fields: [reports.orderId], references: [orders.id] }),
+  conversation: one(conversations, { fields: [reports.conversationId], references: [conversations.id] }),
+  reportedUser: one(users, { fields: [reports.reportedUserId], references: [users.id], relationName: "reportReportedUser" }),
+  message: one(messages, { fields: [reports.messageId], references: [messages.id] }),
 }));
 
 // ─── Friend requests ─────────────────────────────────────────────────────
@@ -404,6 +417,11 @@ export const messages = pgTable(
     conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
     senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     text: text("text"),
+    // Set by the AI moderation pass (see server/src/lib/moderation.ts) when
+    // a message looks like a scam/fraud attempt or abusive language. Flagged
+    // messages still deliver normally — moderation never blocks a message —
+    // this only surfaces a quiet indicator and opens an owner-review report.
+    flagged: boolean("flagged").notNull().default(false),
     deliveredAt: timestamp("delivered_at"),
     readAt: timestamp("read_at"),
     createdAt: timestamp("created_at").defaultNow(),
@@ -449,6 +467,8 @@ export const insertListingSchema = createInsertSchema(listings).pick({
 export const insertReportSchema = createInsertSchema(reports).pick({
   listingId: true,
   orderId: true,
+  conversationId: true,
+  reportedUserId: true,
   reason: true,
   description: true,
 });

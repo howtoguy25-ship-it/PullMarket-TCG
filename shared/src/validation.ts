@@ -72,9 +72,15 @@ export const REPORT_REASON_LABELS: Record<string, string> = {
   not_as_described: "Item not as described",
   never_received: "Never received item",
   scam: "Scam or fraud",
-  inappropriate: "Inappropriate listing",
+  inappropriate: "Inappropriate content",
+  harassment: "Harassment or threats",
   other: "Other",
 };
+
+// Reasons relevant when reporting a chat/user rather than a listing —
+// narrows the picker shown on ReportScreen in that context.
+export const CHAT_REPORT_REASONS = ["scam", "harassment", "inappropriate", "other"] as const;
+export const LISTING_REPORT_REASONS = ["counterfeit", "not_as_described", "never_received", "scam", "inappropriate", "other"] as const;
 
 // Refund window: buyers can request a refund any time before the seller
 // marks the order shipped, or within 48h of payment if it's shipped later

@@ -8,7 +8,7 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
-import { REPORT_REASON_LABELS } from "@shared/validation";
+import { REPORT_REASON_LABELS, CHAT_REPORT_REASONS, LISTING_REPORT_REASONS } from "@shared/validation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Report">;
 type Rt = RouteProp<RootStackParamList, "Report">;
@@ -21,18 +21,19 @@ function showAlert(title: string, message: string) {
   Alert.alert(title, message);
 }
 
-const REASONS = Object.entries(REPORT_REASON_LABELS);
-
 export default function ReportScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Rt>();
-  const { listingId, orderId } = route.params ?? {};
+  const { listingId, orderId, conversationId, reportedUserId, reportedUsername } = route.params ?? {};
+  const isChatReport = !!conversationId || !!reportedUserId;
   const insets = useSafeAreaInsets();
   const [reason, setReason] = useState("scam");
   const [description, setDescription] = useState("");
 
+  const reasons = (isChatReport ? CHAT_REPORT_REASONS : LISTING_REPORT_REASONS).map((key) => [key, REPORT_REASON_LABELS[key]] as const);
+
   const submitMutation = useMutation({
-    mutationFn: () => apiJson("POST", "/api/reports", { listingId, orderId, reason, description }),
+    mutationFn: () => apiJson("POST", "/api/reports", { listingId, orderId, conversationId, reportedUserId, reason, description }),
     onSuccess: () => {
       showAlert("Report submitted", "Thanks — our team will review this and follow up if needed.");
       navigation.goBack();
@@ -42,9 +43,15 @@ export default function ReportScreen() {
 
   return (
     <View style={[styles.container, { paddingBottom: insets.bottom + Spacing.xl }]}>
-      <Text style={styles.title}>What's wrong?</Text>
+      {isChatReport ? (
+        <>
+          <Text style={styles.header}>{`Report ${reportedUsername ? `@${reportedUsername}` : "this user"}`}</Text>
+          <Text style={styles.subtitle}>Our team will review this conversation and decide whether action is needed.</Text>
+        </>
+      ) : null}
+      <Text style={styles.title}>{isChatReport ? "Reason" : "What's wrong?"}</Text>
       <View style={styles.reasonRow}>
-        {REASONS.map(([key, label]) => (
+        {reasons.map(([key, label]) => (
           <Pressable key={key} onPress={() => setReason(key)} style={[styles.reasonChip, reason === key && styles.reasonChipActive]}>
             <Text style={[styles.reasonChipText, reason === key && { color: Colors.white }]}>{label}</Text>
           </Pressable>
@@ -69,6 +76,8 @@ export default function ReportScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, padding: Spacing.lg },
+  header: { ...Typography.h3, color: Colors.text, marginTop: Spacing.sm },
+  subtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 4, marginBottom: Spacing.sm },
   title: { ...Typography.bodyBold, color: Colors.text, marginBottom: Spacing.sm, marginTop: Spacing.md },
   reasonRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
   reasonChip: { paddingHorizontal: Spacing.md, paddingVertical: 8, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: Colors.border },

@@ -82,3 +82,9 @@ services:
         sync: false
       - key: EXPO_PUBLIC_APPLE_SERVICES_ID
         value: com.pullmarket.tcg.web
+      # Optional — powers real-time AI chat moderation (scam/harassment
+      # detection, see server/src/lib/moderation.ts). Get a key from
+      # https://console.anthropic.com. Without it, moderation is simply
+      # skipped — chat still works normally, just without auto-flagging.
+      - key: ANTHROPIC_API_KEY
+        sync: false

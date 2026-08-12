@@ -35,6 +35,7 @@ interface Message {
   id: string;
   senderId: string;
   text: string | null;
+  flagged: boolean;
   deliveredAt: string | null;
   readAt: string | null;
   createdAt: string;
@@ -124,8 +125,20 @@ export default function ChatThreadScreen() {
             <Text style={styles.headerUsername}>@{convo.otherUser.username}</Text>
           </Pressable>
         ) : null,
+      headerRight: () =>
+        convo?.otherUser ? (
+          <Pressable
+            hitSlop={8}
+            style={{ paddingHorizontal: Spacing.sm }}
+            onPress={() =>
+              navigation.navigate("Report", { conversationId, reportedUserId: convo.otherUser!.id, reportedUsername: convo.otherUser!.username })
+            }
+          >
+            <Feather name="flag" size={18} color={Colors.textSecondary} />
+          </Pressable>
+        ) : null,
     });
-  }, [navigation, convo?.otherUser]);
+  }, [navigation, convo?.otherUser, conversationId]);
 
   const pickMedia = async () => {
     if (pendingMedia.length >= 4) return;

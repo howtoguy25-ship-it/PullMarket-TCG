@@ -18,11 +18,13 @@ const STATUS_COLORS: Record<string, string> = { pending: Colors.warning, reviewe
 
 interface OwnerReport {
   id: string;
+  source: "user" | "ai_moderation";
   reason: string;
   description: string;
   status: string;
   createdAt: string;
-  reporter: { username: string; email: string | null; phoneNumber: string | null };
+  reporter: { username: string; email: string | null; phoneNumber: string | null } | null;
+  reportedUser: { username: string } | null;
   listing: { title: string } | null;
 }
 
@@ -57,11 +59,19 @@ export default function OwnerPanelScreen() {
         renderItem={({ item }) => (
           <Pressable style={styles.card} onPress={() => navigation.navigate("OwnerReportDetail", { reportId: item.id })}>
             <View style={styles.cardHeader}>
-              <Badge label={REPORT_REASON_LABELS[item.reason] ?? item.reason} color={STATUS_COLORS[item.status]} />
+              <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+                <Badge label={REPORT_REASON_LABELS[item.reason] ?? item.reason} color={STATUS_COLORS[item.status]} />
+                {item.source === "ai_moderation" ? (
+                  <View style={styles.aiChip}>
+                    <Feather name="cpu" size={10} color={Colors.white} />
+                  </View>
+                ) : null}
+              </View>
               <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
             </View>
-            <Text style={styles.reporterName}>From @{item.reporter.username}</Text>
+            <Text style={styles.reporterName}>{item.reporter ? `From @${item.reporter.username}` : "Detected by AI Moderation"}</Text>
             {item.listing ? <Text style={styles.listingTitle}>Re: {item.listing.title}</Text> : null}
+            {item.reportedUser ? <Text style={styles.listingTitle}>Re: @{item.reportedUser.username}</Text> : null}
             <Text style={styles.description} numberOfLines={2}>
               {item.description}
             </Text>
@@ -83,6 +93,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.border },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   date: { ...Typography.small, color: Colors.textMuted },
+  aiChip: { backgroundColor: Colors.secondary, borderRadius: BorderRadius.pill, padding: 4 },
   reporterName: { ...Typography.bodyBold, color: Colors.text, marginTop: Spacing.sm, fontSize: 14 },
   listingTitle: { ...Typography.small, color: Colors.textSecondary },
   description: { ...Typography.small, color: Colors.textSecondary, marginTop: 4 },

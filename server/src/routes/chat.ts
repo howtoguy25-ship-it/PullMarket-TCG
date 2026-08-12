@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { conversations, messages, messageAttachments, users } from "@shared/schema";
+import { conversations, messages, messageAttachments, users, reports } from "@shared/schema";
 import { and, desc, eq, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { chatUpload, attachmentTypeFromMime } from "../lib/chatUpload";
 import { notifyUser } from "../lib/notify";
+import { moderateMessage, isModerationConfigured } from "../lib/moderation";
 
 const router = Router();
 router.use(authenticateToken);
@@ -223,6 +224,28 @@ router.post("/conversations/:id/messages", chatUpload.array("media", 4), async (
 
   const [withAttachments] = await attachAttachments([message]);
   res.status(201).json({ ...withAttachments, conversationAccepted: isRecipientReply });
+
+  // Moderation runs after the response is already sent — it never adds
+  // latency to sending a message, and a slow/failed AI call can't affect
+  // delivery. A flagged message stays delivered as normal; this only opens
+  // a report in the owner's review queue.
+  if (text && isModerationConfigured()) {
+    void moderateMessage(text)
+      .then(async (verdict) => {
+        if (!verdict?.flagged) return;
+        await db.update(messages).set({ flagged: true }).where(eq(messages.id, message.id));
+        await db.insert(reports).values({
+          source: "ai_moderation",
+          conversationId: convo.id,
+          reportedUserId: meId,
+          messageId: message.id,
+          reason: verdict.category === "none" ? "other" : verdict.category,
+          description: `Auto-flagged chat message: "${text.slice(0, 300)}"`,
+          aiReasoning: verdict.reasoning,
+        });
+      })
+      .catch((err) => console.error("Chat moderation pass failed:", err));
+  }
 });
 
 router.get("/conversations/:id", async (req, res) => {
