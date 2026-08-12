@@ -38,6 +38,7 @@ export default function EmailSignInScreen() {
       await apiJson("POST", "/api/auth/otp/request", { destination: email, channel: "email" });
       navigation.navigate("OtpVerify", { destination: email, channel: "email" });
     } catch (err) {
+      console.error("[auth] Email OTP request failed", { email, status: err instanceof ApiError ? err.status : undefined, message: err instanceof Error ? err.message : err });
       showAlert("Couldn't send code", err instanceof ApiError ? err.message : "Please try again.");
     } finally {
       setLoading(false);

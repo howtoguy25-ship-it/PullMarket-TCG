@@ -108,10 +108,13 @@ export default function WelcomeScreen() {
     } catch (err: any) {
       if (err?.code === "ERR_REQUEST_CANCELED" || (err instanceof Error && /cancel/i.test(err.message))) {
         // user dismissed the sheet/popup — not an error
-      } else if (err instanceof ApiError) {
-        showAlert("Apple Sign-In failed", err.message);
       } else {
-        showAlert("Apple Sign-In failed", err instanceof Error ? err.message : "Please try again.");
+        console.error("[auth] Apple Sign-In failed", { platform: Platform.OS, code: err?.code, message: err?.message, detail: err instanceof ApiError ? err.detail : undefined, stack: err?.stack });
+        if (err instanceof ApiError) {
+          showAlert("Apple Sign-In failed", err.detail ? `${err.message}\n\n${err.detail}` : err.message);
+        } else {
+          showAlert("Apple Sign-In failed", err?.code ? `${err.code}: ${err.message ?? "Please try again."}` : err instanceof Error ? err.message : "Please try again.");
+        }
       }
     } finally {
       setAppleLoading(false);
@@ -173,13 +176,16 @@ export default function WelcomeScreen() {
         // module isn't available inside Expo Go or the web preview.
         await handleGoogleSignInNative(clientId);
       }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        showAlert("Google Sign-In failed", err.message);
-      } else if (err instanceof Error && /cancelled/i.test(err.message)) {
+    } catch (err: any) {
+      if (err instanceof Error && /cancelled/i.test(err.message)) {
         // user closed the popup/sheet — no need to show an error
       } else {
-        showAlert("Google Sign-In failed", err instanceof Error ? err.message : "Please try again.");
+        console.error("[auth] Google Sign-In failed", { platform: Platform.OS, code: err?.code, message: err?.message, detail: err instanceof ApiError ? err.detail : undefined, stack: err?.stack });
+        if (err instanceof ApiError) {
+          showAlert("Google Sign-In failed", err.detail ? `${err.message}\n\n${err.detail}` : err.message);
+        } else {
+          showAlert("Google Sign-In failed", err?.code ? `${err.code}: ${err.message ?? "Please try again."}` : err instanceof Error ? err.message : "Please try again.");
+        }
       }
     } finally {
       setGoogleLoading(false);

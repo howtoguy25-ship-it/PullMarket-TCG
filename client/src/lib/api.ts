@@ -18,9 +18,11 @@ export async function setToken(token: string | null): Promise<void> {
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  detail?: string;
+  constructor(status: number, message: string, detail?: string) {
     super(message);
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -49,14 +51,17 @@ export async function apiRequest(method: string, path: string, body?: unknown, i
 
   if (!res.ok) {
     let message = res.statusText;
+    let detail: string | undefined;
     try {
       const data = await res.clone().json();
       message = data.message || message;
+      detail = data.detail;
     } catch {
       // response wasn't JSON
     }
+    if (detail) console.error(`[api] ${method} ${path} -> ${res.status} ${message}: ${detail}`);
     if (res.status === 401 || res.status === 410) onUnauthorized?.(message);
-    throw new ApiError(res.status, message);
+    throw new ApiError(res.status, message, detail);
   }
 
   return res;

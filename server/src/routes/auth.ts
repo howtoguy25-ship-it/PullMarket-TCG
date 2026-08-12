@@ -23,6 +23,28 @@ const APPLE_BUNDLE_ID = "com.pullmarket.tcg";
 const APPLE_SERVICES_ID = process.env.EXPO_PUBLIC_APPLE_SERVICES_ID;
 const APPLE_AUDIENCES = [APPLE_BUNDLE_ID, APPLE_SERVICES_ID].filter((v): v is string => !!v);
 
+// Pulls the most useful diagnostic string out of a provider SDK error —
+// google-auth-library and apple-signin-auth both throw errors whose
+// top-level .message is often just "invalid_grant" or "jwt malformed" with
+// the actually-useful detail nested under .response.data (Google's OAuth
+// error body) or a raw string (Apple). Sent back to the client so a real
+// failure is diagnosable from the device itself, not just from server logs
+// only I can see.
+function errorDetail(err: unknown): string {
+  if (err && typeof err === "object") {
+    const anyErr = err as { response?: { data?: unknown }; message?: string };
+    if (anyErr.response?.data) {
+      try {
+        return typeof anyErr.response.data === "string" ? anyErr.response.data : JSON.stringify(anyErr.response.data);
+      } catch {
+        // fall through
+      }
+    }
+    if (anyErr.message) return anyErr.message;
+  }
+  return String(err);
+}
+
 function isOwnerIdentity(phoneNumber?: string | null, email?: string | null): boolean {
   const ownerPhone = process.env.OWNER_PHONE_NUMBER;
   const ownerEmail = process.env.OWNER_EMAIL;
@@ -53,7 +75,12 @@ router.post("/otp/request", async (req, res) => {
     .from(users)
     .where(channel === "sms" ? eq(users.phoneNumber, destination) : eq(users.email, destination));
 
-  await issueOtp(destination, channel, existing ? "signin" : "signup");
+  try {
+    await issueOtp(destination, channel, existing ? "signin" : "signup");
+  } catch (err) {
+    console.error(`OTP send failed (${channel}):`, err);
+    return res.status(502).json({ message: `Couldn't send the ${channel === "sms" ? "text" : "email"} — please try again.`, detail: errorDetail(err) });
+  }
   res.json({ isNewUser: !existing });
 });
 
@@ -169,7 +196,7 @@ router.post("/google", async (req, res) => {
     await resolveGoogleIdentity(parsed.data.idToken, clientId, res);
   } catch (err) {
     console.error("Google sign-in failed:", err);
-    res.status(400).json({ message: "Google sign-in failed" });
+    res.status(400).json({ message: "Google sign-in failed", detail: errorDetail(err) });
   }
 });
 
@@ -198,7 +225,7 @@ router.post("/google/code", async (req, res) => {
     await resolveGoogleIdentity(tokens.id_token, clientId, res);
   } catch (err) {
     console.error("Google sign-in (code exchange) failed:", err);
-    res.status(400).json({ message: "Google sign-in failed" });
+    res.status(400).json({ message: "Google sign-in failed", detail: errorDetail(err) });
   }
 });
 
@@ -242,7 +269,7 @@ router.post("/apple", async (req, res) => {
     res.json({ status: "needs_username", appleId, email, displayName });
   } catch (err) {
     console.error("Apple sign-in failed:", err);
-    res.status(400).json({ message: "Apple sign-in failed" });
+    res.status(400).json({ message: "Apple sign-in failed", detail: errorDetail(err) });
   }
 });
 

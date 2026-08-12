@@ -136,6 +136,7 @@ export default function OtpVerifyScreen() {
       }, 420);
     } catch (err) {
       verifyingRef.current = false;
+      console.error("[auth] OTP verify failed", { destination, channel, status: err instanceof ApiError ? err.status : undefined, message: err instanceof Error ? err.message : err });
       setStatus("error");
       void triggerHaptic("error");
       shakeX.value = withSequence(

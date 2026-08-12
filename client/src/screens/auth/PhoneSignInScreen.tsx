@@ -63,6 +63,7 @@ export default function PhoneSignInScreen() {
       await apiJson("POST", "/api/auth/otp/request", { destination, channel: "sms" });
       navigation.navigate("OtpVerify", { destination, channel: "sms" });
     } catch (err) {
+      console.error("[auth] Phone OTP request failed", { destination, status: err instanceof ApiError ? err.status : undefined, message: err instanceof Error ? err.message : err });
       showAlert("Couldn't send code", err instanceof ApiError ? err.message : "Please try again.");
     } finally {
       setLoading(false);
