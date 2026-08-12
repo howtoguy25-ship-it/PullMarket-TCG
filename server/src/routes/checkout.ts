@@ -6,6 +6,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { getStripe, getPlatformFeeCents, isStripeConfigured } from "../lib/stripeClient";
 import { getCartWithDetails } from "./cart";
+import { SHIPPING_COUNTRIES } from "@shared/validation";
 
 const router = Router();
 router.use(authenticateToken);
@@ -161,6 +162,11 @@ router.post("/session", async (req, res) => {
       transfer_data: { destination: seller.stripeConnectAccountId },
       metadata: { orderId: order.id },
     },
+    // The buyer's delivery address is collected here, by Stripe itself, and
+    // copied onto the order in the webhook once payment completes — this is
+    // what makes "order cards directly to their house" actually work.
+    shipping_address_collection: { allowed_countries: [...SHIPPING_COUNTRIES] },
+    phone_number_collection: { enabled: true },
     metadata: { orderId: order.id, buyerId: req.user!.id, sellerId: group.sellerId },
     success_url: buildReturnUrl(parsed.data.returnUrl, baseUrl, "success", order.id),
     cancel_url: buildReturnUrl(parsed.data.returnUrl, baseUrl, "cancelled", order.id),

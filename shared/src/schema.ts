@@ -223,6 +223,19 @@ export const orders = pgTable(
     trackingNumber: text("tracking_number"),
     boxSizeLabel: text("box_size_label"), // 'small' | 'medium' | 'large' | free text
 
+    // Buyer's delivery address — collected by Stripe Checkout itself
+    // (shipping_address_collection) and copied over from the completed
+    // session in the webhook handler, so the seller has what they need to
+    // actually box and post the order.
+    shippingName: text("shipping_name"),
+    shippingPhone: text("shipping_phone"),
+    shippingLine1: text("shipping_line1"),
+    shippingLine2: text("shipping_line2"),
+    shippingCity: text("shipping_city"),
+    shippingState: text("shipping_state"),
+    shippingPostalCode: text("shipping_postal_code"),
+    shippingCountry: text("shipping_country"),
+
     shippingDeadline: timestamp("shipping_deadline"), // createdAt + 5 business days, set on payment
     shippedAt: timestamp("shipped_at"),
     deliveredAt: timestamp("delivered_at"),

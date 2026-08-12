@@ -37,7 +37,17 @@ function MiniHoloCard({ spec }: { spec: CardSpec }) {
   const bob = useSharedValue(0);
 
   useEffect(() => {
-    rotation.value = withDelay(spec.spinDelay, withRepeat(withTiming(360 * spec.rotateDirection, { duration: spec.spinDuration, easing: Easing.linear }), -1, false));
+    // A full 360° rotateY spin passes through ~90°-270° where a single-face
+    // card (no back face rendered) shows its mirrored underside — the label
+    // text reads backwards/garbled right when it's most visible. Oscillating
+    // between a modest +/- angle instead keeps the face essentially always
+    // forward-on, so the text stays legible throughout while still catching
+    // the "light" like a hologram as it gently rocks.
+    const maxAngle = 24 * spec.rotateDirection;
+    rotation.value = withDelay(
+      spec.spinDelay,
+      withRepeat(withSequence(withTiming(maxAngle, { duration: spec.spinDuration / 2, easing: Easing.inOut(Easing.sin) }), withTiming(-maxAngle, { duration: spec.spinDuration / 2, easing: Easing.inOut(Easing.sin) })), -1, true),
+    );
     bob.value = withRepeat(
       withSequence(withTiming(-8, { duration: spec.bobDuration, easing: Easing.inOut(Easing.sin) }), withTiming(8, { duration: spec.bobDuration, easing: Easing.inOut(Easing.sin) })),
       -1,

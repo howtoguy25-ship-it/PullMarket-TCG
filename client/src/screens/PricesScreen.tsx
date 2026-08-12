@@ -1,11 +1,29 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Text, FlatList, Pressable, TextInput, ActivityIndicator } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, Easing } from "react-native-reanimated";
 import { Colors, Spacing, Typography, BorderRadius, Shadow, Fonts, NoWebFocusOutline } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
 import { apiJson, ApiError } from "@/lib/api";
+
+function LiveDot() {
+  const opacity = useSharedValue(1);
+  useEffect(() => {
+    opacity.value = withRepeat(withSequence(withTiming(0.25, { duration: 700, easing: Easing.inOut(Easing.sin) }), withTiming(1, { duration: 700, easing: Easing.inOut(Easing.sin) })), -1, true);
+  }, [opacity]);
+  const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
+  return <Animated.View style={[styles.liveDot, style]} />;
+}
+
+function timeAgo(ms: number): string {
+  if (!ms) return "";
+  const seconds = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}m ago`;
+}
 
 type Franchise = "pokemon" | "one_piece";
 
@@ -85,12 +103,21 @@ export default function PricesScreen() {
     fetchNextPage,
     hasNextPage,
     error,
+    dataUpdatedAt,
   } = useInfiniteQuery({
     queryKey: ["prices", franchise],
     queryFn: async ({ pageParam }) => apiJson<PricesPage>("GET", `/api/prices?franchise=${franchise}&offset=${pageParam}&limit=${PAGE_SIZE}`),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => (lastPage.hasMore ? allPages.length * PAGE_SIZE : undefined),
     enabled: configured,
+    // Server caches each page for 10 min, so refetching every 5 min here
+    // mostly hits that cache rather than burning JustTCG's daily request
+    // quota, while still keeping what's on screen genuinely current —
+    // only the first (already-loaded) page re-fetches, not the whole
+    // scrollback, so this stays cheap even after paging through a lot of
+    // cards.
+    refetchInterval: 5 * 60 * 1000,
+    refetchIntervalInBackground: false,
   });
 
   const allCards = (data?.pages ?? []).flatMap((p) => p.cards);
@@ -100,8 +127,18 @@ export default function PricesScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Live Card Prices</Text>
-        <Text style={styles.headerSubtitle}>Real-time market prices from JustTCG, updated continuously</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.headerTitle}>Live Card Prices</Text>
+          {configured ? (
+            <View style={styles.liveBadge}>
+              <LiveDot />
+              <Text style={styles.liveBadgeText}>LIVE</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text style={styles.headerSubtitle}>
+          {configured && dataUpdatedAt ? `Market prices from JustTCG · updated ${timeAgo(dataUpdatedAt)}` : "Real-time market prices from JustTCG"}
+        </Text>
       </View>
 
       <View style={styles.chipsRow}>
@@ -170,8 +207,12 @@ export default function PricesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   headerTitle: { ...Typography.h2, color: Colors.text },
   headerSubtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 2 },
+  liveBadge: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 8, paddingVertical: 4, borderRadius: BorderRadius.pill, backgroundColor: "#E3F6ED" },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.success },
+  liveBadgeText: { fontSize: 10, fontWeight: "800", color: Colors.success, letterSpacing: 0.5 },
   chipsRow: { flexDirection: "row", gap: Spacing.sm, paddingHorizontal: Spacing.lg, marginTop: Spacing.xs },
   chip: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: BorderRadius.lg, borderWidth: 2 },
   chipText: { fontFamily: Fonts.displayBold, fontSize: 14 },

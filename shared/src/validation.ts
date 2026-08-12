@@ -89,3 +89,12 @@ export const LISTING_REPORT_REASONS = ["counterfeit", "not_as_described", "never
 export const REFUND_WINDOW_HOURS = 48;
 export const SHIPPING_DEADLINE_BUSINESS_DAYS = 5;
 export const PLATFORM_FEE_CENTS_DEFAULT = 200;
+
+// Countries Stripe Checkout will collect a shipping address for. Kept to
+// countries this marketplace can realistically reach via the existing
+// couriers (COURIER_PATTERNS above) — a buyer outside this list simply
+// won't see a "Pay now" flow that promises delivery it can't fulfill.
+export const SHIPPING_COUNTRIES = [
+  "US", "CA", "GB", "AU", "NZ", "IE", "DE", "FR", "ES", "IT", "PT", "NL", "BE",
+  "CH", "AT", "SE", "NO", "DK", "FI", "PL", "JP", "SG", "HK",
+] as const;

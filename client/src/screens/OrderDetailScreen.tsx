@@ -53,6 +53,14 @@ interface OrderDetail {
   boxSizeLabel: string | null;
   shippingDeadline: string | null;
   shippedAt: string | null;
+  shippingName: string | null;
+  shippingPhone: string | null;
+  shippingLine1: string | null;
+  shippingLine2: string | null;
+  shippingCity: string | null;
+  shippingState: string | null;
+  shippingPostalCode: string | null;
+  shippingCountry: string | null;
   createdAt: string;
   items: { titleSnapshot: string; imageUrlSnapshot: string | null; quantity: number; priceCentsSnapshot: number }[];
   buyer: { id: string; username: string } | null;
@@ -156,6 +164,22 @@ export default function OrderDetailScreen() {
         </View>
       ) : null}
 
+      {isSeller && order.shippingLine1 ? (
+        <View style={styles.addressCard}>
+          <Feather name="map-pin" size={18} color={Colors.secondary} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.addressName}>{order.shippingName ?? "Buyer"}</Text>
+            <Text style={styles.addressLine}>{order.shippingLine1}</Text>
+            {order.shippingLine2 ? <Text style={styles.addressLine}>{order.shippingLine2}</Text> : null}
+            <Text style={styles.addressLine}>
+              {[order.shippingCity, order.shippingState, order.shippingPostalCode].filter(Boolean).join(", ")}
+            </Text>
+            {order.shippingCountry ? <Text style={styles.addressLine}>{order.shippingCountry}</Text> : null}
+            {order.shippingPhone ? <Text style={styles.addressMeta}>{order.shippingPhone}</Text> : null}
+          </View>
+        </View>
+      ) : null}
+
       {isSeller && order.status === "paid" ? (
         <View style={styles.shipForm}>
           <Text style={styles.sectionTitle}>Ship this order</Text>
@@ -216,6 +240,10 @@ const styles = StyleSheet.create({
   trackingCourier: { ...Typography.small, color: Colors.secondary, fontWeight: "700" },
   trackingNumber: { ...Typography.bodyBold, color: Colors.text },
   trackingMeta: { ...Typography.small, color: Colors.textSecondary },
+  addressCard: { flexDirection: "row", gap: Spacing.sm, backgroundColor: Colors.surfaceAlt, padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.lg, alignItems: "flex-start" },
+  addressName: { ...Typography.bodyBold, color: Colors.text, marginBottom: 2 },
+  addressLine: { ...Typography.small, color: Colors.textSecondary },
+  addressMeta: { ...Typography.small, color: Colors.textMuted, marginTop: 4 },
   shipForm: { marginTop: Spacing.xl, gap: Spacing.xs },
   sectionTitle: { ...Typography.bodyBold, color: Colors.text },
   helper: { ...Typography.small, color: Colors.textSecondary, marginBottom: Spacing.sm },

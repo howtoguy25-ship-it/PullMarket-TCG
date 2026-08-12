@@ -48,12 +48,23 @@ async function markOrderPaid(orderId: string, session: Stripe.Checkout.Session) 
 
   const shippingDeadline = addBusinessDays(new Date(), SHIPPING_DEADLINE_BUSINESS_DAYS);
 
+  const shipping = session.shipping_details;
+  const addr = shipping?.address;
+
   await db
     .update(orders)
     .set({
       status: "paid",
       stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id,
       shippingDeadline,
+      shippingName: shipping?.name ?? null,
+      shippingPhone: session.customer_details?.phone ?? null,
+      shippingLine1: addr?.line1 ?? null,
+      shippingLine2: addr?.line2 ?? null,
+      shippingCity: addr?.city ?? null,
+      shippingState: addr?.state ?? null,
+      shippingPostalCode: addr?.postal_code ?? null,
+      shippingCountry: addr?.country ?? null,
       updatedAt: new Date(),
     })
     .where(eq(orders.id, orderId));
