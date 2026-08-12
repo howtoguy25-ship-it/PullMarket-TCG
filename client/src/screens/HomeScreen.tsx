@@ -8,7 +8,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
 import { EmptyState } from "@/components/ui";
-import { GalaxyHeader } from "@/components/GalaxyHeader";
+import { GalaxyBackground } from "@/components/GalaxyBackground";
+import { FloatingHoloCards } from "@/components/FloatingHoloCards";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -68,8 +69,9 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <GalaxyHeader style={{ paddingTop: insets.top + Spacing.sm, paddingBottom: Spacing.lg }}>
+    <GalaxyBackground>
+      <FloatingHoloCards />
+      <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>PullMarket TCG</Text>
           <View style={styles.headerIcons}>
@@ -97,44 +99,46 @@ export default function HomeScreen() {
             </Pressable>
           ) : null}
         </View>
-      </GalaxyHeader>
 
-      <View style={styles.chipsRow}>
-        {FRANCHISE_FILTERS.map((f) => {
-          const active = franchises.includes(f.key);
-          return (
-            <Pressable key={f.key} onPress={() => toggleFranchise(f.key)} style={[styles.chip, { backgroundColor: active ? f.color : Colors.surface, borderColor: f.color }]}>
-              <Text style={[styles.chipText, { color: active ? Colors.white : f.color }]}>{f.label}</Text>
-            </Pressable>
-          );
-        })}
+        <View style={styles.chipsRow}>
+          {FRANCHISE_FILTERS.map((f) => {
+            const active = franchises.includes(f.key);
+            return (
+              <Pressable key={f.key} onPress={() => toggleFranchise(f.key)} style={[styles.chip, { backgroundColor: active ? f.color : Colors.surface, borderColor: f.color }]}>
+                <Text style={[styles.chipText, { color: active ? Colors.white : f.color }]}>{f.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <FlatList
+          data={listings ?? []}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+          renderItem={({ item }) => (
+            <ListingCard
+              listing={{ ...item, isFavorited: favoritedIds.has(item.id) }}
+              onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })}
+              onRequireAuth={requireAuth}
+            />
+          )}
+          ListEmptyComponent={
+            !isLoading ? (
+              <View style={styles.emptyPanel}>
+                <EmptyState icon={<Feather name="inbox" size={40} color={Colors.textMuted} />} title="No cards yet" subtitle="Be the first to list a Pokémon or One Piece card!" />
+              </View>
+            ) : null
+          }
+        />
       </View>
-
-      <FlatList
-        data={listings ?? []}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
-        renderItem={({ item }) => (
-          <ListingCard
-            listing={{ ...item, isFavorited: favoritedIds.has(item.id) }}
-            onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })}
-            onRequireAuth={requireAuth}
-          />
-        )}
-        ListEmptyComponent={
-          !isLoading ? (
-            <EmptyState icon={<Feather name="inbox" size={40} color={Colors.textMuted} />} title="No cards yet" subtitle="Be the first to list a Pokémon or One Piece card!" />
-          ) : null
-        }
-      />
-    </View>
+    </GalaxyBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.lg },
   headerTitle: { ...Typography.h2, color: Colors.gold },
   headerIcons: { flexDirection: "row", gap: Spacing.md },
@@ -158,4 +162,5 @@ const styles = StyleSheet.create({
   chipsRow: { flexDirection: "row", gap: Spacing.sm, paddingHorizontal: Spacing.lg, marginTop: Spacing.md },
   chip: { paddingHorizontal: Spacing.md, paddingVertical: 8, borderRadius: BorderRadius.pill, borderWidth: 1.5 },
   chipText: { ...Typography.small, fontWeight: "700" },
+  emptyPanel: { margin: Spacing.lg, marginTop: Spacing.xxl, backgroundColor: "rgba(255,255,255,0.92)", borderRadius: BorderRadius.lg, paddingVertical: Spacing.lg },
 });
