@@ -8,7 +8,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
 import { Button, PriceTag } from "@/components/ui";
-import { MascotAvatar } from "@/components/MascotAvatar";
+import { Avatar } from "@/components/Avatar";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/media";
@@ -38,7 +38,7 @@ interface ListingDetail {
   quantityAvailable: number;
   status: string;
   images: string[];
-  seller: { id: string; username: string } | null;
+  seller: { id: string; username: string; avatarUrl: string | null } | null;
 }
 
 export default function ListingDetailScreen() {
@@ -164,7 +164,7 @@ export default function ListingDetailScreen() {
 
         {listing.seller ? (
           <View style={styles.sellerRow}>
-            <MascotAvatar seed={listing.seller.username} size={38} />
+            <Avatar avatarUrl={listing.seller.avatarUrl} seed={listing.seller.username} size={38} />
             <Text style={styles.sellerName}>@{listing.seller.username}</Text>
           </View>
         ) : null}

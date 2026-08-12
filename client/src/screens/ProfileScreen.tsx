@@ -1,20 +1,22 @@
-import React from "react";
-import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Switch } from "react-native";
+import React, { useState } from "react";
+import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Switch, ActivityIndicator } from "react-native";
 import Slider from "@react-native-community/slider";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useMutation } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
-import { MascotAvatar } from "@/components/MascotAvatar";
+import { Avatar } from "@/components/Avatar";
 import { GalaxyHeader } from "@/components/GalaxyHeader";
 import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAmbientSound } from "@/contexts/AmbientSoundContext";
 import { AMBIENT_SOUNDS } from "@/lib/ambientSounds";
-import { apiJson } from "@/lib/api";
+import { apiJson, apiRequest, ApiError } from "@/lib/api";
+import { appendImageField } from "@/lib/formDataImage";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -74,6 +76,34 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, signOut, refreshUser } = useAuth();
   const { enabled, selectedId, volume, previewingId, setEnabled, selectSound, setVolume, preview } = useAmbientSound();
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const changeAvatar = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      showAlert("Photo access needed", "Allow photo library access to set a profile picture.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+    if (result.canceled || !result.assets[0]) return;
+
+    setUploadingAvatar(true);
+    try {
+      const formData = new FormData();
+      await appendImageField(formData, "avatar", result.assets[0].uri, "avatar.jpg");
+      await apiRequest("POST", "/api/users/me/avatar", formData, true);
+      await refreshUser();
+    } catch (err) {
+      showAlert("Couldn't update photo", err instanceof ApiError ? err.message : "Please try again.");
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: () => apiJson("POST", "/api/auth/account/delete"),
@@ -105,10 +135,14 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl, paddingHorizontal: Spacing.lg }}>
       <GalaxyHeader variant="card" style={styles.header} starCount={16}>
-        <MascotAvatar seed={user.username} size={56} />
+        <Pressable onPress={changeAvatar} disabled={uploadingAvatar} style={styles.avatarWrap}>
+          <Avatar avatarUrl={user.avatarUrl} seed={user.username} size={56} />
+          <View style={styles.avatarBadge}>{uploadingAvatar ? <ActivityIndicator size="small" color={Colors.white} /> : <Feather name="camera" size={13} color={Colors.white} />}</View>
+        </Pressable>
         <View>
           <Text style={styles.username}>@{user.username}</Text>
           <Text style={styles.contact}>{user.email ?? user.phoneNumber}</Text>
+          <Text style={styles.changePhoto}>Tap photo to change</Text>
         </View>
       </GalaxyHeader>
 
@@ -190,8 +224,23 @@ const styles = StyleSheet.create({
   center: { alignItems: "center", justifyContent: "center" },
   notSignedIn: { ...Typography.body, color: Colors.textSecondary },
   header: { flexDirection: "row", alignItems: "center", gap: Spacing.md, marginBottom: Spacing.lg, padding: Spacing.lg },
+  avatarWrap: { position: "relative" },
+  avatarBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: Colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#1C1040",
+  },
   username: { ...Typography.h3, color: Colors.white },
   contact: { ...Typography.small, color: "rgba(255,255,255,0.7)" },
+  changePhoto: { ...Typography.small, color: Colors.gold, marginTop: 2, fontSize: 11 },
   sectionHeader: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginTop: Spacing.lg, marginBottom: Spacing.xs, letterSpacing: 0.5 },
   section: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },

@@ -8,7 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Shadow, NoWebFocusOutline } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
-import { MascotAvatar } from "@/components/MascotAvatar";
+import { Avatar } from "@/components/Avatar";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
 
@@ -47,7 +47,7 @@ function UserRow({ user, navigation }: { user: UserResult; navigation: Nav }) {
 
   return (
     <Pressable style={styles.row} onPress={() => navigation.navigate("UserProfile", { userId: user.id })}>
-      <MascotAvatar seed={user.username} size={46} />
+      <Avatar avatarUrl={user.avatarUrl} seed={user.username} size={46} />
       <View style={{ flex: 1 }}>
         <Text style={styles.username}>@{user.username}</Text>
         {user.displayName ? <Text style={styles.displayName}>{user.displayName}</Text> : null}

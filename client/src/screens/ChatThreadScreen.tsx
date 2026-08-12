@@ -9,7 +9,7 @@ import * as ImagePicker from "expo-image-picker";
 import { Video, ResizeMode } from "expo-av";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
-import { MascotAvatar } from "@/components/MascotAvatar";
+import { Avatar } from "@/components/Avatar";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, apiRequest, ApiError } from "@/lib/api";
 import { appendMediaToFormData } from "@/lib/formDataImage";
@@ -121,7 +121,7 @@ export default function ChatThreadScreen() {
       headerTitle: () =>
         convo?.otherUser ? (
           <Pressable style={styles.headerTitle} onPress={() => navigation.navigate("UserProfile", { userId: convo.otherUser!.id })}>
-            <MascotAvatar seed={convo.otherUser.username} size={30} />
+            <Avatar avatarUrl={convo.otherUser.avatarUrl} seed={convo.otherUser.username} size={30} />
             <Text style={styles.headerUsername}>@{convo.otherUser.username}</Text>
           </Pressable>
         ) : null,

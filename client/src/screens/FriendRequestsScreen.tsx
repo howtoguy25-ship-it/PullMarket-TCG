@@ -8,7 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
-import { MascotAvatar } from "@/components/MascotAvatar";
+import { Avatar } from "@/components/Avatar";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, apiRequest } from "@/lib/api";
 
@@ -58,7 +58,7 @@ export default function FriendRequestsScreen() {
               incoming.map((req) => (
                 <View key={req.id} style={styles.row}>
                   <Pressable style={styles.rowInfo} onPress={() => req.requester && navigation.navigate("UserProfile", { userId: req.requester.id })}>
-                    <MascotAvatar seed={req.requester?.username ?? req.id} size={44} />
+                    <Avatar avatarUrl={req.requester?.avatarUrl} seed={req.requester?.username ?? req.id} size={44} />
                     <Text style={styles.username}>@{req.requester?.username ?? "Unknown"}</Text>
                   </Pressable>
                   <View style={styles.actions}>
@@ -80,7 +80,7 @@ export default function FriendRequestsScreen() {
               outgoing.map((req) => (
                 <View key={req.id} style={styles.row}>
                   <Pressable style={styles.rowInfo} onPress={() => req.recipient && navigation.navigate("UserProfile", { userId: req.recipient.id })}>
-                    <MascotAvatar seed={req.recipient?.username ?? req.id} size={44} />
+                    <Avatar avatarUrl={req.recipient?.avatarUrl} seed={req.recipient?.username ?? req.id} size={44} />
                     <Text style={styles.username}>@{req.recipient?.username ?? "Unknown"}</Text>
                   </Pressable>
                   <Pressable onPress={() => req.recipient && cancelMutation.mutate(req.recipient.id)} style={styles.cancelButton}>

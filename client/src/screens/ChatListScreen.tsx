@@ -7,7 +7,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
-import { MascotAvatar } from "@/components/MascotAvatar";
+import { Avatar } from "@/components/Avatar";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson } from "@/lib/api";
 import { timeAgoShort } from "@/lib/timeAgo";
@@ -99,7 +99,7 @@ export default function ChatListScreen() {
               {requests.map((req) => (
                 <View key={req.id} style={styles.requestRow}>
                   <Pressable style={styles.requestInfo} onPress={() => openThread(req)}>
-                    <MascotAvatar seed={req.otherUser?.username ?? req.id} size={44} />
+                    <Avatar avatarUrl={req.otherUser?.avatarUrl} seed={req.otherUser?.username ?? req.id} size={44} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.chatName}>@{req.otherUser?.username ?? "Unknown"}</Text>
                       <Text style={styles.requestPreview} numberOfLines={1}>
@@ -125,7 +125,7 @@ export default function ChatListScreen() {
           const pendingSentByMe = item.status === "pending" && item.initiatorId !== item.otherUser?.id;
           return (
             <Pressable style={styles.chatRow} onPress={() => openThread(item)}>
-              <MascotAvatar seed={item.otherUser?.username ?? item.id} size={50} />
+              <Avatar avatarUrl={item.otherUser?.avatarUrl} seed={item.otherUser?.username ?? item.id} size={50} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.chatName}>@{item.otherUser?.username ?? "Unknown"}</Text>
                 <Text style={[styles.chatPreview, item.unreadCount > 0 && styles.chatPreviewUnread]} numberOfLines={1}>

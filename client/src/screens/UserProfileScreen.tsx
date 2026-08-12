@@ -8,7 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button, Badge } from "@/components/ui";
-import { MascotAvatar } from "@/components/MascotAvatar";
+import { Avatar } from "@/components/Avatar";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
@@ -75,7 +75,7 @@ export default function UserProfileScreen() {
       ListHeaderComponent={
         <View>
           <View style={styles.header}>
-            <MascotAvatar seed={profile.username} size={72} />
+            <Avatar avatarUrl={profile.avatarUrl} seed={profile.username} size={72} />
             <Text style={styles.username}>@{profile.username}</Text>
             {profile.displayName ? <Text style={styles.displayName}>{profile.displayName}</Text> : null}
             {profile.identityVerificationStatus === "verified" ? <Badge label="Verified seller" color={Colors.success} style={{ marginTop: Spacing.xs }} /> : null}
