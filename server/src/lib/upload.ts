@@ -2,6 +2,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
+import sharp from "sharp";
 import { isObjectStorageConfigured, putObject, deleteObject, keyFromPublicUrl } from "./objectStorage";
 
 // Uploads land on local disk by default (fine for development, and for a
@@ -48,9 +49,58 @@ async function persistBuffer(buffer: Buffer, ext: string, mimetype: string): Pro
   return `/api/uploads/${filename}`;
 }
 
+// Long edge cap for uploaded photos — comfortably more detail than any
+// screen will display (even zoomed into a single card), while keeping raw
+// 12MP+ phone camera output (often 8-10MB) down to a few hundred KB.
+const MAX_IMAGE_DIMENSION = 2000;
+const IMAGE_QUALITY = 88;
+
+class UploadValidationError extends Error {
+  status = 400;
+}
+
+// Every uploaded photo (avatars, listing photos, chat images) goes through
+// this before it's persisted, so "clean and clear" isn't left to whatever
+// the sender's camera/app happened to produce:
+//  - .rotate() with no args auto-applies the EXIF orientation tag then
+//    drops it — otherwise photos taken holding the phone sideways/upside
+//    down render sideways/upside down for everyone else too, since most
+//    image viewers respect EXIF orientation but plain <img>/Image
+//    rendering in this app doesn't.
+//  - resize() caps runaway-large camera output without upscaling anything
+//    smaller.
+//  - re-encoding as JPEG at a fixed quality means storage size and visual
+//    quality are consistent regardless of what the original device sent
+//    (some phones send HEIC, very low-quality JPEG, giant PNGs, etc).
+//  - sharp only carries metadata into the output when .withMetadata() is
+//    called, which this doesn't call — GPS/EXIF metadata is stripped for
+//    free as a side effect, which is also the right privacy default for
+//    photos strangers on a marketplace are about to see.
+// A file that fails to decode here (corrupt data, or a format sharp can't
+// read despite passing the image/* mimetype filter) is rejected outright
+// rather than silently stored broken.
+async function normalizeImage(buffer: Buffer): Promise<Buffer> {
+  try {
+    return await sharp(buffer)
+      .rotate()
+      .resize({ width: MAX_IMAGE_DIMENSION, height: MAX_IMAGE_DIMENSION, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: IMAGE_QUALITY, mozjpeg: true })
+      .toBuffer();
+  } catch (err) {
+    console.error("Image normalization failed:", err);
+    throw new UploadValidationError("That image couldn't be processed — try a different photo.");
+  }
+}
+
 /** Persists a file multer parsed (from `upload` or `chatUpload`) to
- * whichever backend is active, returning its public URL. */
+ * whichever backend is active, returning its public URL. Image uploads are
+ * normalized first (see normalizeImage); video attachments pass through
+ * unchanged since sharp can't process video. */
 export async function saveUploadedFile(file: Express.Multer.File): Promise<string> {
+  if (file.mimetype.startsWith("image/")) {
+    const normalized = await normalizeImage(file.buffer);
+    return persistBuffer(normalized, ".jpg", "image/jpeg");
+  }
   return persistBuffer(file.buffer, extFor(file.originalname, file.mimetype), file.mimetype);
 }
 
