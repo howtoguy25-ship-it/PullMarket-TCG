@@ -6,6 +6,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, Easing } from "react-native-reanimated";
 import { Colors, Spacing, Typography, BorderRadius, Shadow, Fonts, NoWebFocusOutline } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
+import { SkyBackground } from "@/components/SkyBackground";
 import { apiJson, ApiError } from "@/lib/api";
 
 function LiveDot() {
@@ -125,87 +126,89 @@ export default function PricesScreen() {
   const activeColor = FRANCHISES.find((f) => f.key === franchise)!.color;
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Text style={styles.headerTitle}>Live Card Prices</Text>
-          {configured ? (
-            <View style={styles.liveBadge}>
-              <LiveDot />
-              <Text style={styles.liveBadgeText}>LIVE</Text>
-            </View>
-          ) : null}
+    <SkyBackground>
+      <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
+        <View style={styles.header}>
+          <View style={styles.titleRow}>
+            <Text style={styles.headerTitle}>Live Card Prices</Text>
+            {configured ? (
+              <View style={styles.liveBadge}>
+                <LiveDot />
+                <Text style={styles.liveBadgeText}>LIVE</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={styles.headerSubtitle}>
+            {configured && dataUpdatedAt ? `Market prices from JustTCG · updated ${timeAgo(dataUpdatedAt)}` : "Real-time market prices from JustTCG"}
+          </Text>
         </View>
-        <Text style={styles.headerSubtitle}>
-          {configured && dataUpdatedAt ? `Market prices from JustTCG · updated ${timeAgo(dataUpdatedAt)}` : "Real-time market prices from JustTCG"}
-        </Text>
-      </View>
 
-      <View style={styles.chipsRow}>
-        {FRANCHISES.map((f) => {
-          const active = franchise === f.key;
-          return (
-            <Pressable key={f.key} onPress={() => setFranchise(f.key)} style={[styles.chip, { borderColor: f.color }, active && { backgroundColor: f.color }]}>
-              <Text style={[styles.chipText, { color: active ? Colors.white : f.color }]}>{f.label}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+        <View style={styles.chipsRow}>
+          {FRANCHISES.map((f) => {
+            const active = franchise === f.key;
+            return (
+              <Pressable key={f.key} onPress={() => setFranchise(f.key)} style={[styles.chip, { borderColor: f.color }, active && { backgroundColor: f.color }]}>
+                <Text style={[styles.chipText, { color: active ? Colors.white : f.color }]}>{f.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-      {configured ? (
-        <View style={styles.filterBar}>
-          <Feather name="search" size={16} color={Colors.textMuted} />
-          <TextInput
-            style={styles.filterInput}
-            placeholder={`Filter loaded ${franchise === "pokemon" ? "Pokémon" : "One Piece"} cards…`}
-            placeholderTextColor={Colors.textMuted}
-            value={filterText}
-            onChangeText={setFilterText}
+        {configured ? (
+          <View style={styles.filterBar}>
+            <Feather name="search" size={16} color={Colors.textMuted} />
+            <TextInput
+              style={styles.filterInput}
+              placeholder={`Filter loaded ${franchise === "pokemon" ? "Pokémon" : "One Piece"} cards…`}
+              placeholderTextColor={Colors.textMuted}
+              value={filterText}
+              onChangeText={setFilterText}
+            />
+          </View>
+        ) : null}
+
+        {!configured ? (
+          <EmptyState
+            icon={<Feather name="trending-up" size={40} color={Colors.textMuted} />}
+            title="Live prices aren't set up yet"
+            subtitle="The app owner needs to add a JustTCG API key to enable real-time card prices."
           />
-        </View>
-      ) : null}
-
-      {!configured ? (
-        <EmptyState
-          icon={<Feather name="trending-up" size={40} color={Colors.textMuted} />}
-          title="Live prices aren't set up yet"
-          subtitle="The app owner needs to add a JustTCG API key to enable real-time card prices."
-        />
-      ) : (
-        <FlatList
-          data={filtered}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
-          renderItem={({ item }) => (
-            <View style={styles.tileWrap}>
-              <PriceCardTile card={item} color={activeColor} />
-            </View>
-          )}
-          onEndReachedThreshold={0.4}
-          onEndReached={() => {
-            if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
-          }}
-          ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: Spacing.lg }} color={Colors.primary} /> : null}
-          ListEmptyComponent={
-            !isLoading ? (
-              error ? (
-                <EmptyState icon={<Feather name="alert-triangle" size={40} color={Colors.textMuted} />} title="Couldn't load prices" subtitle={error instanceof ApiError ? error.message : "Try again shortly."} />
+        ) : (
+          <FlatList
+            data={filtered}
+            keyExtractor={(item) => item.id}
+            numColumns={2}
+            contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
+            renderItem={({ item }) => (
+              <View style={styles.tileWrap}>
+                <PriceCardTile card={item} color={activeColor} />
+              </View>
+            )}
+            onEndReachedThreshold={0.4}
+            onEndReached={() => {
+              if (hasNextPage && !isFetchingNextPage) void fetchNextPage();
+            }}
+            ListFooterComponent={isFetchingNextPage ? <ActivityIndicator style={{ marginVertical: Spacing.lg }} color={Colors.primary} /> : null}
+            ListEmptyComponent={
+              !isLoading ? (
+                error ? (
+                  <EmptyState icon={<Feather name="alert-triangle" size={40} color={Colors.textMuted} />} title="Couldn't load prices" subtitle={error instanceof ApiError ? error.message : "Try again shortly."} />
+                ) : (
+                  <EmptyState icon={<Feather name="search" size={40} color={Colors.textMuted} />} title="No cards found" subtitle="Try a different filter" />
+                )
               ) : (
-                <EmptyState icon={<Feather name="search" size={40} color={Colors.textMuted} />} title="No cards found" subtitle="Try a different filter" />
+                <ActivityIndicator style={{ marginTop: Spacing.xxl }} color={Colors.primary} />
               )
-            ) : (
-              <ActivityIndicator style={{ marginTop: Spacing.xxl }} color={Colors.primary} />
-            )
-          }
-        />
-      )}
-    </View>
+            }
+          />
+        )}
+      </View>
+    </SkyBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
   header: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm },
   titleRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   headerTitle: { ...Typography.h2, color: Colors.text },
