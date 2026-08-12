@@ -9,6 +9,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { MascotAvatar } from "@/components/MascotAvatar";
+import { GalaxyHeader } from "@/components/GalaxyHeader";
 import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAmbientSound } from "@/contexts/AmbientSoundContext";
@@ -103,13 +104,13 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl, paddingHorizontal: Spacing.lg }}>
-      <View style={styles.header}>
+      <GalaxyHeader variant="card" style={styles.header} starCount={16}>
         <MascotAvatar seed={user.username} size={56} />
         <View>
           <Text style={styles.username}>@{user.username}</Text>
           <Text style={styles.contact}>{user.email ?? user.phoneNumber}</Text>
         </View>
-      </View>
+      </GalaxyHeader>
 
       <Text style={styles.sectionHeader}>Selling</Text>
       <View style={styles.section}>
@@ -188,9 +189,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   center: { alignItems: "center", justifyContent: "center" },
   notSignedIn: { ...Typography.body, color: Colors.textSecondary },
-  header: { flexDirection: "row", alignItems: "center", gap: Spacing.md, marginBottom: Spacing.lg },
-  username: { ...Typography.h3, color: Colors.text },
-  contact: { ...Typography.small, color: Colors.textSecondary },
+  header: { flexDirection: "row", alignItems: "center", gap: Spacing.md, marginBottom: Spacing.lg, padding: Spacing.lg },
+  username: { ...Typography.h3, color: Colors.white },
+  contact: { ...Typography.small, color: "rgba(255,255,255,0.7)" },
   sectionHeader: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginTop: Spacing.lg, marginBottom: Spacing.xs, letterSpacing: 0.5 },
   section: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },

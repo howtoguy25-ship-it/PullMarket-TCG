@@ -12,6 +12,7 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { CardScannerModal } from "@/components/CardScannerModal";
 import { BackgroundPickerModal } from "@/components/BackgroundPickerModal";
+import { StarField } from "@/components/StarField";
 import { RootStackParamList } from "@/navigation/types";
 import { apiRequest, ApiError } from "@/lib/api";
 import { appendImageToFormData } from "@/lib/formDataImage";
@@ -253,6 +254,7 @@ export default function SellScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xxl }}>
       <LinearGradient colors={["#1C1040", "#3B1E6B", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
+        <StarField count={18} />
         <Text style={styles.screenTitle}>Sell a Card</Text>
         <Text style={styles.headerSubtitle}>List a Pokémon or One Piece card in minutes</Text>
       </LinearGradient>

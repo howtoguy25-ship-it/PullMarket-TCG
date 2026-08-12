@@ -5,9 +5,10 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
+import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
 import { EmptyState } from "@/components/ui";
+import { GalaxyHeader } from "@/components/GalaxyHeader";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -67,34 +68,36 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>PullMarket TCG</Text>
-        <View style={styles.headerIcons}>
-          <Pressable onPress={() => navigation.navigate("Notifications")} style={styles.iconButton} hitSlop={8}>
-            <Feather name="bell" size={22} color={Colors.text} />
-            {unreadCount > 0 ? <View style={styles.dot} /> : null}
-          </Pressable>
-          <Pressable onPress={() => navigation.navigate("Cart")} style={styles.iconButton} hitSlop={8}>
-            <Feather name="shopping-cart" size={22} color={Colors.text} />
-            {cartCount > 0 ? (
-              <View style={styles.cartBadge}>
-                <Text style={styles.cartBadgeText}>{cartCount}</Text>
-              </View>
-            ) : null}
-          </Pressable>
+    <View style={styles.container}>
+      <GalaxyHeader style={{ paddingTop: insets.top + Spacing.sm, paddingBottom: Spacing.lg }}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>PullMarket TCG</Text>
+          <View style={styles.headerIcons}>
+            <Pressable onPress={() => navigation.navigate("Notifications")} style={styles.iconButton} hitSlop={8}>
+              <Feather name="bell" size={22} color={Colors.white} />
+              {unreadCount > 0 ? <View style={styles.dot} /> : null}
+            </Pressable>
+            <Pressable onPress={() => navigation.navigate("Cart")} style={styles.iconButton} hitSlop={8}>
+              <Feather name="shopping-cart" size={22} color={Colors.white} />
+              {cartCount > 0 ? (
+                <View style={styles.cartBadge}>
+                  <Text style={styles.cartBadgeText}>{cartCount}</Text>
+                </View>
+              ) : null}
+            </Pressable>
+          </View>
         </View>
-      </View>
 
-      <View style={styles.searchBar}>
-        <Feather name="search" size={18} color={Colors.textMuted} />
-        <TextInput style={styles.searchInput} placeholder="Search cards, sets, characters…" placeholderTextColor={Colors.textMuted} value={query} onChangeText={setQuery} />
-        {query ? (
-          <Pressable onPress={() => setQuery("")} hitSlop={8}>
-            <Feather name="x" size={18} color={Colors.textMuted} />
-          </Pressable>
-        ) : null}
-      </View>
+        <View style={styles.searchBar}>
+          <Feather name="search" size={18} color={Colors.textMuted} />
+          <TextInput style={styles.searchInput} placeholder="Search cards, sets, characters…" placeholderTextColor={Colors.textMuted} value={query} onChangeText={setQuery} />
+          {query ? (
+            <Pressable onPress={() => setQuery("")} hitSlop={8}>
+              <Feather name="x" size={18} color={Colors.textMuted} />
+            </Pressable>
+          ) : null}
+        </View>
+      </GalaxyHeader>
 
       <View style={styles.chipsRow}>
         {FRANCHISE_FILTERS.map((f) => {
@@ -132,8 +135,8 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
-  headerTitle: { ...Typography.h2, color: Colors.primary },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.lg },
+  headerTitle: { ...Typography.h2, color: Colors.gold },
   headerIcons: { flexDirection: "row", gap: Spacing.md },
   iconButton: { position: "relative" },
   dot: { position: "absolute", top: -2, right: -2, width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.danger },
@@ -149,8 +152,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    ...Shadow.card,
   },
   searchInput: { flex: 1, color: Colors.text, fontSize: 15 },
   chipsRow: { flexDirection: "row", gap: Spacing.sm, paddingHorizontal: Spacing.lg, marginTop: Spacing.md },
