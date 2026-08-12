@@ -1,8 +1,15 @@
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+// A bare domain typed into EXPO_PUBLIC_API_URL without "https://" (e.g.
+// "www.pullmarkettcg.com" instead of "https://www.pullmarkettcg.com") isn't
+// a valid absolute URL at all — every request built from it fails outright,
+// with no useful error, taking the entire app down. That's an easy typo to
+// make and an expensive one to diagnose, so this corrects it defensively
+// rather than trusting the env var to always be well-formed.
 export function getApiUrl(): string {
-  return (Constants.expoConfig?.extra?.API_URL as string) || "http://localhost:5050";
+  const configured = (Constants.expoConfig?.extra?.API_URL as string) || "http://localhost:5050";
+  return /^https?:\/\//i.test(configured) ? configured : `https://${configured}`;
 }
 
 const TOKEN_KEY = "pullmarket_auth_token";
