@@ -21,28 +21,46 @@ import { AmbientSoundProvider } from "@/contexts/AmbientSoundContext";
 import { RootNavigator } from "@/navigation/RootNavigator";
 import { applyPendingUpdate } from "@/lib/autoUpdate";
 
+// Best-effort — if this fails for some reason the app must still start, so
+// every call site here is fire-and-forget with its own catch.
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
+// Font files are bundled locally (required at build time, not fetched at
+// runtime), so useFonts below has nothing to time out on in practice. This
+// timeout exists purely as a last line of defense: it guarantees the splash
+// screen releases and the app renders (falling back to the system font)
+// even if font registration itself somehow never resolves, rather than
+// leaving the launch screen up forever with no way out.
+const FONT_LOAD_TIMEOUT_MS = 4000;
+
 export default function App() {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     Baloo2_700Bold,
     Baloo2_800ExtraBold,
     Nunito_400Regular,
     Nunito_600SemiBold,
     Nunito_700Bold,
   });
-  const [appIsReady, setAppIsReady] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
+  const appIsReady = fontsLoaded || !!fontError || timedOut;
 
   useEffect(() => {
     void applyPendingUpdate();
   }, []);
 
   useEffect(() => {
-    if (fontsLoaded) setAppIsReady(true);
-  }, [fontsLoaded]);
+    if (fontsLoaded || fontError) return;
+    const timer = setTimeout(() => setTimedOut(true), FONT_LOAD_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    if (fontError) console.warn("[app] Custom fonts failed to load, falling back to system font", fontError);
+    if (timedOut && !fontsLoaded) console.warn("[app] Font loading timed out, proceeding without custom fonts");
+  }, [fontError, timedOut, fontsLoaded]);
 
   const onLayout = useCallback(() => {
-    if (appIsReady) void SplashScreen.hideAsync();
+    if (appIsReady) SplashScreen.hideAsync().catch(() => {});
   }, [appIsReady]);
 
   if (!appIsReady) return null;

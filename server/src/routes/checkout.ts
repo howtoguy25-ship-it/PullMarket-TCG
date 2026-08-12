@@ -40,18 +40,39 @@ router.post("/connect/onboard", async (req, res) => {
 });
 
 router.get("/connect/status", async (req, res) => {
-  if (!req.user!.stripeConnectAccountId) return res.json({ onboarded: false, payoutsEnabled: false });
-  if (!isStripeConfigured()) return res.json({ onboarded: false, payoutsEnabled: false });
+  if (!req.user!.stripeConnectAccountId) return res.json({ onboarded: false, payoutsEnabled: false, availableCents: 0, pendingCents: 0, currency: null });
+  if (!isStripeConfigured()) return res.json({ onboarded: false, payoutsEnabled: false, availableCents: 0, pendingCents: 0, currency: null });
 
   const stripe = getStripe();
-  const account = await stripe.accounts.retrieve(req.user!.stripeConnectAccountId);
+  const accountId = req.user!.stripeConnectAccountId;
+  const account = await stripe.accounts.retrieve(accountId);
   const payoutsEnabled = !!account.payouts_enabled;
   await db
     .update(users)
     .set({ stripeConnectOnboarded: !!account.details_submitted, stripeConnectPayoutsEnabled: payoutsEnabled })
     .where(eq(users.id, req.user!.id));
 
-  res.json({ onboarded: !!account.details_submitted, payoutsEnabled });
+  // The connected account's own balance — what's actually available to pay
+  // out vs still clearing — not the platform account's balance, since this
+  // is a destination-charges Connect setup where funds land on the seller's
+  // account, not the platform's.
+  let availableCents = 0;
+  let pendingCents = 0;
+  let currency: string | null = null;
+  if (payoutsEnabled) {
+    try {
+      const balance = await stripe.balance.retrieve({ stripeAccount: accountId });
+      const available = balance.available[0];
+      const pending = balance.pending[0];
+      availableCents = available?.amount ?? 0;
+      pendingCents = pending?.amount ?? 0;
+      currency = (available?.currency ?? pending?.currency ?? null)?.toUpperCase() ?? null;
+    } catch (err) {
+      console.error("Failed to retrieve Connect balance:", err);
+    }
+  }
+
+  res.json({ onboarded: !!account.details_submitted, payoutsEnabled, availableCents, pendingCents, currency });
 });
 
 // ── Create a Stripe Checkout Session for one seller's items in the cart ──

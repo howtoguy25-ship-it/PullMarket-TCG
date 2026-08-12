@@ -5,7 +5,7 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
-import { Colors, Spacing, Typography } from "@/constants/theme";
+import { Colors, Spacing, Typography, BorderRadius, Fonts, Shadow } from "@/constants/theme";
 import { Button, Badge } from "@/components/ui";
 import { apiJson, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,12 +18,25 @@ function showAlert(title: string, message: string) {
   Alert.alert(title, message);
 }
 
+function formatMoney(cents: number, currency: string | null) {
+  const amount = (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return currency ? `${currency === "USD" ? "$" : currency + " "}${amount}` : `$${amount}`;
+}
+
+interface ConnectStatus {
+  onboarded: boolean;
+  payoutsEnabled: boolean;
+  availableCents: number;
+  pendingCents: number;
+  currency: string | null;
+}
+
 export default function SellerPayoutSetupScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   useAuth();
 
-  const { data: status, refetch, isFetching } = useQuery<{ onboarded: boolean; payoutsEnabled: boolean }>({ queryKey: ["/api/checkout/connect/status"] });
+  const { data: status, refetch, isFetching } = useQuery<ConnectStatus>({ queryKey: ["/api/checkout/connect/status"], refetchInterval: 30_000 });
 
   const onboardMutation = useMutation({
     mutationFn: () => apiJson<{ url: string }>("POST", "/api/checkout/connect/onboard"),
@@ -53,6 +66,20 @@ export default function SellerPayoutSetupScreen() {
         <Badge label={status?.payoutsEnabled ? "Payouts enabled" : status?.onboarded ? "Setup in progress" : "Not set up"} color={status?.payoutsEnabled ? Colors.success : Colors.warning} />
       </View>
 
+      {status?.payoutsEnabled ? (
+        <View style={styles.balanceCard}>
+          <View style={styles.balanceStat}>
+            <Text style={styles.balanceLabel}>Available</Text>
+            <Text style={styles.balanceAmount}>{formatMoney(status.availableCents, status.currency)}</Text>
+          </View>
+          <View style={styles.balanceDivider} />
+          <View style={styles.balanceStat}>
+            <Text style={styles.balanceLabel}>Pending</Text>
+            <Text style={[styles.balanceAmount, styles.balanceAmountMuted]}>{formatMoney(status.pendingCents, status.currency)}</Text>
+          </View>
+        </View>
+      ) : null}
+
       <Button title={status?.onboarded ? "Continue setup with Stripe" : "Set up payouts with Stripe"} onPress={() => onboardMutation.mutate()} loading={onboardMutation.isPending} style={{ marginTop: Spacing.lg }} />
       <Button
         title={isFetching ? "Checking…" : "Refresh status"}
@@ -72,4 +99,20 @@ const styles = StyleSheet.create({
   title: { ...Typography.h2, color: Colors.text, textAlign: "center" },
   subtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: "center", marginTop: Spacing.sm },
   statusRow: { marginTop: Spacing.lg },
+  balanceCard: {
+    flexDirection: "row",
+    width: "100%",
+    marginTop: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: Spacing.lg,
+    ...Shadow.card,
+  },
+  balanceStat: { flex: 1, alignItems: "center", gap: 4 },
+  balanceDivider: { width: StyleSheet.hairlineWidth, backgroundColor: Colors.border },
+  balanceLabel: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
+  balanceAmount: { fontFamily: Fonts.display, fontSize: 26, color: Colors.success },
+  balanceAmountMuted: { color: Colors.textSecondary },
 });
