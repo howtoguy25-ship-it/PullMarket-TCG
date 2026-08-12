@@ -5,6 +5,7 @@ import { conversations, messages, messageAttachments, users, reports } from "@sh
 import { and, desc, eq, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { chatUpload, attachmentTypeFromMime } from "../lib/chatUpload";
+import { saveUploadedFile } from "../lib/upload";
 import { notifyUser } from "../lib/notify";
 import { moderateMessage, isModerationConfigured } from "../lib/moderation";
 
@@ -206,7 +207,8 @@ router.post("/conversations/:id/messages", chatUpload.array("media", 4), async (
 
   const [message] = await db.insert(messages).values({ conversationId: convo.id, senderId: meId, text: text || null }).returning();
   if (files.length > 0) {
-    await db.insert(messageAttachments).values(files.map((f, i) => ({ messageId: message.id, url: `/api/uploads/${f.filename}`, type: attachmentTypeFromMime(f.mimetype), position: i })));
+    const urls = await Promise.all(files.map((f) => saveUploadedFile(f)));
+    await db.insert(messageAttachments).values(urls.map((url, i) => ({ messageId: message.id, url, type: attachmentTypeFromMime(files[i].mimetype), position: i })));
   }
 
   const preview = text || (files.length > 0 ? (attachmentTypeFromMime(files[0].mimetype) === "video" ? "Sent a video" : "Sent a photo") : "");

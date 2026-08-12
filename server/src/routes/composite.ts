@@ -1,12 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
 import path from "path";
-import fs from "fs/promises";
-import { randomUUID } from "crypto";
 import sharp from "sharp";
 import { authenticateToken } from "../middleware/auth";
-import { upload } from "../lib/upload";
-import { UPLOAD_DIR_PATH } from "../lib/upload";
+import { upload, saveGeneratedImage } from "../lib/upload";
 import { CARD_BACKGROUNDS, BACKGROUNDS_DIR, getBackground } from "../lib/cardBackgrounds";
 
 const router = Router();
@@ -24,10 +21,7 @@ router.post("/card", upload.single("image"), async (req, res) => {
   const parsed = schema.safeParse(req.body);
   const file = req.file;
   if (!file) return res.status(400).json({ message: "No image uploaded" });
-  if (!parsed.success) {
-    await fs.unlink(file.path).catch(() => {});
-    return res.status(400).json({ message: "Invalid background choice" });
-  }
+  if (!parsed.success) return res.status(400).json({ message: "Invalid background choice" });
 
   const background = getBackground(parsed.data.background)!;
 
@@ -35,7 +29,7 @@ router.post("/card", upload.single("image"), async (req, res) => {
     const { x, y, width, height } = background.cardRect;
     const radius = 18;
 
-    const cardBuffer = await sharp(file.path).resize(width, height, { fit: "cover", position: "attention" }).toBuffer();
+    const cardBuffer = await sharp(file.buffer).resize(width, height, { fit: "cover", position: "attention" }).toBuffer();
 
     const roundedMask = Buffer.from(`<svg width="${width}" height="${height}"><rect x="0" y="0" width="${width}" height="${height}" rx="${radius}" ry="${radius}" fill="#fff"/></svg>`);
     const roundedCard = await sharp(cardBuffer)
@@ -55,19 +49,16 @@ router.post("/card", upload.single("image"), async (req, res) => {
 
     composites.push({ input: roundedCard, left: x, top: y });
 
-    const outputName = `${randomUUID()}.jpg`;
-    const outputPath = path.join(UPLOAD_DIR_PATH, outputName);
-    await sharp(path.join(BACKGROUNDS_DIR, background.file))
+    const outputBuffer = await sharp(path.join(BACKGROUNDS_DIR, background.file))
       .composite(composites)
       .jpeg({ quality: 90 })
-      .toFile(outputPath);
+      .toBuffer();
 
-    res.json({ url: `/api/uploads/${outputName}` });
+    const url = await saveGeneratedImage(outputBuffer, "image/jpeg");
+    res.json({ url });
   } catch (err) {
     console.error("Card compositing failed:", err);
     res.status(500).json({ message: "Couldn't apply that background — try again." });
-  } finally {
-    await fs.unlink(file.path).catch(() => {});
   }
 });
 

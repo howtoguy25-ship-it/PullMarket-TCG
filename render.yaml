@@ -88,3 +88,21 @@ services:
       # skipped — chat still works normally, just without auto-flagging.
       - key: ANTHROPIC_API_KEY
         sync: false
+      # Strongly recommended on Render specifically: this service's local
+      # disk is wiped on every deploy/restart (free/starter plan), so any
+      # uploaded avatar/listing photo/chat media/card composite is lost
+      # until re-uploaded unless these are set. Points every upload at
+      # S3-compatible object storage instead — see .env.example for the
+      # full explanation and provider-specific notes (R2 recommended).
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_REGION
+        value: auto
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_PUBLIC_URL_BASE
+        sync: false

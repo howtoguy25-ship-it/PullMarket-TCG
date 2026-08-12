@@ -4,7 +4,7 @@ import { db } from "../db";
 import { listings, listingImages, users, favorites, franchiseSubscriptions } from "@shared/schema";
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
-import { upload } from "../lib/upload";
+import { upload, saveUploadedFile } from "../lib/upload";
 import { CONDITIONS, FRANCHISES } from "@shared/schema";
 import { detectFranchise } from "@shared/validation";
 import { notifyUsers } from "../lib/notify";
@@ -153,10 +153,11 @@ router.post("/", authenticateToken, upload.array("images", 6), async (req, res) 
     })
     .returning();
 
+  const urls = await Promise.all(files.map((f) => saveUploadedFile(f)));
   await db.insert(listingImages).values(
-    files.map((f, i) => ({
+    urls.map((url, i) => ({
       listingId: listing.id,
-      url: `/api/uploads/${f.filename}`,
+      url,
       position: i,
     })),
   );
