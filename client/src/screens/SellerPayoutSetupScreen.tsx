@@ -80,7 +80,9 @@ export default function SellerPayoutSetupScreen() {
         </View>
       ) : null}
 
-      <Button title={status?.onboarded ? "Continue setup with Stripe" : "Set up payouts with Stripe"} onPress={() => onboardMutation.mutate()} loading={onboardMutation.isPending} style={{ marginTop: Spacing.lg }} />
+      {!status?.payoutsEnabled ? (
+        <Button title={status?.onboarded ? "Continue setup with Stripe" : "Set up payouts with Stripe"} onPress={() => onboardMutation.mutate()} loading={onboardMutation.isPending} style={{ marginTop: Spacing.lg }} />
+      ) : null}
       <Button
         title={isFetching ? "Checking…" : "Refresh status"}
         variant="ghost"
