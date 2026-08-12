@@ -40,6 +40,7 @@ export type MainTabsParamList = {
   Home: undefined;
   Search: undefined;
   Sell: undefined;
+  Prices: undefined;
   Messages: undefined;
   Favorites: undefined;
   Profile: undefined;

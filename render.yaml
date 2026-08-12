@@ -106,3 +106,9 @@ services:
         sync: false
       - key: S3_PUBLIC_URL_BASE
         sync: false
+      # Optional — powers the Prices tab (live Pokémon/One Piece TCG market
+      # prices via justtcg.com). Requires a paid JustTCG plan for
+      # commercial use — see .env.example. Without it, the Prices tab shows
+      # a clear "not configured" message instead of failing.
+      - key: JUSTTCG_API_KEY
+        sync: false

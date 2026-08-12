@@ -9,6 +9,7 @@ import { MainTabsParamList } from "./types";
 import HomeScreen from "@/screens/HomeScreen";
 import SearchScreen from "@/screens/SearchScreen";
 import SellScreen from "@/screens/SellScreen";
+import PricesScreen from "@/screens/PricesScreen";
 import ChatListScreen from "@/screens/ChatListScreen";
 import FavoritesScreen from "@/screens/FavoritesScreen";
 import ProfileScreen from "@/screens/ProfileScreen";
@@ -19,6 +20,7 @@ const ICONS: Record<keyof MainTabsParamList, keyof typeof Feather.glyphMap> = {
   Home: "home",
   Search: "search",
   Sell: "camera",
+  Prices: "trending-up",
   Messages: "message-circle",
   Favorites: "star",
   Profile: "user",
@@ -52,6 +54,7 @@ export function MainTabs() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Sell" component={SellScreen} />
+      <Tab.Screen name="Prices" component={PricesScreen} />
       <Tab.Screen name="Messages" component={ChatListScreen} />
       <Tab.Screen name="Favorites" component={FavoritesScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
