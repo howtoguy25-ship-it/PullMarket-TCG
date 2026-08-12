@@ -1,6 +1,6 @@
 import { db } from "../db";
 import { otpCodes } from "@shared/schema";
-import { and, desc, eq, gt } from "drizzle-orm";
+import { and, desc, eq, gt, lt, or, isNull, sql } from "drizzle-orm";
 import { sendSms } from "./sms";
 import { sendEmail } from "./mailer";
 
@@ -31,21 +31,36 @@ export async function issueOtp(destination: string, channel: "sms" | "email", pu
 }
 
 export async function verifyOtp(destination: string, code: string): Promise<boolean> {
-  const [row] = await db
-    .select()
-    .from(otpCodes)
-    .where(and(eq(otpCodes.destination, destination), eq(otpCodes.consumed, false), gt(otpCodes.expiresAt, new Date())))
-    .orderBy(desc(otpCodes.createdAt))
-    .limit(1);
+  // Claiming the code is a single atomic UPDATE, not a SELECT followed by a
+  // separate UPDATE — the old two-step version had a real race: iOS's SMS
+  // autofill is known to fire the verify screen's change handler more than
+  // once for the same code, and two near-simultaneous requests could both
+  // read `consumed: false` before either write committed, both pass, and
+  // each mint their own sign-in token. Postgres only lets one concurrent
+  // UPDATE match a given row, so at most one of these calls can ever return
+  // true for the same code.
+  const [claimed] = await db
+    .update(otpCodes)
+    .set({ consumed: true })
+    .where(
+      and(
+        eq(otpCodes.destination, destination),
+        eq(otpCodes.consumed, false),
+        gt(otpCodes.expiresAt, new Date()),
+        eq(otpCodes.code, code),
+        or(isNull(otpCodes.attempts), lt(otpCodes.attempts, MAX_ATTEMPTS)),
+      ),
+    )
+    .returning({ id: otpCodes.id });
 
-  if (!row) return false;
-  if ((row.attempts ?? 0) >= MAX_ATTEMPTS) return false;
+  if (claimed) return true;
 
-  if (row.code !== code) {
-    await db.update(otpCodes).set({ attempts: (row.attempts ?? 0) + 1 }).where(eq(otpCodes.id, row.id));
-    return false;
-  }
-
-  await db.update(otpCodes).set({ consumed: true }).where(eq(otpCodes.id, row.id));
-  return true;
+  // Wrong code (or no active/claimable code) — best-effort attempt
+  // tracking on whatever's still outstanding for this destination, doesn't
+  // need the same atomicity guarantee as the claim above.
+  await db
+    .update(otpCodes)
+    .set({ attempts: sql`coalesce(${otpCodes.attempts}, 0) + 1` })
+    .where(and(eq(otpCodes.destination, destination), eq(otpCodes.consumed, false), gt(otpCodes.expiresAt, new Date())));
+  return false;
 }

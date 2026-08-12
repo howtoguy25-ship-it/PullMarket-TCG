@@ -89,6 +89,14 @@ export default function OtpVerifyScreen() {
   const [resending, setResending] = useState(false);
   const [status, setStatus] = useState<"idle" | "error" | "success">("idle");
   const inputRef = useRef<TextInput>(null);
+  // A ref, not the `loading` state: iOS's SMS-code autofill is known to
+  // fire the hidden input's onChangeText more than once for the same code
+  // in the same tick, before React has re-rendered — two calls to
+  // handleVerify made that way would both read the OLD `loading` value from
+  // their own stale closure and both slip past a state-based guard,
+  // double-submitting the same code. A ref update is synchronous and
+  // visible to the very next call immediately, closing that gap.
+  const verifyingRef = useRef(false);
 
   const entrance = useSharedValue(0);
   const shakeX = useSharedValue(0);
@@ -112,7 +120,8 @@ export default function OtpVerifyScreen() {
   };
 
   const handleVerify = async (value: string) => {
-    if (value.length !== CODE_LENGTH || loading) return;
+    if (value.length !== CODE_LENGTH || verifyingRef.current) return;
+    verifyingRef.current = true;
     setLoading(true);
     try {
       const result = await apiJson<{ status: string; token?: string; user?: any }>("POST", "/api/auth/otp/verify", { destination, channel, code: value });
@@ -126,6 +135,7 @@ export default function OtpVerifyScreen() {
         }
       }, 420);
     } catch (err) {
+      verifyingRef.current = false;
       setStatus("error");
       void triggerHaptic("error");
       shakeX.value = withSequence(
