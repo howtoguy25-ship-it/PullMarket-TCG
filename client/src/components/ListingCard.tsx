@@ -1,11 +1,13 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View, Image } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, BorderRadius, Typography, Shadow } from "@/constants/theme";
 import { apiJson, ApiError } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/media";
 import { PriceTag, Badge } from "./ui";
+import { StarField } from "./StarField";
 import { CONDITION_LABELS } from "@shared/validation";
 
 export interface ListingSummary {
@@ -22,7 +24,23 @@ export interface ListingSummary {
   isFavorited?: boolean;
 }
 
-export function ListingCard({ listing, onPress, onRequireAuth }: { listing: ListingSummary; onPress: () => void; onRequireAuth?: () => boolean }) {
+export function ListingCard({
+  listing,
+  onPress,
+  onRequireAuth,
+  dark = false,
+}: {
+  listing: ListingSummary;
+  onPress: () => void;
+  onRequireAuth?: () => boolean;
+  /** Renders the info panel (title/condition/price) as a dim galaxy panel
+   * instead of a plain white card — used on screens with a galaxy
+   * backdrop of their own (currently just Home) so the card doesn't sit
+   * as a stark white block on a dark page. Screens still on the light
+   * background (Search, Favorites, a seller's public profile) leave this
+   * off and keep the original look. */
+  dark?: boolean;
+}) {
   const queryClient = useQueryClient();
 
   const favoriteMutation = useMutation({
@@ -47,7 +65,7 @@ export function ListingCard({ listing, onPress, onRequireAuth }: { listing: List
   };
 
   return (
-    <Pressable onPress={onPress} style={[styles.card, Shadow.card]}>
+    <Pressable onPress={onPress} style={[styles.card, Shadow.card, dark && styles.cardDark]}>
       <View style={styles.imageWrap}>
         {listing.images[0] ? (
           <Image source={{ uri: resolveImageUrl(listing.images[0]) }} style={styles.image} resizeMode="cover" />
@@ -78,18 +96,24 @@ export function ListingCard({ listing, onPress, onRequireAuth }: { listing: List
       </View>
 
       <View style={styles.info}>
+        {dark ? (
+          <>
+            <LinearGradient colors={["#1C1040", "#150C2E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            <StarField count={7} />
+          </>
+        ) : null}
         <View style={[styles.franchiseChip, { backgroundColor: franchiseColor }]}>
           <Text style={styles.franchiseChipText} numberOfLines={1}>
             {franchiseLabel}
           </Text>
         </View>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text style={[styles.title, dark && styles.titleDark]} numberOfLines={2}>
           {listing.title}
         </Text>
-        <Text style={styles.condition}>{CONDITION_LABELS[listing.condition] ?? listing.condition}</Text>
+        <Text style={[styles.condition, dark && styles.conditionDark]}>{CONDITION_LABELS[listing.condition] ?? listing.condition}</Text>
 
         <View style={styles.bottomRow}>
-          <PriceTag cents={listing.priceCents} />
+          <PriceTag cents={listing.priceCents} style={dark ? styles.priceDark : undefined} />
           <Pressable
             onPress={(e) => {
               e.stopPropagation?.();
@@ -117,6 +141,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  cardDark: { borderColor: "rgba(255,255,255,0.18)" },
   imageWrap: { aspectRatio: 0.8, backgroundColor: Colors.surfaceAlt, position: "relative" },
   image: { width: "100%", height: "100%" },
   imagePlaceholder: { alignItems: "center", justifyContent: "center" },
@@ -136,11 +161,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   soldOutText: { color: Colors.white, fontWeight: "800", fontSize: 13, letterSpacing: 1 },
-  info: { padding: Spacing.sm, gap: 4 },
+  info: { padding: Spacing.sm, gap: 4, position: "relative" },
   franchiseChip: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 2, borderRadius: BorderRadius.pill, maxWidth: "100%" },
   franchiseChipText: { color: Colors.white, fontSize: 10, fontWeight: "800" },
   title: { ...Typography.bodyBold, color: Colors.text, minHeight: 38 },
+  titleDark: { color: Colors.white },
   condition: { ...Typography.small, color: Colors.textSecondary },
+  conditionDark: { color: "rgba(255,255,255,0.7)" },
+  priceDark: { color: Colors.gold },
   bottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
   addButton: { backgroundColor: Colors.primary, borderRadius: BorderRadius.pill, width: 30, height: 30, alignItems: "center", justifyContent: "center" },
 });

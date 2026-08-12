@@ -136,6 +136,7 @@ export default function HomeScreen() {
               listing={{ ...item, isFavorited: favoritedIds.has(item.id) }}
               onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })}
               onRequireAuth={requireAuth}
+              dark
             />
           )}
           ListEmptyComponent={
