@@ -5,7 +5,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
+import { Colors, Spacing, Typography, BorderRadius, Fonts, NoWebFocusOutline } from "@/constants/theme";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
 import { EmptyState } from "@/components/ui";
 import { GalaxyBackground } from "@/components/GalaxyBackground";
@@ -22,6 +22,10 @@ const FRANCHISE_FILTERS: { key: string; label: string; color: string }[] = [
   { key: "pokemon", label: "Pokémon", color: Colors.pokemon },
   { key: "one_piece", label: "One Piece", color: Colors.onePiece },
 ];
+
+function glowShadow(color: string) {
+  return { shadowColor: color, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6 };
+}
 
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
@@ -91,11 +95,17 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.searchBar}>
-          <Feather name="search" size={18} color={Colors.textMuted} />
-          <TextInput style={styles.searchInput} placeholder="Search cards, sets, characters…" placeholderTextColor={Colors.textMuted} value={query} onChangeText={setQuery} />
+          <Feather name="search" size={20} color="rgba(255,255,255,0.85)" />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search cards, sets, characters…"
+            placeholderTextColor="rgba(255,255,255,0.55)"
+            value={query}
+            onChangeText={setQuery}
+          />
           {query ? (
             <Pressable onPress={() => setQuery("")} hitSlop={8}>
-              <Feather name="x" size={18} color={Colors.textMuted} />
+              <Feather name="x" size={20} color="rgba(255,255,255,0.85)" />
             </Pressable>
           ) : null}
         </View>
@@ -104,7 +114,11 @@ export default function HomeScreen() {
           {FRANCHISE_FILTERS.map((f) => {
             const active = franchises.includes(f.key);
             return (
-              <Pressable key={f.key} onPress={() => toggleFranchise(f.key)} style={[styles.chip, { backgroundColor: active ? f.color : Colors.surface, borderColor: f.color }]}>
+              <Pressable
+                key={f.key}
+                onPress={() => toggleFranchise(f.key)}
+                style={[styles.chip, active ? { backgroundColor: f.color, borderColor: f.color, ...glowShadow(f.color) } : { backgroundColor: `${f.color}22`, borderColor: f.color }]}
+              >
                 <Text style={[styles.chipText, { color: active ? Colors.white : f.color }]}>{f.label}</Text>
               </Pressable>
             );
@@ -152,15 +166,16 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginHorizontal: Spacing.lg,
     marginTop: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
-    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 14,
+    backgroundColor: "rgba(255,255,255,0.12)",
     borderRadius: BorderRadius.pill,
-    ...Shadow.card,
+    borderWidth: 1.5,
+    borderColor: "rgba(255,255,255,0.3)",
   },
-  searchInput: { flex: 1, color: Colors.text, fontSize: 15 },
-  chipsRow: { flexDirection: "row", gap: Spacing.sm, paddingHorizontal: Spacing.lg, marginTop: Spacing.md },
-  chip: { paddingHorizontal: Spacing.md, paddingVertical: 8, borderRadius: BorderRadius.pill, borderWidth: 1.5 },
-  chipText: { ...Typography.small, fontWeight: "700" },
+  searchInput: { flex: 1, color: Colors.white, fontSize: 16, fontFamily: Fonts.bodySemiBold, ...NoWebFocusOutline },
+  chipsRow: { flexDirection: "row", gap: Spacing.md, paddingHorizontal: Spacing.lg, marginTop: Spacing.lg },
+  chip: { flex: 1, alignItems: "center", paddingVertical: 14, borderRadius: BorderRadius.lg, borderWidth: 2 },
+  chipText: { fontFamily: Fonts.displayBold, fontSize: 16 },
   emptyPanel: { margin: Spacing.lg, marginTop: Spacing.xxl, backgroundColor: "rgba(255,255,255,0.92)", borderRadius: BorderRadius.lg, paddingVertical: Spacing.lg },
 });

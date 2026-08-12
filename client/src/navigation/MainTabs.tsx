@@ -41,11 +41,10 @@ export function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
-        tabBarIcon: ({ color, size, focused }) => (
-          <Feather name={ICONS[route.name as keyof MainTabsParamList]} size={focused ? size + 1 : size} color={color} />
-        ),
-        tabBarLabelStyle: { fontFamily: Fonts.bodySemiBold, fontSize: 11 },
-        tabBarStyle: { borderTopColor: Colors.gold, borderTopWidth: 2 },
+        tabBarIcon: ({ color, size }) => <Feather name={ICONS[route.name as keyof MainTabsParamList]} size={size} color={color} />,
+        tabBarLabelStyle: { fontFamily: Fonts.bodySemiBold, fontSize: 11, marginTop: 2 },
+        tabBarItemStyle: { paddingTop: 4 },
+        tabBarStyle: { borderTopColor: Colors.gold, borderTopWidth: 2, height: 60 },
         tabBarBadge: route.name === "Messages" && unreadMessages > 0 ? (unreadMessages > 9 ? "9+" : unreadMessages) : undefined,
         tabBarBadgeStyle: { backgroundColor: Colors.primary, fontSize: 10, fontFamily: Fonts.bodyBold },
       })}
