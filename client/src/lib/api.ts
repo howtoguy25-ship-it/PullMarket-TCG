@@ -31,9 +31,12 @@ export class ApiError extends Error {
 // leaving whichever screen happened to make that call stuck showing a
 // generic "Not authenticated" error while the rest of the app still acts
 // signed in, treat it as a real sign-out everywhere. AuthContext registers
-// the handler on mount.
-let onUnauthorized: ((message: string) => void) | null = null;
-export function setUnauthorizedHandler(handler: ((message: string) => void) | null): void {
+// the handler on mount. The context string (method, path, whether a token
+// was even attached) rides along so the alert this produces is a complete
+// diagnostic on its own — no server logs needed to know which specific
+// request actually failed.
+let onUnauthorized: ((message: string, context: string) => void) | null = null;
+export function setUnauthorizedHandler(handler: ((message: string, context: string) => void) | null): void {
   onUnauthorized = handler;
 }
 
@@ -43,11 +46,24 @@ export async function apiRequest(method: string, path: string, body?: unknown, i
   if (token) headers["Authorization"] = `Bearer ${token}`;
   if (!isFormData && body !== undefined) headers["Content-Type"] = "application/json";
 
-  const res = await fetch(`${getApiUrl()}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
-  });
+  const url = `${getApiUrl()}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method,
+      headers,
+      body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
+    });
+  } catch (err) {
+    // fetch() rejects for network-level failures (no route to host, DNS,
+    // connection refused) — this is what a client pointed at a wrong/dead
+    // API_URL (e.g. localhost baked into a production build) looks like.
+    // Name the actual URL it tried to reach so that misconfiguration is
+    // obvious from the error alone instead of looking identical to any
+    // other "couldn't do the thing" failure.
+    console.error(`[api] Network error: ${method} ${url}`, err);
+    throw new ApiError(0, `Network error reaching ${url}`, err instanceof Error ? err.message : String(err));
+  }
 
   if (!res.ok) {
     let message = res.statusText;
@@ -60,7 +76,9 @@ export async function apiRequest(method: string, path: string, body?: unknown, i
       // response wasn't JSON
     }
     if (detail) console.error(`[api] ${method} ${path} -> ${res.status} ${message}: ${detail}`);
-    if (res.status === 401 || res.status === 410) onUnauthorized?.(message);
+    if (res.status === 401 || res.status === 410) {
+      onUnauthorized?.(message, `${method} ${path} -> ${res.status}${token ? "" : " (no token attached)"}`);
+    }
     throw new ApiError(res.status, message, detail);
   }
 

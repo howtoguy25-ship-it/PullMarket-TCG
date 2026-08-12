@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refreshUser]);
 
   useEffect(() => {
-    setUnauthorizedHandler((message) => {
+    setUnauthorizedHandler((message, context) => {
       const wasSignedIn = !!userRef.current;
       void persistToken(null);
       setUser(null);
@@ -75,8 +75,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // from some pre-sign-in call would be normal, not worth alarming
       // anyone about. Silently bouncing someone straight back to the
       // welcome screen with zero explanation is its own bug: at minimum,
-      // whoever hits this should be able to tell us what it said.
-      if (wasSignedIn) showAlert("Signed out", message || "Your session ended unexpectedly. Please sign in again.");
+      // whoever hits this should be able to tell us what it said — the
+      // context string (which request, whether a token was even attached)
+      // makes the alert a complete diagnostic on its own, no server log
+      // access needed to know exactly what failed.
+      console.error("[auth] Global sign-out triggered:", context, message);
+      if (wasSignedIn) showAlert("Signed out", `${message || "Your session ended unexpectedly."}\n\n${context}`);
     });
     return () => setUnauthorizedHandler(null);
   }, []);

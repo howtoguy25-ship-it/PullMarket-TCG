@@ -146,7 +146,11 @@ export default function OtpVerifyScreen() {
         withTiming(8, { duration: 45 }),
         withTiming(0, { duration: 45 }),
       );
-      showAlert("Incorrect code", err instanceof ApiError ? err.message : "Please try again.");
+      const isNetworkError = err instanceof ApiError && err.status === 0;
+      showAlert(
+        isNetworkError ? "Couldn't verify code" : "Incorrect code",
+        err instanceof ApiError ? (err.detail ? `${err.message}\n\n${err.detail}` : err.message) : "Please try again.",
+      );
       setTimeout(() => {
         setCode("");
         setStatus("idle");
