@@ -1,3 +1,5 @@
+import { Platform } from "react-native";
+
 // PullMarket TCG palette — Poké Ball red + One Piece gold, high-energy but
 // still readable at card-listing density.
 export const Colors = {
@@ -41,6 +43,16 @@ export const Shadow = {
     elevation: 3,
   },
 };
+
+// react-native-web renders a browser focus outline on TextInputs by
+// default. Zeroing outlineWidth alone doesn't reliably suppress it in
+// every browser — some still apply `outline-style: auto`, which is what
+// draws the box — so all three properties need to be set together.
+// (outline-style: none is valid, real CSS that react-native-web passes
+// straight through; RN's TextStyle type just doesn't have a case for it,
+// hence the cast.) No-op on native, where this concept doesn't exist.
+export const NoWebFocusOutline =
+  Platform.OS === "web" ? ({ outlineWidth: 0, outlineStyle: "none", outlineColor: "transparent" } as Record<string, unknown>) : {};
 
 // Baloo 2 (rounded, playful, high-impact) carries headings, prices, and
 // buttons for a game-y feel; Nunito (friendly, highly readable) carries body

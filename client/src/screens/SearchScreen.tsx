@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { View, StyleSheet, Text, FlatList, Pressable, TextInput, Keyboard, Platform } from "react-native";
+import { View, StyleSheet, Text, FlatList, Pressable, TextInput, Keyboard } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
+import { Colors, Spacing, Typography, BorderRadius, Shadow, NoWebFocusOutline } from "@/constants/theme";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
 import { EmptyState } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     ...Shadow.card,
   },
-  searchInput: { flex: 1, color: Colors.text, fontSize: 15, ...Platform.select({ web: { outlineWidth: 0 } }) },
+  searchInput: { flex: 1, color: Colors.text, fontSize: 15, ...NoWebFocusOutline },
   cancelText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   emptyFill: { flex: 1 },
   filterButton: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
