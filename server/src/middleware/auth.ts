@@ -4,7 +4,6 @@ import { db } from "../db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { User } from "@shared/schema";
-import { recordFailedLookup } from "../lib/authDiag";
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -37,10 +36,7 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
   }
 
   const [user] = await db.select().from(users).where(eq(users.id, payload.userId));
-  if (!user) {
-    recordFailedLookup({ userId: payload.userId, tokenVersion: payload.tokenVersion, path: req.path, method: req.method, time: new Date().toISOString() });
-    return res.status(401).json({ message: "Not authenticated" });
-  }
+  if (!user) return res.status(401).json({ message: "Not authenticated" });
   // Tokens are always signed with tokenVersion normalized to 0 (see
   // signAuthToken callers: `existing.tokenVersion ?? 0`) — normalize the
   // DB side the same way, or an account whose token_version column is

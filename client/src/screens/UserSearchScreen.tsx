@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Text, FlatList, Pressable, TextInput, Keyboard } from "react-native";
+import { View, StyleSheet, Text, FlatList, Pressable, TextInput, Keyboard, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
+import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
 import { MascotAvatar } from "@/components/MascotAvatar";
 import { RootStackParamList } from "@/navigation/types";
@@ -140,13 +140,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.sm,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 10,
+    paddingVertical: 11,
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.pill,
     borderWidth: 1,
     borderColor: Colors.border,
+    ...Shadow.card,
   },
-  searchInput: { flex: 1, color: Colors.text, fontSize: 15 },
+  searchInput: { flex: 1, color: Colors.text, fontSize: 15, ...Platform.select({ web: { outlineWidth: 0 } }) },
   cancelText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   row: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
   username: { ...Typography.bodyBold, color: Colors.text, fontSize: 15 },

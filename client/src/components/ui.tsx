@@ -1,6 +1,6 @@
 import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle, TextStyle, PressableProps } from "react-native";
-import { Colors, Spacing, BorderRadius, Typography } from "@/constants/theme";
+import { Colors, Spacing, BorderRadius, Typography, Fonts } from "@/constants/theme";
 
 export function Button({
   title,
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   buttonContent: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
-  buttonText: { ...Typography.bodyBold, fontSize: 16 },
+  buttonText: { ...Typography.bodyBold, fontFamily: Fonts.displayBold, fontSize: 16, letterSpacing: 0.2 },
   card: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,

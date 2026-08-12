@@ -116,26 +116,47 @@ export function AmbientSoundProvider({ children }: { children: React.ReactNode }
     [persist, enabled, selectedId],
   );
 
+  const previewTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const PREVIEW_DURATION_MS = 12_000;
+
+  const stopPreview = useCallback(async () => {
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+    if (previewSoundRef.current) {
+      const sound = previewSoundRef.current;
+      previewSoundRef.current = null;
+      await sound.stopAsync().catch(() => {});
+      await sound.unloadAsync().catch(() => {});
+    }
+    setPreviewingId(null);
+    // Resume the background loop (it was ducked, not stopped, while previewing).
+    if (loopSoundRef.current) await loopSoundRef.current.setVolumeAsync(volume).catch(() => {});
+  }, [volume]);
+
   const preview = useCallback(
     async (id: string) => {
+      // Tapping the currently-previewing track again stops it early.
+      if (previewingId === id) {
+        await stopPreview();
+        return;
+      }
       const option = AMBIENT_SOUNDS.find((s) => s.id === id);
       if (!option) return;
-      if (previewSoundRef.current) {
-        await previewSoundRef.current.unloadAsync();
-        previewSoundRef.current = null;
-      }
+      await stopPreview();
+      // Duck the background loop instead of stopping it, so previewing a
+      // track doesn't cut the currently-playing ambience out entirely.
+      if (loopSoundRef.current) await loopSoundRef.current.setVolumeAsync(volume * 0.15).catch(() => {});
       setPreviewingId(id);
       const { sound } = await Audio.Sound.createAsync(option.source, { volume, shouldPlay: true });
       previewSoundRef.current = sound;
       sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setPreviewingId((current) => (current === id ? null : current));
-          sound.unloadAsync();
-          if (previewSoundRef.current === sound) previewSoundRef.current = null;
-        }
+        if (status.isLoaded && status.didJustFinish) void stopPreview();
       });
+      previewTimeoutRef.current = setTimeout(() => void stopPreview(), PREVIEW_DURATION_MS);
     },
-    [volume],
+    [volume, previewingId, stopPreview],
   );
 
   return (

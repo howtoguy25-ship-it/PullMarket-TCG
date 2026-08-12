@@ -14,7 +14,6 @@ import compositeRoutes from "./composite";
 import usersRoutes from "./users";
 import friendsRoutes from "./friends";
 import chatRoutes from "./chat";
-import internalDiagRoutes from "./internalDiag";
 import { UPLOAD_DIR_PATH } from "../lib/upload";
 import { BACKGROUNDS_DIR } from "../lib/cardBackgrounds";
 import { COURIER_LABELS, CONDITION_LABELS, REPORT_REASON_LABELS } from "@shared/validation";
@@ -39,7 +38,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/users", usersRoutes);
   app.use("/api/friends", friendsRoutes);
   app.use("/api/chat", chatRoutes);
-  app.use("/api/internal-diag", internalDiagRoutes);
 
   return createServer(app);
 }

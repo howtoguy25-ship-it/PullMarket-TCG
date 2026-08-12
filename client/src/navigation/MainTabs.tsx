@@ -3,7 +3,7 @@ import { Keyboard } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
-import { Colors } from "@/constants/theme";
+import { Colors, Fonts } from "@/constants/theme";
 import { MainTabsParamList } from "./types";
 
 import HomeScreen from "@/screens/HomeScreen";
@@ -41,9 +41,13 @@ export function MainTabs() {
         headerShown: false,
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.textMuted,
-        tabBarIcon: ({ color, size }) => <Feather name={ICONS[route.name as keyof MainTabsParamList]} size={size} color={color} />,
+        tabBarIcon: ({ color, size, focused }) => (
+          <Feather name={ICONS[route.name as keyof MainTabsParamList]} size={focused ? size + 1 : size} color={color} />
+        ),
+        tabBarLabelStyle: { fontFamily: Fonts.bodySemiBold, fontSize: 11 },
+        tabBarStyle: { borderTopColor: Colors.gold, borderTopWidth: 2 },
         tabBarBadge: route.name === "Messages" && unreadMessages > 0 ? (unreadMessages > 9 ? "9+" : unreadMessages) : undefined,
-        tabBarBadgeStyle: { backgroundColor: Colors.primary, fontSize: 10 },
+        tabBarBadgeStyle: { backgroundColor: Colors.primary, fontSize: 10, fontFamily: Fonts.bodyBold },
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />

@@ -23,7 +23,7 @@ export default function SellerPayoutSetupScreen() {
   const headerHeight = useHeaderHeight();
   useAuth();
 
-  const { data: status, refetch } = useQuery<{ onboarded: boolean; payoutsEnabled: boolean }>({ queryKey: ["/api/checkout/connect/status"] });
+  const { data: status, refetch, isFetching } = useQuery<{ onboarded: boolean; payoutsEnabled: boolean }>({ queryKey: ["/api/checkout/connect/status"] });
 
   const onboardMutation = useMutation({
     mutationFn: () => apiJson<{ url: string }>("POST", "/api/checkout/connect/onboard"),
@@ -54,7 +54,14 @@ export default function SellerPayoutSetupScreen() {
       </View>
 
       <Button title={status?.onboarded ? "Continue setup with Stripe" : "Set up payouts with Stripe"} onPress={() => onboardMutation.mutate()} loading={onboardMutation.isPending} style={{ marginTop: Spacing.lg }} />
-      <Button title="Refresh status" variant="ghost" onPress={() => refetch()} style={{ marginTop: Spacing.sm }} />
+      <Button
+        title={isFetching ? "Checking…" : "Refresh status"}
+        variant="ghost"
+        icon={<Feather name="refresh-cw" size={15} color={Colors.primary} />}
+        onPress={() => refetch()}
+        disabled={isFetching}
+        style={{ marginTop: Spacing.sm }}
+      />
     </View>
   );
 }

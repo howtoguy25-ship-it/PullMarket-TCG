@@ -61,8 +61,8 @@ function SoundRow({ id, label, description, active, previewing, onSelect, onPrev
         <Text style={[styles.soundLabel, active && styles.soundLabelActive]}>{label}</Text>
         <Text style={styles.soundDescription}>{description}</Text>
       </View>
-      <Pressable style={styles.previewButton} onPress={onPreview} hitSlop={8}>
-        <Feather name={previewing ? "volume-2" : "play"} size={15} color={Colors.primary} />
+      <Pressable style={[styles.previewButton, previewing && styles.previewButtonActive]} onPress={onPreview} hitSlop={8}>
+        <Feather name={previewing ? "square" : "play"} size={previewing ? 13 : 15} color={previewing ? Colors.white : Colors.primary} />
       </Pressable>
     </Pressable>
   );
@@ -139,7 +139,7 @@ export default function ProfileScreen() {
         <View style={styles.soundToggleRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.rowLabel}>Play while browsing</Text>
-            <Text style={styles.rowSubtitle}>A subtle background sound — no music, just texture</Text>
+            <Text style={styles.rowSubtitle}>Original instrumental music, looped softly while you browse</Text>
           </View>
           <Switch value={enabled} onValueChange={setEnabled} trackColor={{ false: Colors.border, true: Colors.primary }} thumbColor={Colors.white} />
         </View>
@@ -208,6 +208,7 @@ const styles = StyleSheet.create({
   soundLabelActive: { color: Colors.primary },
   soundDescription: { ...Typography.small, color: Colors.textSecondary },
   previewButton: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FCE9E4", alignItems: "center", justifyContent: "center" },
+  previewButtonActive: { backgroundColor: Colors.primary },
   volumeRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
   accountActions: { gap: Spacing.sm },
   accountButton: { width: "100%" },

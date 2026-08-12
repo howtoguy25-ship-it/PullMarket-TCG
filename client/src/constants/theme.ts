@@ -42,12 +42,23 @@ export const Shadow = {
   },
 };
 
+// Baloo 2 (rounded, playful, high-impact) carries headings, prices, and
+// buttons for a game-y feel; Nunito (friendly, highly readable) carries body
+// text so listing details stay easy to scan at small sizes.
+export const Fonts = {
+  display: "Baloo2_800ExtraBold",
+  displayBold: "Baloo2_700Bold",
+  body: "Nunito_400Regular",
+  bodySemiBold: "Nunito_600SemiBold",
+  bodyBold: "Nunito_700Bold",
+};
+
 export const Typography = {
-  h1: { fontSize: 28, fontWeight: "800" as const },
-  h2: { fontSize: 22, fontWeight: "800" as const },
-  h3: { fontSize: 18, fontWeight: "700" as const },
-  body: { fontSize: 15, fontWeight: "400" as const },
-  bodyBold: { fontSize: 15, fontWeight: "700" as const },
-  small: { fontSize: 13, fontWeight: "400" as const },
-  price: { fontSize: 17, fontWeight: "800" as const },
+  h1: { fontSize: 30, fontFamily: Fonts.display },
+  h2: { fontSize: 23, fontFamily: Fonts.display },
+  h3: { fontSize: 18, fontFamily: Fonts.displayBold },
+  body: { fontSize: 15, fontFamily: Fonts.body },
+  bodyBold: { fontSize: 15, fontFamily: Fonts.bodyBold },
+  small: { fontSize: 13, fontFamily: Fonts.body },
+  price: { fontSize: 18, fontFamily: Fonts.display },
 };

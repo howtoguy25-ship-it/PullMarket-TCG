@@ -21,7 +21,7 @@ export default function IdentityVerificationScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
 
-  const { data: status, refetch } = useQuery<{ status: string; verifiedAt: string | null }>({ queryKey: ["/api/auth/identity/status"] });
+  const { data: status, refetch, isFetching } = useQuery<{ status: string; verifiedAt: string | null }>({ queryKey: ["/api/auth/identity/status"] });
 
   const startMutation = useMutation({
     mutationFn: () => apiJson<{ url: string | null; clientSecret: string }>("POST", "/api/auth/identity/start"),
@@ -29,7 +29,11 @@ export default function IdentityVerificationScreen() {
       if (data.url) Linking.openURL(data.url);
       else showAlert("Verification started", "Complete verification in the Stripe-hosted flow.");
     },
-    onError: (err) => showAlert("Couldn't start verification", err instanceof ApiError ? err.message : "Please try again."),
+    onError: (err) => {
+      const message = err instanceof ApiError ? err.message : "Please try again.";
+      const detail = err instanceof ApiError ? err.detail : undefined;
+      showAlert("Couldn't start verification", detail ? `${message}\n\n${detail}` : message);
+    },
   });
 
   const verified = status?.status === "verified";
@@ -69,7 +73,14 @@ export default function IdentityVerificationScreen() {
       {!verified && !pending ? (
         <Button title={failed ? "Try verification again" : "Start verification"} onPress={() => startMutation.mutate()} loading={startMutation.isPending} style={{ marginTop: Spacing.lg }} />
       ) : null}
-      <Button title="Refresh status" variant="ghost" onPress={() => refetch()} style={{ marginTop: Spacing.sm }} />
+      <Button
+        title={isFetching ? "Checking…" : "Refresh status"}
+        variant="ghost"
+        icon={<Feather name="refresh-cw" size={15} color={Colors.primary} />}
+        onPress={() => refetch()}
+        disabled={isFetching}
+        style={{ marginTop: Spacing.sm }}
+      />
     </View>
   );
 }

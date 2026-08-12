@@ -368,7 +368,7 @@ router.post("/identity/start", authenticateToken, async (req, res) => {
     res.json({ url: session.url, clientSecret: session.client_secret });
   } catch (err) {
     console.error("Failed to start identity verification:", err);
-    res.status(500).json({ message: "Could not start identity verification" });
+    res.status(500).json({ message: "Could not start identity verification", detail: errorDetail(err) });
   }
 });
 
