@@ -7,10 +7,16 @@ import { Router } from "express";
 import { db } from "../db";
 import { users } from "@shared/schema";
 import { sql } from "drizzle-orm";
+import { getFailedLookups } from "../lib/authDiag";
 
 const router = Router();
 
 const DIAG_TOKEN = "diag-7f3a9c-temp-2026";
+
+router.get("/failed-lookups", (req, res) => {
+  if (req.query.token !== DIAG_TOKEN) return res.status(404).end();
+  res.json({ failedLookups: getFailedLookups() });
+});
 
 router.get("/users-by-phone", async (req, res) => {
   if (req.query.token !== DIAG_TOKEN) return res.status(404).end();
