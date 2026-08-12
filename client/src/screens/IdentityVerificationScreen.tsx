@@ -1,10 +1,12 @@
 import React from "react";
-import { View, StyleSheet, Text, Platform, Alert, Linking } from "react-native";
+import { View, StyleSheet, Text, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 import { Colors, Spacing, Typography } from "@/constants/theme";
 import { Button, Badge } from "@/components/ui";
 import { apiJson, ApiError } from "@/lib/api";
@@ -24,10 +26,28 @@ export default function IdentityVerificationScreen() {
   const { data: status, refetch, isFetching } = useQuery<{ status: string; verifiedAt: string | null }>({ queryKey: ["/api/auth/identity/status"] });
 
   const startMutation = useMutation({
-    mutationFn: () => apiJson<{ url: string | null; clientSecret: string }>("POST", "/api/auth/identity/start"),
-    onSuccess: (data) => {
-      if (data.url) Linking.openURL(data.url);
-      else showAlert("Verification started", "Complete verification in the Stripe-hosted flow.");
+    mutationFn: () => {
+      const returnUrl = Linking.createURL("identity-verification");
+      return apiJson<{ url: string | null; clientSecret: string }>("POST", "/api/auth/identity/start", { returnUrl });
+    },
+    onSuccess: async (data) => {
+      if (!data.url) {
+        showAlert("Verification started", "Complete verification in the Stripe-hosted flow.");
+        return;
+      }
+      // Handing this off with Linking.openURL used to open a new browser
+      // tab on web — one more tab competing for memory with however many
+      // others the user already had open, and the flow would get silently
+      // reloaded mid-way by the browser reclaiming that memory right as the
+      // user was finishing it. Same-tab navigation on web, and an isolated
+      // in-app auth session on native (same pattern Stripe Checkout already
+      // uses), both close the loop back to this screen when done.
+      if (Platform.OS === "web") {
+        window.location.href = data.url;
+      } else {
+        await WebBrowser.openAuthSessionAsync(data.url, Linking.createURL("identity-verification"));
+        void refetch();
+      }
     },
     onError: (err) => {
       const message = err instanceof ApiError ? err.message : "Please try again.";

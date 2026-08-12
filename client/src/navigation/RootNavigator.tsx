@@ -91,16 +91,19 @@ function MainNavigator() {
   );
 }
 
-// Lets Stripe's hosted checkout redirect straight back into the app —
-// `checkout-return` resolves to `pullmarket://checkout-return` on native
-// and `<web origin>/checkout-return` on web (see CartScreen, which builds
-// the same URL via Linking.createURL to hand Stripe as success/cancel_url).
+// Lets Stripe's hosted checkout and identity-verification flows redirect
+// straight back into the app — `checkout-return` resolves to
+// `pullmarket://checkout-return` on native and `<web origin>/checkout-return`
+// on web (see CartScreen, which builds the same URL via Linking.createURL to
+// hand Stripe as success/cancel_url); `identity-verification` works the same
+// way for the Stripe Identity flow (see IdentityVerificationScreen).
 const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [Linking.createURL("/")],
   config: {
     screens: {
       MainTabs: "",
       CheckoutReturn: "checkout-return",
+      IdentityVerification: "identity-verification",
     },
   },
 };

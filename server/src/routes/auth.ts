@@ -354,12 +354,20 @@ router.post("/identity/start", authenticateToken, async (req, res) => {
   if (!isStripeConfigured()) {
     return res.status(503).json({ message: "Identity verification isn't configured yet. Set STRIPE_SECRET_KEY (see .env.example)." });
   }
+  const schema = z.object({ returnUrl: z.string().url().optional() });
+  const parsed = schema.safeParse(req.body);
   try {
     const stripe = getStripe();
     const session = await stripe.identity.verificationSessions.create({
       type: "document",
       options: { document: { require_matching_selfie: true } },
       metadata: { userId: req.user!.id },
+      // Without this, Stripe's hosted flow has nowhere to send the user back
+      // to when they finish (or bail) — on web that meant it opened in a new
+      // tab with no way back to the app, competing for memory with however
+      // many other tabs the user has open and getting silently reloaded by
+      // the browser mid-flow, right as the user is trying to finish it.
+      return_url: parsed.success ? parsed.data.returnUrl : undefined,
     });
     await db
       .update(users)
