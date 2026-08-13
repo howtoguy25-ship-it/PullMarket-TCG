@@ -11,6 +11,7 @@ import fs from "fs";
 import { registerRoutes } from "./routes";
 import webhookRoutes from "./routes/webhook";
 import { setupCallSignaling } from "./lib/callSignaling";
+import { privacyPolicyHtml, supportHtml } from "./lib/staticPages";
 
 const app = express();
 const log = console.log;
@@ -81,6 +82,13 @@ function setupErrorHandler(app: express.Application) {
   app.use(express.urlencoded({ extended: false }));
 
   setupRequestLogging(app);
+
+  // Plain, permanent pages — registered before the SPA catch-all so they
+  // serve real HTML directly instead of the RN web bundle. App Store
+  // Connect requires reachable URLs for these (Privacy Policy URL, Support
+  // URL), independent of whether the app itself is up.
+  app.get("/privacy", (_req, res) => res.type("html").send(privacyPolicyHtml()));
+  app.get("/support", (_req, res) => res.type("html").send(supportHtml()));
 
   const server = await registerRoutes(app);
   setupCallSignaling(server);

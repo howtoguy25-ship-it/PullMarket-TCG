@@ -43,6 +43,7 @@ export type RootStackParamList = {
   FriendRequests: undefined;
   ChatThread: { conversationId: string; otherUserId?: string };
   ArchivedChats: undefined;
+  HelpChat: undefined;
   // Only scalar params — React Navigation's web URL sync stringifies
   // params with a plain String() for any screen not given a custom
   // linking config, which mangles a full object into "[object Object]"

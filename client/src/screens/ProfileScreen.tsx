@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Switch, ActivityIndicator } from "react-native";
 import Slider from "@react-native-community/slider";
+import * as Linking from "expo-linking";
 import Constants from "expo-constants";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
@@ -17,7 +18,7 @@ import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAmbientSound } from "@/contexts/AmbientSoundContext";
 import { AMBIENT_SOUNDS } from "@/lib/ambientSounds";
-import { apiJson, apiRequest, ApiError } from "@/lib/api";
+import { apiJson, apiRequest, ApiError, getApiUrl } from "@/lib/api";
 import { appendImageField } from "@/lib/formDataImage";
 import { isActivePro } from "@shared/validation";
 
@@ -202,6 +203,13 @@ export default function ProfileScreen() {
       <View style={styles.section}>
         <MenuRow icon="eye-off" label="Read receipts" subtitle="Control who sees when you've read their messages" onPress={() => navigation.navigate("ReadReceiptSettings")} />
         <MenuRow icon="user-x" label="Blocked users" subtitle="People you've blocked from messaging or friend-requesting you" onPress={() => navigation.navigate("BlockedUsers")} />
+      </View>
+
+      <Text style={styles.sectionHeader}>Support</Text>
+      <View style={styles.section}>
+        <MenuRow icon="message-circle" label="AI Help Assistant" subtitle="Ask how to do anything in the app" onPress={() => navigation.navigate("HelpChat")} />
+        <MenuRow icon="shield" label="Privacy Policy" onPress={() => Linking.openURL(`${getApiUrl()}/privacy`)} />
+        <MenuRow icon="life-buoy" label="Support" onPress={() => Linking.openURL(`${getApiUrl()}/support`)} />
       </View>
 
       {user.isOwner ? (

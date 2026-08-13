@@ -41,6 +41,7 @@ import UserProfileScreen from "@/screens/UserProfileScreen";
 import FriendRequestsScreen from "@/screens/FriendRequestsScreen";
 import ChatThreadScreen from "@/screens/ChatThreadScreen";
 import ArchivedChatsScreen from "@/screens/ArchivedChatsScreen";
+import HelpChatScreen from "@/screens/HelpChatScreen";
 import PriceCardDetailScreen from "@/screens/PriceCardDetailScreen";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
@@ -105,6 +106,7 @@ function MainNavigator() {
       <RootStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: "" }} />
       <RootStack.Screen name="FriendRequests" component={FriendRequestsScreen} options={{ title: "Friend requests" }} />
       <RootStack.Screen name="ArchivedChats" component={ArchivedChatsScreen} options={{ title: "Archived chats" }} />
+      <RootStack.Screen name="HelpChat" component={HelpChatScreen} options={{ title: "Help Assistant" }} />
       <RootStack.Screen name="ChatThread" component={ChatThreadScreen} options={{ title: "" }} />
       <RootStack.Screen name="PriceCardDetail" component={PriceCardDetailScreen} options={{ title: "" }} />
     </RootStack.Navigator>
