@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Switch, ActivityIndicator } from "react-native";
 import Slider from "@react-native-community/slider";
+import Constants from "expo-constants";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -79,6 +80,26 @@ export default function ProfileScreen() {
   const { user, signOut, refreshUser } = useAuth();
   const { enabled, selectedId, volume, previewingId, setEnabled, selectSound, setVolume, preview } = useAmbientSound();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<string | null>(null);
+
+  // Surfaces exactly which OTA update this device is actually running —
+  // when diagnosing "I published a fix but it's not showing up" reports,
+  // this settles in one glance whether the device has picked up the
+  // latest JS or is still running something older/embedded, instead of
+  // guessing from behavior alone.
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    void (async () => {
+      try {
+        const Updates = await import("expo-updates");
+        const shortId = Updates.updateId ? Updates.updateId.slice(0, 8) : "embedded";
+        const published = Updates.createdAt ? Updates.createdAt.toLocaleString() : "n/a";
+        setUpdateInfo(`${shortId} · ${Updates.channel || "none"} · ${published}`);
+      } catch {
+        setUpdateInfo("unavailable");
+      }
+    })();
+  }, []);
 
   const changeAvatar = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -238,6 +259,12 @@ export default function ProfileScreen() {
         <Button title="Sign out" variant="outline" icon={<Feather name="log-out" size={17} color={Colors.primary} />} onPress={handleSignOut} style={styles.accountButton} />
         <Button title="Delete account" variant="danger" icon={<Feather name="trash-2" size={17} color={Colors.white} />} onPress={handleDeleteAccount} loading={deleteMutation.isPending} style={styles.accountButton} />
       </View>
+
+      {updateInfo ? (
+        <Text style={styles.versionText}>
+          v{Constants.expoConfig?.version ?? "?"} ({Constants.expoConfig?.ios?.buildNumber ?? Constants.expoConfig?.android?.versionCode ?? "?"}) · {updateInfo}
+        </Text>
+      ) : null}
     </ScrollView>
   );
 }
@@ -300,4 +327,5 @@ const styles = StyleSheet.create({
   volumeRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
   accountActions: { gap: Spacing.sm },
   accountButton: { width: "100%" },
+  versionText: { ...Typography.small, color: Colors.textMuted, textAlign: "center", marginTop: Spacing.lg, fontSize: 11 },
 });
