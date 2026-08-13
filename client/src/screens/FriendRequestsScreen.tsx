@@ -37,9 +37,19 @@ export default function FriendRequestsScreen() {
   const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery<{ incoming: FriendRequestRow[]; outgoing: FriendRequestRow[] }>({ queryKey: ["/api/friends/requests"] });
+  // Live, matching the same ~4s cadence chat screens poll at — this list
+  // previously only ever refetched on remount/manual invalidation, so a
+  // request accepted via a different path (e.g. the auto-accept when the
+  // other person requests you back) could sit stale here indefinitely.
+  const { data, isLoading } = useQuery<{ incoming: FriendRequestRow[]; outgoing: FriendRequestRow[] }>({ queryKey: ["/api/friends/requests"], refetchInterval: 4000 });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+  // A friendship can also be read/derived from a user's own profile or the
+  // search screen's status pill — invalidate those too so accepting or
+  // cancelling here doesn't leave those screens showing an outdated status.
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+    queryClient.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0].startsWith("/api/users/") || q.queryKey[0].startsWith("/api/friends/status/")) });
+  };
 
   const acceptMutation = useMutation({ mutationFn: (id: string) => apiJson("POST", `/api/friends/${id}/accept`), onSuccess: invalidate });
   const declineMutation = useMutation({ mutationFn: (id: string) => apiJson("POST", `/api/friends/${id}/decline`), onSuccess: invalidate });

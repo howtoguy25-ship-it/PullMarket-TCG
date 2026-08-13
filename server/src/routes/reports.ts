@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { reports, listings, users, conversations } from "@shared/schema";
+import { reports, listings, users, conversations, messages } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 
@@ -16,6 +16,7 @@ router.post("/", async (req, res) => {
     orderId: z.string().optional(),
     conversationId: z.string().optional(),
     reportedUserId: z.string().optional(),
+    messageId: z.string().optional(),
     reason: z.enum(REASONS),
     description: z.string().min(5).max(2000),
   });
@@ -34,6 +35,10 @@ router.post("/", async (req, res) => {
   if (parsed.data.reportedUserId) {
     const [reported] = await db.select({ id: users.id }).from(users).where(eq(users.id, parsed.data.reportedUserId));
     if (!reported) return res.status(404).json({ message: "User not found" });
+  }
+  if (parsed.data.messageId) {
+    const [msg] = await db.select({ id: messages.id, conversationId: messages.conversationId }).from(messages).where(eq(messages.id, parsed.data.messageId));
+    if (!msg || msg.conversationId !== parsed.data.conversationId) return res.status(404).json({ message: "Message not found" });
   }
 
   const [report] = await db

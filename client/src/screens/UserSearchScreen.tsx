@@ -33,7 +33,10 @@ function UserRow({ user, navigation }: { user: UserResult; navigation: Nav }) {
 
   const requestMutation = useMutation({
     mutationFn: () => apiJson("POST", `/api/friends/request/${user.id}`),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: [`/api/friends/status/${user.id}`] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/friends/status/${user.id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+    },
   });
 
   const startChatMutation = useMutation({

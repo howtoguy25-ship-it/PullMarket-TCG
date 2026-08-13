@@ -24,7 +24,7 @@ function showAlert(title: string, message: string) {
 export default function ReportScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Rt>();
-  const { listingId, orderId, conversationId, reportedUserId, reportedUsername } = route.params ?? {};
+  const { listingId, orderId, conversationId, reportedUserId, reportedUsername, messageId } = route.params ?? {};
   const isChatReport = !!conversationId || !!reportedUserId;
   const insets = useSafeAreaInsets();
   const [reason, setReason] = useState("scam");
@@ -33,7 +33,7 @@ export default function ReportScreen() {
   const reasons = (isChatReport ? CHAT_REPORT_REASONS : LISTING_REPORT_REASONS).map((key) => [key, REPORT_REASON_LABELS[key]] as const);
 
   const submitMutation = useMutation({
-    mutationFn: () => apiJson("POST", "/api/reports", { listingId, orderId, conversationId, reportedUserId, reason, description }),
+    mutationFn: () => apiJson("POST", "/api/reports", { listingId, orderId, conversationId, reportedUserId, messageId, reason, description }),
     onSuccess: () => {
       showAlert("Report submitted", "Thanks — our team will review this and follow up if needed.");
       navigation.goBack();
@@ -46,7 +46,7 @@ export default function ReportScreen() {
       {isChatReport ? (
         <>
           <Text style={styles.header}>{`Report ${reportedUsername ? `@${reportedUsername}` : "this user"}`}</Text>
-          <Text style={styles.subtitle}>Our team will review this conversation and decide whether action is needed.</Text>
+          <Text style={styles.subtitle}>{messageId ? "Our team will review this message and decide whether action is needed." : "Our team will review this conversation and decide whether action is needed."}</Text>
         </>
       ) : null}
       <Text style={styles.title}>{isChatReport ? "Reason" : "What's wrong?"}</Text>

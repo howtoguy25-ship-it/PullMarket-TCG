@@ -10,6 +10,7 @@ import {
   index,
   primaryKey,
   unique,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -506,12 +507,28 @@ export const messages = pgTable(
     // messages still deliver normally — moderation never blocks a message —
     // this only surfaces a quiet indicator and opens an owner-review report.
     flagged: boolean("flagged").notNull().default(false),
+    // The message this one is a reply to, if any — null once the target is
+    // gone (deleted-for-everyone, or the row itself deleted) so a reply
+    // never dangles; the client just shows "Original message deleted".
+    replyToMessageId: varchar("reply_to_message_id").references((): AnyPgColumn => messages.id, { onDelete: "set null" }),
+    // True for a message created by the forward action (POST
+    // /messages/:id/forward) rather than typed fresh — purely cosmetic, so
+    // the recipient's bubble can show a small "Forwarded" label.
+    forwarded: boolean("forwarded").notNull().default(false),
+    // "Delete for everyone" (sender-only, within 24h — enforced in the
+    // route, not here): text/attachments are cleared and this is stamped,
+    // so every participant's client renders "This message was deleted"
+    // instead of the original content. Distinct from "delete for me" (see
+    // messageDeletions below), which is per-viewer and never touches the
+    // row itself.
+    deletedForEveryoneAt: timestamp("deleted_for_everyone_at"),
     deliveredAt: timestamp("delivered_at"),
     readAt: timestamp("read_at"),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [
     index("idx_messages_conversation_created").on(table.conversationId, table.createdAt),
+    index("idx_messages_reply_to").on(table.replyToMessageId),
   ],
 );
 
@@ -519,6 +536,47 @@ export const messagesRelations = relations(messages, ({ one, many }) => ({
   conversation: one(conversations, { fields: [messages.conversationId], references: [conversations.id] }),
   sender: one(users, { fields: [messages.senderId], references: [users.id] }),
   attachments: many(messageAttachments),
+  replyToMessage: one(messages, { fields: [messages.replyToMessageId], references: [messages.id], relationName: "messageReply" }),
+}));
+
+// "Delete for me": a row here means userId no longer sees messageId in
+// their own message list — the row itself (and everyone else's view of it)
+// is untouched. Deleting the same message twice is a harmless no-op
+// (onConflictDoNothing at the route level), hence the composite PK.
+export const messageDeletions = pgTable(
+  "message_deletions",
+  {
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    messageId: varchar("message_id").notNull().references(() => messages.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.messageId] }), index("idx_message_deletions_message").on(table.messageId)],
+);
+
+export const messageDeletionsRelations = relations(messageDeletions, ({ one }) => ({
+  user: one(users, { fields: [messageDeletions.userId], references: [users.id] }),
+  message: one(messages, { fields: [messageDeletions.messageId], references: [messages.id] }),
+}));
+
+// ─── Blocks ──────────────────────────────────────────────────────────────
+// A row means blockerId has blocked blockedId: blockedId can no longer
+// message or friend-request blockerId (checked both directions in the
+// chat/friends routes — a block is only ever effective one-way, same as
+// every real chat app, so the blocked person isn't tipped off that they
+// were the one who got blocked vs. just never getting a reply).
+export const blocks = pgTable(
+  "blocks",
+  {
+    blockerId: varchar("blocker_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    blockedId: varchar("blocked_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.blockerId, table.blockedId] }), index("idx_blocks_blocked").on(table.blockedId)],
+);
+
+export const blocksRelations = relations(blocks, ({ one }) => ({
+  blocker: one(users, { fields: [blocks.blockerId], references: [users.id], relationName: "blockBlocker" }),
+  blocked: one(users, { fields: [blocks.blockedId], references: [users.id], relationName: "blockBlocked" }),
 }));
 
 export const MESSAGE_ATTACHMENT_TYPES = ["image", "video"] as const;
@@ -572,6 +630,8 @@ export type FriendRequest = typeof friendRequests.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type MessageAttachment = typeof messageAttachments.$inferSelect;
+export type MessageDeletion = typeof messageDeletions.$inferSelect;
+export type Block = typeof blocks.$inferSelect;
 export type Condition = (typeof CONDITIONS)[number];
 export type Franchise = (typeof FRANCHISES)[number];
 export type Courier = (typeof COURIERS)[number];

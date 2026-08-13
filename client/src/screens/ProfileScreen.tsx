@@ -163,6 +163,7 @@ export default function ProfileScreen() {
       <Text style={styles.sectionHeader}>Privacy</Text>
       <View style={styles.section}>
         <MenuRow icon="eye-off" label="Read receipts" subtitle="Control who sees when you've read their messages" onPress={() => navigation.navigate("ReadReceiptSettings")} />
+        <MenuRow icon="user-x" label="Blocked users" subtitle="People you've blocked from messaging or friend-requesting you" onPress={() => navigation.navigate("BlockedUsers")} />
       </View>
 
       {user.isOwner ? (

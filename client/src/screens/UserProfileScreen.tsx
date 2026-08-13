@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Text, FlatList } from "react-native";
+import { View, StyleSheet, Text, FlatList, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -11,10 +11,23 @@ import { Button, Badge } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
 import { RootStackParamList } from "@/navigation/types";
-import { apiJson, ApiError } from "@/lib/api";
+import { apiJson, apiRequest, ApiError } from "@/lib/api";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type ProfileRoute = RouteProp<RootStackParamList, "UserProfile">;
+
+function confirmAsync(title: string, message: string, confirmLabel: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (Platform.OS === "web") {
+      resolve(window.confirm(`${title}\n${message}`));
+    } else {
+      Alert.alert(title, message, [
+        { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+        { text: confirmLabel, style: "destructive", onPress: () => resolve(true) },
+      ]);
+    }
+  });
+}
 
 interface UserProfile {
   id: string;
@@ -38,13 +51,31 @@ export default function UserProfileScreen() {
 
   const { data: profile, isLoading } = useQuery<UserProfile>({ queryKey: [`/api/users/${userId}/profile`] });
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/profile`] });
+  // Friend status can change from other screens too (accepting from
+  // FriendRequestsScreen, an auto-accept from the other person requesting
+  // back) — invalidate every friend-related cache on any successful
+  // mutation here, not just this screen's own profile query, so nothing
+  // shows a stale "Add friend" / "Incoming request" after the fact.
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/profile`] });
+    queryClient.invalidateQueries({ queryKey: [`/api/friends/status/${userId}`] });
+    queryClient.invalidateQueries({ queryKey: ["/api/friends/requests"] });
+  };
 
   const requestMutation = useMutation({ mutationFn: () => apiJson("POST", `/api/friends/request/${userId}`), onSuccess: invalidate });
   const acceptMutation = useMutation({
     mutationFn: () => apiJson("POST", `/api/friends/${profile?.friendRequestId}/accept`),
     onSuccess: invalidate,
   });
+  const unfriendMutation = useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/friends/${userId}`),
+    onSuccess: invalidate,
+  });
+
+  const handleUnfriend = async () => {
+    const ok = await confirmAsync("Remove friend", `Remove @${profile?.username} from your friends?`, "Remove");
+    if (ok) unfriendMutation.mutate();
+  };
 
   const startChatMutation = useMutation({
     mutationFn: () => apiJson<{ id: string }>("POST", `/api/chat/conversations/with/${userId}`),
@@ -58,7 +89,7 @@ export default function UserProfileScreen() {
 
   const friendButtonProps =
     profile.friendStatus === "friends"
-      ? { title: "Friends", variant: "outline" as const, icon: <Feather name="user-check" size={16} color={Colors.primary} />, onPress: undefined, disabled: true }
+      ? { title: "Friends", variant: "outline" as const, icon: <Feather name="user-check" size={16} color={Colors.primary} />, onPress: () => void handleUnfriend(), disabled: false }
       : profile.friendStatus === "pending_sent"
         ? { title: "Request sent", variant: "outline" as const, icon: <Feather name="clock" size={16} color={Colors.primary} />, onPress: undefined, disabled: true }
         : profile.friendStatus === "pending_received"
@@ -88,7 +119,7 @@ export default function UserProfileScreen() {
               icon={friendButtonProps.icon}
               onPress={friendButtonProps.onPress}
               disabled={friendButtonProps.disabled}
-              loading={requestMutation.isPending || acceptMutation.isPending}
+              loading={requestMutation.isPending || acceptMutation.isPending || unfriendMutation.isPending}
               style={styles.halfButton}
             />
             <Button

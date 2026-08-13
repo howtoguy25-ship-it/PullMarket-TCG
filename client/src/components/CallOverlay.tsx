@@ -49,8 +49,15 @@ export function CallOverlay() {
   if (!visible || !peer) return null;
 
   const isIncoming = phase === "incoming";
-  const isConnectedPhase = phase === "connecting" || phase === "active";
-  const showVideo = isVideo && RTCView && isConnectedPhase;
+  // "outgoing" is included here (not just connecting/active) because the
+  // caller's own camera is already live the moment they place a video
+  // call — attachLocalMedia runs synchronously inside startCall, well
+  // before the callee answers. Gating this to connecting/active only
+  // left the caller staring at a plain gradient with no camera preview
+  // for the entire "Calling…" ring — the local stream existed the whole
+  // time, it just was never rendered.
+  const isVideoPhase = phase === "outgoing" || phase === "connecting" || phase === "active";
+  const showVideo = isVideo && RTCView && isVideoPhase;
   const name = peer.displayName || peer.username;
 
   return (
@@ -59,10 +66,15 @@ export function CallOverlay() {
         <View style={styles.videoContainer}>
           {remoteStream ? (
             <RTCView streamURL={remoteStream.toURL()} style={styles.remoteVideo} objectFit="cover" />
+          ) : localStream ? (
+            // No remote video yet (still ringing/connecting) — show the
+            // caller's own camera full-screen so it's obvious the camera
+            // is actually working, instead of an empty gradient.
+            <RTCView streamURL={localStream.toURL()} style={styles.remoteVideo} objectFit="cover" mirror />
           ) : (
             <LinearGradient colors={["#0B0716", "#1C1040"]} style={styles.remoteVideo} />
           )}
-          {localStream ? <RTCView streamURL={localStream.toURL()} style={styles.localVideo} objectFit="cover" mirror zOrder={1} /> : null}
+          {localStream && remoteStream ? <RTCView streamURL={localStream.toURL()} style={styles.localVideo} objectFit="cover" mirror zOrder={1} /> : null}
           <View style={[styles.videoOverlayTop, { paddingTop: insets.top + Spacing.md }]}>
             <Text style={styles.name}>{name}</Text>
             <Text style={styles.status}>{phase === "active" ? formatDuration(durationSec) : phaseLabel(phase)}</Text>

@@ -24,11 +24,12 @@ export type RootStackParamList = {
   Orders: { role?: "buyer" | "seller" };
   OrderDetail: { orderId: string };
   Notifications: undefined;
-  Report: { listingId?: string; orderId?: string; conversationId?: string; reportedUserId?: string; reportedUsername?: string };
+  Report: { listingId?: string; orderId?: string; conversationId?: string; reportedUserId?: string; reportedUsername?: string; messageId?: string };
   SellerPayoutSetup: undefined;
   IdentityVerification: undefined;
   NotificationFilters: undefined;
   ReadReceiptSettings: undefined;
+  BlockedUsers: undefined;
   OwnerPanel: undefined;
   OwnerReportDetail: { reportId: string };
   OwnerUsers: undefined;

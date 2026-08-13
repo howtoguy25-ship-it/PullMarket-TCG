@@ -4,6 +4,7 @@ import { friendRequests, users } from "@shared/schema";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { notifyUser } from "../lib/notify";
+import { isBlockedEitherWay } from "../lib/blocks";
 
 const router = Router();
 router.use(authenticateToken);
@@ -26,6 +27,7 @@ router.post("/request/:userId", async (req, res) => {
 
   const [target] = await db.select({ id: users.id }).from(users).where(eq(users.id, targetId));
   if (!target) return res.status(404).json({ message: "User not found" });
+  if (await isBlockedEitherWay(meId, targetId)) return res.status(403).json({ message: "You can't friend this user" });
 
   const [reverse] = await db.select().from(friendRequests).where(and(eq(friendRequests.requesterId, targetId), eq(friendRequests.recipientId, meId)));
   if (reverse) {

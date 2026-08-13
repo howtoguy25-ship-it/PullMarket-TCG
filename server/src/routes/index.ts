@@ -13,6 +13,7 @@ import ownerRoutes from "./owner";
 import compositeRoutes from "./composite";
 import usersRoutes from "./users";
 import friendsRoutes from "./friends";
+import blocksRoutes from "./blocks";
 import chatRoutes from "./chat";
 import pricesRoutes from "./prices";
 import { UPLOAD_DIR_PATH } from "../lib/upload";
@@ -38,6 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/composite", compositeRoutes);
   app.use("/api/users", usersRoutes);
   app.use("/api/friends", friendsRoutes);
+  app.use("/api/blocks", blocksRoutes);
   app.use("/api/chat", chatRoutes);
   app.use("/api/prices", pricesRoutes);
 
