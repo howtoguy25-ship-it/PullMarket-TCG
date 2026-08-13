@@ -28,6 +28,9 @@ import IdentityVerificationScreen from "@/screens/IdentityVerificationScreen";
 import NotificationFiltersScreen from "@/screens/NotificationFiltersScreen";
 import ReadReceiptSettingsScreen from "@/screens/ReadReceiptSettingsScreen";
 import BlockedUsersScreen from "@/screens/BlockedUsersScreen";
+import SubscriptionScreen from "@/screens/SubscriptionScreen";
+import SubscriptionReturnScreen from "@/screens/SubscriptionReturnScreen";
+import FollowersScreen from "@/screens/FollowersScreen";
 import OwnerPanelScreen from "@/screens/owner/OwnerPanelScreen";
 import OwnerReportDetailScreen from "@/screens/owner/OwnerReportDetailScreen";
 import OwnerUsersScreen from "@/screens/owner/OwnerUsersScreen";
@@ -87,6 +90,9 @@ function MainNavigator() {
       <RootStack.Screen name="NotificationFilters" component={NotificationFiltersScreen} options={{ title: "New Card Alerts" }} />
       <RootStack.Screen name="ReadReceiptSettings" component={ReadReceiptSettingsScreen} options={{ title: "Read Receipts" }} />
       <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: "Blocked Users" }} />
+      <RootStack.Screen name="Subscription" component={SubscriptionScreen} options={{ title: "PullMarket Pro" }} />
+      <RootStack.Screen name="SubscriptionReturn" component={SubscriptionReturnScreen} options={{ title: "", headerBackVisible: false }} />
+      <RootStack.Screen name="Followers" component={FollowersScreen} options={({ route }) => ({ title: `@${route.params.username}'s followers` })} />
       <RootStack.Screen name="OwnerPanel" component={OwnerPanelScreen} options={{ title: "Owner Panel" }} />
       <RootStack.Screen name="OwnerReportDetail" component={OwnerReportDetailScreen} options={{ title: "Incident Report" }} />
       <RootStack.Screen name="OwnerUsers" component={OwnerUsersScreen} options={{ title: "All Users" }} />
@@ -112,6 +118,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       MainTabs: "",
       CheckoutReturn: "checkout-return",
       IdentityVerification: "identity-verification",
+      SubscriptionReturn: "subscription-return",
     },
   },
 };

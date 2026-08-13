@@ -10,11 +10,13 @@ import { Video, ResizeMode } from "expo-av";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Avatar } from "@/components/Avatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, apiRequest, ApiError } from "@/lib/api";
 import { appendMediaToFormData } from "@/lib/formDataImage";
 import { resolveImageUrl } from "@/lib/media";
 import { useCall } from "@/contexts/CallContext";
+import { isActivePro } from "@shared/validation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type ThreadRoute = RouteProp<RootStackParamList, "ChatThread">;
@@ -24,6 +26,8 @@ interface ChatUser {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  proStatus: string;
+  proCurrentPeriodEnd: string | null;
 }
 
 interface Attachment {
@@ -228,6 +232,7 @@ export default function ChatThreadScreen() {
           <Pressable style={styles.headerTitle} onPress={() => navigation.navigate("UserProfile", { userId: convo.otherUser!.id })}>
             <Avatar avatarUrl={convo.otherUser.avatarUrl} seed={convo.otherUser.username} size={30} />
             <Text style={styles.headerUsername}>@{convo.otherUser.username}</Text>
+            {isActivePro(convo.otherUser) ? <VerifiedBadge size={13} /> : null}
           </Pressable>
         ) : null,
       headerRight: () =>

@@ -135,6 +135,12 @@ module.exports = () => {
         GOOGLE_IOS_CLIENT_ID: googleIosClientId,
         GOOGLE_ANDROID_CLIENT_ID: process.env.GOOGLE_ANDROID_CLIENT_ID || "",
         APPLE_SERVICES_ID: process.env.EXPO_PUBLIC_APPLE_SERVICES_ID || "",
+        // Pro membership via real Apple In-App Purchase (see
+        // lib/applePurchase.ts) — set once the subscription product exists
+        // in App Store Connect. Empty until then, which just keeps the
+        // purchase button from ever appearing rather than trying to buy a
+        // product that doesn't exist.
+        APPLE_IAP_PRODUCT_ID: process.env.EXPO_PUBLIC_APPLE_IAP_PRODUCT_ID || "",
         OWNER_PHONE_NUMBER: process.env.OWNER_PHONE_NUMBER || "+61474011265",
         eas: {
           projectId: "05a0dc7c-a7bb-472f-8260-671880a5b3e7",

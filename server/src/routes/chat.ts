@@ -16,7 +16,7 @@ const DELETE_FOR_EVERYONE_WINDOW_MS = 24 * 60 * 60 * 1000;
 const router = Router();
 router.use(authenticateToken);
 
-const PUBLIC_USER_COLUMNS = { id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl };
+const PUBLIC_USER_COLUMNS = { id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl, proStatus: users.proStatus, proCurrentPeriodEnd: users.proCurrentPeriodEnd };
 
 function pairIds(a: string, b: string): [string, string] {
   return a < b ? [a, b] : [b, a];

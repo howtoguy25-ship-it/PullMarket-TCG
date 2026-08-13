@@ -1,4 +1,5 @@
 import Stripe from "stripe";
+import { PRO_SUBSCRIPTION_LOOKUP_KEY, PRO_SUBSCRIPTION_PRICE_CENTS } from "@shared/validation";
 
 let stripeClient: Stripe | null = null;
 
@@ -24,4 +25,32 @@ export function getStripe(): Stripe {
 // PLATFORM_FEE_CENTS if a different amount is ever needed.
 export function getPlatformFeeCents(): number {
   return Number(process.env.PLATFORM_FEE_CENTS || 299);
+}
+
+// The Pro membership's recurring Price ($19.99/mo) — created once via the
+// API rather than requiring manual setup in the Stripe Dashboard, found
+// again on every subsequent call by its lookup_key so this stays a no-op
+// after the first real use. Cached in-process since a Price is immutable
+// once created (Stripe Prices can't be edited, only archived + replaced).
+let cachedProPriceId: string | null = null;
+export async function getOrCreateProPriceId(): Promise<string> {
+  if (cachedProPriceId) return cachedProPriceId;
+  const stripe = getStripe();
+
+  const existing = await stripe.prices.list({ lookup_keys: [PRO_SUBSCRIPTION_LOOKUP_KEY], active: true, limit: 1 });
+  if (existing.data[0]) {
+    cachedProPriceId = existing.data[0].id;
+    return cachedProPriceId;
+  }
+
+  const product = await stripe.products.create({ name: "PullMarket Pro", description: "Follower system, verified tick, 48h listing boost, and search recognition." });
+  const price = await stripe.prices.create({
+    product: product.id,
+    currency: "usd",
+    unit_amount: PRO_SUBSCRIPTION_PRICE_CENTS,
+    recurring: { interval: "month" },
+    lookup_key: PRO_SUBSCRIPTION_LOOKUP_KEY,
+  });
+  cachedProPriceId = price.id;
+  return cachedProPriceId;
 }

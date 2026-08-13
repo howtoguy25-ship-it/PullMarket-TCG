@@ -30,6 +30,9 @@ export type RootStackParamList = {
   NotificationFilters: undefined;
   ReadReceiptSettings: undefined;
   BlockedUsers: undefined;
+  Subscription: undefined;
+  SubscriptionReturn: { status?: string };
+  Followers: { userId: string; username: string };
   OwnerPanel: undefined;
   OwnerReportDetail: { reportId: string };
   OwnerUsers: undefined;

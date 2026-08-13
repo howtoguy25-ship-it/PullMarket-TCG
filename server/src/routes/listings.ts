@@ -6,7 +6,7 @@ import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { upload, saveUploadedFile } from "../lib/upload";
 import { CONDITIONS, FRANCHISES } from "@shared/schema";
-import { detectFranchise } from "@shared/validation";
+import { detectFranchise, isActivePro, PRO_LISTING_BOOST_HOURS } from "@shared/validation";
 import { notifyUsers } from "../lib/notify";
 
 const router = Router();
@@ -36,7 +36,7 @@ export async function attachImagesAndSellers(rows: (typeof listings.$inferSelect
   const sellerIds = Array.from(new Set(rows.map((r) => r.sellerId)));
   const [images, sellers] = await Promise.all([
     db.select().from(listingImages).where(inArray(listingImages.listingId, ids)).orderBy(listingImages.position),
-    db.select({ id: users.id, username: users.username, avatarUrl: users.avatarUrl }).from(users).where(inArray(users.id, sellerIds)),
+    db.select({ id: users.id, username: users.username, avatarUrl: users.avatarUrl, proStatus: users.proStatus, proCurrentPeriodEnd: users.proCurrentPeriodEnd }).from(users).where(inArray(users.id, sellerIds)),
   ]);
   const imagesByListing = new Map<string, typeof images>();
   for (const img of images) {
@@ -86,11 +86,33 @@ router.get("/", async (req, res) => {
   if (minPrice !== undefined) conditions.push(gte(listings.priceCents, Math.round(minPrice * 100)));
   if (maxPrice !== undefined) conditions.push(lte(listings.priceCents, Math.round(maxPrice * 100)));
 
+  // Two independent Pro perks layered into the sort, both live-evaluated
+  // (never baked in at write time so they self-correct as boosts/
+  // memberships expire):
+  //  1. boostedUntil — a fixed 48h freshness window from when a Pro
+  //     member's listing went up (set once at creation, see POST /).
+  //  2. Search recognition — while actively typing a query, a listing
+  //     from a *currently* active Pro member gets a small nudge among
+  //     otherwise-equally-relevant matches. Text relevance (does the
+  //     title actually start with what was typed) always wins first, so
+  //     this never buries a better textual match — it only breaks ties.
+  const qLower = q?.trim().toLowerCase();
+  const orderByClauses = [
+    ...(qLower ? [sql`CASE WHEN LOWER(${listings.title}) LIKE ${qLower + "%"} THEN 0 ELSE 1 END`] : []),
+    sql`CASE WHEN ${listings.boostedUntil} IS NOT NULL AND ${listings.boostedUntil} > NOW() THEN 0 ELSE 1 END`,
+    ...(qLower
+      ? [
+          sql`CASE WHEN EXISTS (SELECT 1 FROM ${users} WHERE ${users.id} = ${listings.sellerId} AND ${users.proStatus} = 'active' AND (${users.proCurrentPeriodEnd} IS NULL OR ${users.proCurrentPeriodEnd} > NOW())) THEN 0 ELSE 1 END`,
+        ]
+      : []),
+    desc(listings.createdAt),
+  ];
+
   const rows = await db
     .select()
     .from(listings)
     .where(and(...conditions))
-    .orderBy(desc(listings.createdAt))
+    .orderBy(...orderByClauses)
     .limit(limit)
     .offset(offset);
 
@@ -150,6 +172,10 @@ router.post("/", authenticateToken, upload.array("images", 6), async (req, res) 
       condition,
       quantityTotal,
       quantityAvailable: quantityTotal,
+      // Pro-membership perk: a fixed one-time 48h head-start on the
+      // homepage feed, starting now. Only granted if the seller was an
+      // active Pro member at the moment they published — see isActivePro.
+      boostedUntil: isActivePro(req.user!) ? new Date(Date.now() + PRO_LISTING_BOOST_HOURS * 60 * 60 * 1000) : null,
     })
     .returning();
 

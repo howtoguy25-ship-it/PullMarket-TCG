@@ -23,6 +23,8 @@ export interface AuthUser {
   stripeConnectAccountId: string | null;
   stripeConnectPayoutsEnabled: boolean;
   identityVerificationStatus: string;
+  proStatus: string;
+  proCurrentPeriodEnd: string | null;
 }
 
 interface AuthContextValue {

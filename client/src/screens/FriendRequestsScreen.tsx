@@ -9,8 +9,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, apiRequest } from "@/lib/api";
+import { isActivePro } from "@shared/validation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -19,6 +21,8 @@ interface PersonSummary {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+  proStatus: string;
+  proCurrentPeriodEnd: string | null;
 }
 
 interface FriendRequestRow {
@@ -78,7 +82,10 @@ export default function FriendRequestsScreen() {
               <View key={req.id} style={[styles.row, i > 0 && styles.rowDivider]}>
                 <Pressable style={styles.rowInfo} onPress={() => req.requester && navigation.navigate("UserProfile", { userId: req.requester.id })}>
                   <Avatar avatarUrl={req.requester?.avatarUrl} seed={req.requester?.username ?? req.id} size={44} />
-                  <Text style={styles.username}>@{req.requester?.username ?? "Unknown"}</Text>
+                  <View style={styles.usernameRow}>
+                    <Text style={styles.username}>@{req.requester?.username ?? "Unknown"}</Text>
+                    {req.requester && isActivePro(req.requester) ? <VerifiedBadge size={13} /> : null}
+                  </View>
                 </Pressable>
                 <View style={styles.actions}>
                   <Pressable onPress={() => declineMutation.mutate(req.id)} style={[styles.actionButton, styles.declineButton]} hitSlop={6}>
@@ -110,7 +117,10 @@ export default function FriendRequestsScreen() {
               <View key={req.id} style={[styles.row, i > 0 && styles.rowDivider]}>
                 <Pressable style={styles.rowInfo} onPress={() => req.recipient && navigation.navigate("UserProfile", { userId: req.recipient.id })}>
                   <Avatar avatarUrl={req.recipient?.avatarUrl} seed={req.recipient?.username ?? req.id} size={44} />
-                  <Text style={styles.username}>@{req.recipient?.username ?? "Unknown"}</Text>
+                  <View style={styles.usernameRow}>
+                    <Text style={styles.username}>@{req.recipient?.username ?? "Unknown"}</Text>
+                    {req.recipient && isActivePro(req.recipient) ? <VerifiedBadge size={13} /> : null}
+                  </View>
                 </Pressable>
                 <Pressable onPress={() => req.recipient && cancelMutation.mutate(req.recipient.id)} style={styles.cancelButton}>
                   <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -153,6 +163,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
   rowDivider: { borderTopWidth: 1, borderTopColor: Colors.border },
   rowInfo: { flex: 1, flexDirection: "row", alignItems: "center", gap: Spacing.sm },
+  usernameRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   username: { ...Typography.bodyBold, color: Colors.text, fontSize: 15 },
   actions: { flexDirection: "row", gap: Spacing.xs },
   actionButton: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },

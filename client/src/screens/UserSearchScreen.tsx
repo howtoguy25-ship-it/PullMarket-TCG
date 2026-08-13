@@ -9,8 +9,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Shadow, NoWebFocusOutline } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
+import { isActivePro } from "@shared/validation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -20,6 +22,8 @@ interface UserResult {
   displayName: string | null;
   avatarUrl: string | null;
   identityVerificationStatus: string;
+  proStatus: string;
+  proCurrentPeriodEnd: string | null;
 }
 
 interface FriendStatus {
@@ -52,7 +56,10 @@ function UserRow({ user, navigation }: { user: UserResult; navigation: Nav }) {
     <Pressable style={styles.row} onPress={() => navigation.navigate("UserProfile", { userId: user.id })}>
       <Avatar avatarUrl={user.avatarUrl} seed={user.username} size={46} />
       <View style={{ flex: 1 }}>
-        <Text style={styles.username}>@{user.username}</Text>
+        <View style={styles.usernameRow}>
+          <Text style={styles.username}>@{user.username}</Text>
+          {isActivePro(user) ? <VerifiedBadge size={13} /> : null}
+        </View>
         {user.displayName ? <Text style={styles.displayName}>{user.displayName}</Text> : null}
       </View>
       <Pressable
@@ -163,6 +170,7 @@ const styles = StyleSheet.create({
   searchInput: { flex: 1, color: Colors.text, fontSize: 15, ...NoWebFocusOutline },
   cancelText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
   row: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
+  usernameRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   username: { ...Typography.bodyBold, color: Colors.text, fontSize: 15 },
   displayName: { ...Typography.small, color: Colors.textSecondary },
   iconButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "#FCE9E4" },

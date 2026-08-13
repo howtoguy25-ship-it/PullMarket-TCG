@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { users, listings, friendRequests, conversations } from "@shared/schema";
+import { users, listings, friendRequests, conversations, follows } from "@shared/schema";
 import { and, desc, eq, ilike, ne, or, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { attachImagesAndSellers } from "./listings";
 import { upload, saveUploadedFile, deleteUploadedFile } from "../lib/upload";
+import { isActivePro } from "@shared/validation";
 
 const router = Router();
 router.use(authenticateToken);
@@ -16,6 +17,8 @@ const PUBLIC_USER_COLUMNS = {
   displayName: users.displayName,
   avatarUrl: users.avatarUrl,
   identityVerificationStatus: users.identityVerificationStatus,
+  proStatus: users.proStatus,
+  proCurrentPeriodEnd: users.proCurrentPeriodEnd,
 };
 
 // ── My own profile photo ──────────────────────────────────────────────────
@@ -54,11 +57,20 @@ router.get("/search", async (req, res) => {
 
   const digits = q.replace(/[^\d+]/g, "");
   const matchesPhoneOrUsername = digits.length >= 4 ? or(ilike(users.username, `%${q}%`), ilike(users.phoneNumber, `%${digits}%`)) : ilike(users.username, `%${q}%`);
+  const qLower = q.toLowerCase();
 
   const rows = await db
     .select(PUBLIC_USER_COLUMNS)
     .from(users)
     .where(and(sql`${users.deletedAt} IS NULL`, ne(users.id, req.user!.id), matchesPhoneOrUsername))
+    // Text relevance always wins first (does the username actually start
+    // with what was typed) — Pro membership only nudges the order among
+    // otherwise-equally-relevant matches, never buries a better match.
+    .orderBy(
+      sql`CASE WHEN LOWER(${users.username}) LIKE ${qLower + "%"} THEN 0 ELSE 1 END`,
+      sql`CASE WHEN ${users.proStatus} = 'active' AND (${users.proCurrentPeriodEnd} IS NULL OR ${users.proCurrentPeriodEnd} > NOW()) THEN 0 ELSE 1 END`,
+      users.username,
+    )
     .limit(25);
 
   res.json(rows);
@@ -72,13 +84,16 @@ router.get("/:id/profile", async (req, res) => {
   const meId = req.user!.id;
   const [userAId, userBId] = meId < target.id ? [meId, target.id] : [target.id, meId];
 
-  const [listingRows, friendRow, convoRow] = await Promise.all([
+  const [listingRows, friendRow, convoRow, followRow, followerCountRow, followingCountRow] = await Promise.all([
     db.select().from(listings).where(and(eq(listings.sellerId, target.id), eq(listings.status, "active"))).orderBy(desc(listings.createdAt)).limit(20),
     db
       .select()
       .from(friendRequests)
       .where(or(and(eq(friendRequests.requesterId, meId), eq(friendRequests.recipientId, target.id)), and(eq(friendRequests.requesterId, target.id), eq(friendRequests.recipientId, meId)))),
     db.select({ id: conversations.id, status: conversations.status }).from(conversations).where(and(eq(conversations.userAId, userAId), eq(conversations.userBId, userBId))),
+    db.select({ followerId: follows.followerId }).from(follows).where(and(eq(follows.followerId, meId), eq(follows.followingId, target.id))).limit(1),
+    db.select({ count: sql<number>`count(*)::int` }).from(follows).where(eq(follows.followingId, target.id)),
+    db.select({ count: sql<number>`count(*)::int` }).from(follows).where(eq(follows.followerId, target.id)),
   ]);
 
   const friendRequest = friendRow[0];
@@ -93,6 +108,10 @@ router.get("/:id/profile", async (req, res) => {
 
   res.json({
     ...target,
+    isSubscriber: isActivePro(target),
+    isFollowing: followRow.length > 0,
+    followerCount: followerCountRow[0]?.count ?? 0,
+    followingCount: followingCountRow[0]?.count ?? 0,
     friendStatus,
     friendRequestId: friendRequest?.status === "pending" ? friendRequest.id : null,
     conversation: convoRow[0] ?? null,

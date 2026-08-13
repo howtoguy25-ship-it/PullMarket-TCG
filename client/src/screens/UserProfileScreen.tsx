@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Text, FlatList, Platform, Alert } from "react-native";
+import { View, StyleSheet, Text, FlatList, Platform, Alert, Pressable } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button, Badge } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, apiRequest, ApiError } from "@/lib/api";
@@ -35,6 +36,10 @@ interface UserProfile {
   displayName: string | null;
   avatarUrl: string | null;
   identityVerificationStatus: string;
+  isSubscriber: boolean;
+  isFollowing: boolean;
+  followerCount: number;
+  followingCount: number;
   friendStatus: "none" | "friends" | "pending_sent" | "pending_received";
   friendRequestId: string | null;
   conversation: { id: string; status: string } | null;
@@ -77,6 +82,12 @@ export default function UserProfileScreen() {
     if (ok) unfriendMutation.mutate();
   };
 
+  const followMutation = useMutation({
+    mutationFn: () => (profile?.isFollowing ? apiRequest("DELETE", `/api/follows/${userId}`) : apiJson("POST", `/api/follows/${userId}`)),
+    onSuccess: invalidate,
+    onError: (err) => console.warn(err instanceof ApiError ? err.message : "Couldn't update follow"),
+  });
+
   const startChatMutation = useMutation({
     mutationFn: () => apiJson<{ id: string }>("POST", `/api/chat/conversations/with/${userId}`),
     onSuccess: (convo) => navigation.navigate("ChatThread", { conversationId: convo.id, otherUserId: userId }),
@@ -107,9 +118,19 @@ export default function UserProfileScreen() {
         <View>
           <View style={styles.header}>
             <Avatar avatarUrl={profile.avatarUrl} seed={profile.username} size={72} />
-            <Text style={styles.username}>@{profile.username}</Text>
+            <View style={styles.usernameRow}>
+              <Text style={styles.username}>@{profile.username}</Text>
+              {profile.isSubscriber ? <VerifiedBadge size={17} /> : null}
+            </View>
             {profile.displayName ? <Text style={styles.displayName}>{profile.displayName}</Text> : null}
             {profile.identityVerificationStatus === "verified" ? <Badge label="Verified seller" color={Colors.success} style={{ marginTop: Spacing.xs }} /> : null}
+            {profile.isSubscriber ? (
+              <Pressable onPress={() => navigation.navigate("Followers", { userId, username: profile.username })} style={styles.followerCountRow} hitSlop={8}>
+                <Text style={styles.followerCountText}>
+                  <Text style={styles.followerCountNumber}>{profile.followerCount}</Text> {profile.followerCount === 1 ? "follower" : "followers"}
+                </Text>
+              </Pressable>
+            ) : null}
           </View>
 
           <View style={styles.buttonRow}>
@@ -131,6 +152,17 @@ export default function UserProfileScreen() {
             />
           </View>
 
+          {profile.isSubscriber ? (
+            <Button
+              title={profile.isFollowing ? "Following" : "Follow"}
+              variant={profile.isFollowing ? "outline" : "primary"}
+              icon={<Feather name={profile.isFollowing ? "user-check" : "user-plus"} size={16} color={profile.isFollowing ? Colors.primary : Colors.white} />}
+              onPress={() => followMutation.mutate()}
+              loading={followMutation.isPending}
+              style={{ marginTop: Spacing.sm }}
+            />
+          ) : null}
+
           {profile.listings.length > 0 ? <Text style={styles.sectionTitle}>Listings</Text> : null}
         </View>
       }
@@ -142,8 +174,12 @@ export default function UserProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   header: { alignItems: "center", gap: 4 },
-  username: { ...Typography.h3, color: Colors.text, marginTop: Spacing.sm },
+  usernameRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: Spacing.sm },
+  username: { ...Typography.h3, color: Colors.text },
   displayName: { ...Typography.body, color: Colors.textSecondary },
+  followerCountRow: { marginTop: 4 },
+  followerCountText: { ...Typography.small, color: Colors.textSecondary },
+  followerCountNumber: { ...Typography.small, color: Colors.text, fontWeight: "800" },
   buttonRow: { flexDirection: "row", gap: Spacing.sm, marginTop: Spacing.lg },
   halfButton: { flex: 1 },
   sectionTitle: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginTop: Spacing.xl, marginBottom: Spacing.xs, letterSpacing: 0.3 },

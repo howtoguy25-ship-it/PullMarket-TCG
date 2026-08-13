@@ -42,6 +42,27 @@ export const users = pgTable(
     identityVerificationSessionId: text("identity_verification_session_id"),
     identityVerifiedAt: timestamp("identity_verified_at"),
 
+    // Paid "Pro" membership ($19.99/mo) — unrelated to franchiseSubscriptions
+    // below (that's the free per-user "new card alert" feature; this is
+    // real recurring billing). A user can be Pro via either billing
+    // system, never both — proSource says which one is authoritative for
+    // proStatus/proCurrentPeriodEnd right now. Web purchases run through
+    // Stripe (routes/subscription.ts + the subscription branch of
+    // webhook.ts); iOS purchases run through Apple's StoreKit + the App
+    // Store Server Notifications webhook (routes/appleSubscription.ts) —
+    // Apple requires digital in-app perks like these to go through IAP,
+    // not a third-party processor, when purchased from inside the native
+    // app (App Store Review Guideline 3.1.1).
+    proStatus: text("pro_status").notNull().default("none"), // 'none' | 'active' | 'past_due' | 'canceled'
+    proSource: text("pro_source"), // 'stripe' | 'apple', null when proStatus is 'none'
+    proCurrentPeriodEnd: timestamp("pro_current_period_end"),
+    proCancelAtPeriodEnd: boolean("pro_cancel_at_period_end").default(false),
+    proStripeSubscriptionId: text("pro_stripe_subscription_id"),
+    // Apple's stable per-purchase identifier for a subscription — the
+    // right key to dedupe/look up by for IAP (not the transaction id,
+    // which changes every renewal).
+    proAppleOriginalTransactionId: text("pro_apple_original_transaction_id"),
+
     isOwner: boolean("is_owner").default(false),
     isSuspended: boolean("is_suspended").default(false),
     suspendedAt: timestamp("suspended_at"),
@@ -117,6 +138,13 @@ export const listings = pgTable(
     status: text("status").notNull().default("active"), // one of LISTING_STATUSES
     viewCount: integer("view_count").notNull().default(0),
     favoriteCount: integer("favorite_count").notNull().default(0),
+    // Pro-membership perk: set to createdAt + 48h at creation time, only if
+    // the seller was an active Pro member at that moment (see POST / in
+    // routes/listings.ts) — the homepage feed sorts anything still inside
+    // this window first. Never extended/renewed after creation, so a
+    // listing's boost is a fixed one-time 48h window from when it went up,
+    // not tied to the seller's subscription status later changing.
+    boostedUntil: timestamp("boosted_until"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },
@@ -125,6 +153,7 @@ export const listings = pgTable(
     index("idx_listings_status").on(table.status),
     index("idx_listings_franchise").on(table.franchise),
     index("idx_listings_created").on(table.createdAt),
+    index("idx_listings_boosted").on(table.boostedUntil),
   ],
 );
 
@@ -423,6 +452,33 @@ export const friendRequestsRelations = relations(friendRequests, ({ one }) => ({
   recipient: one(users, { fields: [friendRequests.recipientId], references: [users.id], relationName: "recipient" }),
 }));
 
+// ─── Follows (Pro-membership perk) ───────────────────────────────────────
+// Anyone can follow, but only an active Pro member can BE followed — the
+// route layer enforces that at follow-time (see routes/follows.ts); this
+// table itself doesn't encode that restriction so a follow doesn't become
+// orphaned/invalid if the followed user's Pro membership later lapses
+// (their existing followers stay, they just can't gain new ones while
+// inactive — matches how the boosted-listing window isn't retroactively
+// revoked either).
+export const follows = pgTable(
+  "follows",
+  {
+    followerId: varchar("follower_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    followingId: varchar("following_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.followerId, table.followingId] }),
+    index("idx_follows_following").on(table.followingId),
+    index("idx_follows_follower").on(table.followerId),
+  ],
+);
+
+export const followsRelations = relations(follows, ({ one }) => ({
+  follower: one(users, { fields: [follows.followerId], references: [users.id], relationName: "followFollower" }),
+  following: one(users, { fields: [follows.followingId], references: [users.id], relationName: "followFollowing" }),
+}));
+
 // ─── Chat: conversations, messages, attachments ─────────────────────────
 // A 1:1 conversation is created the first time either user messages the
 // other. `userAId`/`userBId` are stored in a normalized order (userAId is
@@ -627,6 +683,7 @@ export type Notification = typeof notifications.$inferSelect;
 export type Report = typeof reports.$inferSelect;
 export type OtpCode = typeof otpCodes.$inferSelect;
 export type FriendRequest = typeof friendRequests.$inferSelect;
+export type Follow = typeof follows.$inferSelect;
 export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type MessageAttachment = typeof messageAttachments.$inferSelect;

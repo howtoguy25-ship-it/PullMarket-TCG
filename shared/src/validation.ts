@@ -1,5 +1,24 @@
 // Shared between client (inline form feedback) and server (source of truth).
 
+export const PRO_SUBSCRIPTION_PRICE_CENTS = 1999; // $19.99/mo
+export const PRO_SUBSCRIPTION_LOOKUP_KEY = "pullmarket_pro_monthly";
+export const PRO_LISTING_BOOST_HOURS = 48;
+
+/**
+ * Single source of truth for "is this user's Pro membership currently
+ * active" — used both server-side (gating follow/boost/search-ranking) and
+ * client-side (showing the tick/follow button/perks). `proStatus` alone
+ * isn't quite enough: Stripe keeps a subscription's status as "active"
+ * right up until the paid period actually ends even after the user has
+ * cancelled (cancelAtPeriodEnd), and proCurrentPeriodEnd is the real
+ * authority for whether that period has actually elapsed yet.
+ */
+export function isActivePro(user: { proStatus: string; proCurrentPeriodEnd: string | Date | null } | null | undefined): boolean {
+  if (!user || user.proStatus !== "active") return false;
+  if (!user.proCurrentPeriodEnd) return true;
+  return new Date(user.proCurrentPeriodEnd).getTime() > Date.now();
+}
+
 const POKEMON_RE = /pok[eé]mon/i;
 const ONE_PIECE_RE = /one\s*piece/i;
 

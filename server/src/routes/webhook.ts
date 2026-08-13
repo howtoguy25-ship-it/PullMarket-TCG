@@ -51,6 +51,16 @@ router.post("/", async (req, res) => {
     } else if (event.type.startsWith("identity.verification_session.")) {
       const session = event.data.object as Stripe.Identity.VerificationSession;
       await handleIdentitySessionEvent(event.type, session);
+    } else if (event.type.startsWith("customer.subscription.")) {
+      // Covers created/updated/deleted uniformly — Stripe's subscription
+      // object's own `status` field already reflects the current state on
+      // all three event types, including the moment it first goes active
+      // (no separate handling of checkout.session.completed for
+      // subscriptions needed: the Customer is created explicitly before
+      // the Checkout Session in routes/subscription.ts, so there's no
+      // "which customer is this" ambiguity to resolve there).
+      const subscription = event.data.object as Stripe.Subscription;
+      await handleProSubscriptionEvent(subscription);
     }
   } catch (err) {
     console.error("Webhook handling failed:", err);
@@ -161,6 +171,35 @@ async function handleIdentitySessionEvent(eventType: string, session: Stripe.Ide
       body: session.last_error?.reason || "We couldn't verify your identity. You can try again from your profile.",
     });
   }
+}
+
+// Maps Stripe's subscription lifecycle onto the three states the rest of
+// the app cares about. 'trialing' counts as active (no trial is actually
+// offered right now, but treating it as active is the correct behavior if
+// one ever is); 'past_due'/'unpaid' surface as past_due rather than
+// silently active or silently canceled, since neither is true — Stripe is
+// still retrying the payment. Anything else (canceled, incomplete_expired,
+// paused) is a real end state.
+async function handleProSubscriptionEvent(subscription: Stripe.Subscription) {
+  let userId = subscription.metadata?.userId;
+  if (!userId) {
+    const [u] = await db.select({ id: users.id }).from(users).where(eq(users.stripeCustomerId, subscription.customer as string));
+    userId = u?.id;
+  }
+  if (!userId) return;
+
+  const mappedStatus = subscription.status === "active" || subscription.status === "trialing" ? "active" : subscription.status === "past_due" || subscription.status === "unpaid" ? "past_due" : "canceled";
+
+  await db
+    .update(users)
+    .set({
+      proStatus: mappedStatus,
+      proSource: "stripe",
+      proStripeSubscriptionId: subscription.id,
+      proCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      proCancelAtPeriodEnd: subscription.cancel_at_period_end,
+    })
+    .where(eq(users.id, userId));
 }
 
 export default router;

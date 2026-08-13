@@ -9,7 +9,7 @@ import { isBlockedEitherWay } from "../lib/blocks";
 const router = Router();
 router.use(authenticateToken);
 
-const PUBLIC_USER_COLUMNS = { id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl };
+const PUBLIC_USER_COLUMNS = { id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl, proStatus: users.proStatus, proCurrentPeriodEnd: users.proCurrentPeriodEnd };
 
 async function attachUsers<T extends { requesterId: string; recipientId: string }>(rows: T[]) {
   if (rows.length === 0) return [];

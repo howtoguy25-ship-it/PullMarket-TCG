@@ -11,12 +11,14 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
 import { GalaxyHeader } from "@/components/GalaxyHeader";
+import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAmbientSound } from "@/contexts/AmbientSoundContext";
 import { AMBIENT_SOUNDS } from "@/lib/ambientSounds";
 import { apiJson, apiRequest, ApiError } from "@/lib/api";
 import { appendImageField } from "@/lib/formDataImage";
+import { isActivePro } from "@shared/validation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -140,11 +142,25 @@ export default function ProfileScreen() {
           <View style={styles.avatarBadge}>{uploadingAvatar ? <ActivityIndicator size="small" color={Colors.white} /> : <Feather name="camera" size={13} color={Colors.white} />}</View>
         </Pressable>
         <View>
-          <Text style={styles.username}>@{user.username}</Text>
+          <View style={styles.usernameRow}>
+            <Text style={styles.username}>@{user.username}</Text>
+            {isActivePro(user) ? <VerifiedBadge size={15} /> : null}
+          </View>
           <Text style={styles.contact}>{user.email ?? user.phoneNumber}</Text>
           <Text style={styles.changePhoto}>Tap photo to change</Text>
         </View>
       </GalaxyHeader>
+
+      <Pressable style={styles.proBanner} onPress={() => navigation.navigate("Subscription")}>
+        <View style={styles.proBannerIcon}>
+          <Feather name="star" size={18} color={Colors.white} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.proBannerTitle}>{isActivePro(user) ? "PullMarket Pro" : "Go Pro"}</Text>
+          <Text style={styles.proBannerSubtitle}>{isActivePro(user) ? "Followers, verified tick, listing boost & search recognition" : "Followers, verified tick, listing boost & search recognition — $19.99/mo"}</Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+      </Pressable>
 
       <Text style={styles.sectionHeader}>Selling</Text>
       <View style={styles.section}>
@@ -244,9 +260,24 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#1C1040",
   },
+  usernameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   username: { ...Typography.h3, color: Colors.white },
   contact: { ...Typography.small, color: "rgba(255,255,255,0.7)" },
   changePhoto: { ...Typography.small, color: Colors.gold, marginTop: 2, fontSize: 11 },
+  proBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.gold + "55",
+    padding: Spacing.md,
+    marginTop: Spacing.md,
+  },
+  proBannerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.gold, alignItems: "center", justifyContent: "center" },
+  proBannerTitle: { ...Typography.bodyBold, color: Colors.text },
+  proBannerSubtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 1 },
   sectionHeader: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginTop: Spacing.lg, marginBottom: Spacing.xs, letterSpacing: 0.5 },
   section: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
