@@ -25,6 +25,7 @@ import ReportScreen from "@/screens/ReportScreen";
 import SellerPayoutSetupScreen from "@/screens/SellerPayoutSetupScreen";
 import IdentityVerificationScreen from "@/screens/IdentityVerificationScreen";
 import NotificationFiltersScreen from "@/screens/NotificationFiltersScreen";
+import ReadReceiptSettingsScreen from "@/screens/ReadReceiptSettingsScreen";
 import OwnerPanelScreen from "@/screens/owner/OwnerPanelScreen";
 import OwnerReportDetailScreen from "@/screens/owner/OwnerReportDetailScreen";
 import OwnerUsersScreen from "@/screens/owner/OwnerUsersScreen";
@@ -80,6 +81,7 @@ function MainNavigator() {
       <RootStack.Screen name="SellerPayoutSetup" component={SellerPayoutSetupScreen} options={{ title: "Payout Setup" }} />
       <RootStack.Screen name="IdentityVerification" component={IdentityVerificationScreen} options={{ title: "Verify Identity" }} />
       <RootStack.Screen name="NotificationFilters" component={NotificationFiltersScreen} options={{ title: "New Card Alerts" }} />
+      <RootStack.Screen name="ReadReceiptSettings" component={ReadReceiptSettingsScreen} options={{ title: "Read Receipts" }} />
       <RootStack.Screen name="OwnerPanel" component={OwnerPanelScreen} options={{ title: "Owner Panel" }} />
       <RootStack.Screen name="OwnerReportDetail" component={OwnerReportDetailScreen} options={{ title: "Incident Report" }} />
       <RootStack.Screen name="OwnerUsers" component={OwnerUsersScreen} options={{ title: "All Users" }} />

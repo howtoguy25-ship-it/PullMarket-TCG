@@ -88,7 +88,7 @@ router.get("/:id/profile", async (req, res) => {
     else if (friendRequest.status === "pending") friendStatus = friendRequest.requesterId === meId ? "pending_sent" : "pending_received";
   }
 
-  const showsListings = target.identityVerificationStatus === "verified" && listingRows.length > 1;
+  const showsListings = target.identityVerificationStatus === "verified" && listingRows.length > 0;
   const withDetails = showsListings ? await attachImagesAndSellers(listingRows) : [];
 
   res.json({

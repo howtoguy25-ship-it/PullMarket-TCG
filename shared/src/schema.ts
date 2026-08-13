@@ -50,6 +50,10 @@ export const users = pgTable(
 
     pushToken: text("push_token"),
     notificationsEnabled: boolean("notifications_enabled").default(true),
+    // Global switch: when off, this user's read/seen status is never
+    // revealed to anyone they chat with (see readReceiptExclusions below
+    // for the per-contact version of the same thing).
+    readReceiptsEnabled: boolean("read_receipts_enabled").default(true),
 
     pendingDeletionAt: timestamp("pending_deletion_at"),
     deletedAt: timestamp("deleted_at"),
@@ -316,6 +320,26 @@ export const franchiseSubscriptions = pgTable(
 
 export const franchiseSubscriptionsRelations = relations(franchiseSubscriptions, ({ one }) => ({
   user: one(users, { fields: [franchiseSubscriptions.userId], references: [users.id] }),
+}));
+
+// Per-contact read-receipt override: a row (userId, excludedUserId) means
+// userId does not want excludedUserId to see when userId has read
+// excludedUserId's messages — even if userId's global readReceiptsEnabled
+// is on. Directional and independent per person: the other side of a
+// conversation manages their own rows the same way.
+export const readReceiptExclusions = pgTable(
+  "read_receipt_exclusions",
+  {
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    excludedUserId: varchar("excluded_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.excludedUserId] })],
+);
+
+export const readReceiptExclusionsRelations = relations(readReceiptExclusions, ({ one }) => ({
+  user: one(users, { fields: [readReceiptExclusions.userId], references: [users.id], relationName: "excluder" }),
+  excludedUser: one(users, { fields: [readReceiptExclusions.excludedUserId], references: [users.id], relationName: "excluded" }),
 }));
 
 // ─── Reports (listing/order/chat reports → owner panel) ─────────────────

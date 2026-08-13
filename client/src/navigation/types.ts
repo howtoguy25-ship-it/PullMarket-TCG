@@ -27,6 +27,7 @@ export type RootStackParamList = {
   SellerPayoutSetup: undefined;
   IdentityVerification: undefined;
   NotificationFilters: undefined;
+  ReadReceiptSettings: undefined;
   OwnerPanel: undefined;
   OwnerReportDetail: { reportId: string };
   OwnerUsers: undefined;

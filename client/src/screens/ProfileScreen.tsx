@@ -160,6 +160,11 @@ export default function ProfileScreen() {
         <MenuRow icon="bell" label="Notifications" onPress={() => navigation.navigate("Notifications")} />
       </View>
 
+      <Text style={styles.sectionHeader}>Privacy</Text>
+      <View style={styles.section}>
+        <MenuRow icon="eye-off" label="Read receipts" subtitle="Control who sees when you've read their messages" onPress={() => navigation.navigate("ReadReceiptSettings")} />
+      </View>
+
       {user.isOwner ? (
         <>
           <Text style={styles.sectionHeader}>Owner</Text>

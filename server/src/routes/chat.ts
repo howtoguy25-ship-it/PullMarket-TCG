@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { conversations, messages, messageAttachments, users, reports } from "@shared/schema";
+import { conversations, messages, messageAttachments, users, reports, readReceiptExclusions } from "@shared/schema";
 import { and, desc, eq, inArray, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { chatUpload, attachmentTypeFromMime } from "../lib/chatUpload";
@@ -162,13 +162,25 @@ router.get("/conversations/:id/messages", async (req, res) => {
   // Delivered always flips on view. Read only flips once the conversation is
   // accepted — while it's still a pending request, the recipient can open
   // and read it freely without the sender ever finding out (no readAt set),
-  // exactly like viewing a message request before deciding to accept.
+  // exactly like viewing a message request before deciding to accept —
+  // and, independently, only if I haven't turned off read receipts
+  // altogether or specifically excluded the other person in this
+  // conversation from seeing my read status.
   const now = new Date();
   await db
     .update(messages)
     .set({ deliveredAt: now })
     .where(and(eq(messages.conversationId, convo.id), ne(messages.senderId, meId), isNull(messages.deliveredAt)));
-  const willMarkRead = convo.status === "accepted";
+
+  const otherUserId = convo.userAId === meId ? convo.userBId : convo.userAId;
+  const readReceiptsAllowed =
+    (req.user!.readReceiptsEnabled ?? true) &&
+    (await db
+      .select({ userId: readReceiptExclusions.userId })
+      .from(readReceiptExclusions)
+      .where(and(eq(readReceiptExclusions.userId, meId), eq(readReceiptExclusions.excludedUserId, otherUserId)))
+    ).length === 0;
+  const willMarkRead = convo.status === "accepted" && readReceiptsAllowed;
   if (willMarkRead) {
     await db
       .update(messages)
@@ -257,6 +269,46 @@ router.get("/conversations/:id", async (req, res) => {
   const otherUserId = convo.userAId === meId ? convo.userBId : convo.userAId;
   const [otherUser] = await db.select(PUBLIC_USER_COLUMNS).from(users).where(eq(users.id, otherUserId));
   res.json({ ...convo, otherUser: otherUser ?? null, isIncomingRequest: convo.status === "pending" && convo.initiatorId !== meId });
+});
+
+// ── Read-receipt privacy settings ─────────────────────────────────────────
+router.get("/read-receipts/settings", async (req, res) => {
+  const meId = req.user!.id;
+  const exclusionRows = await db
+    .select({ user: PUBLIC_USER_COLUMNS })
+    .from(readReceiptExclusions)
+    .innerJoin(users, eq(users.id, readReceiptExclusions.excludedUserId))
+    .where(eq(readReceiptExclusions.userId, meId));
+
+  res.json({
+    enabled: req.user!.readReceiptsEnabled ?? true,
+    excludedUsers: exclusionRows.map((r) => r.user),
+  });
+});
+
+router.patch("/read-receipts/settings", async (req, res) => {
+  const schema = z.object({ enabled: z.boolean() });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+
+  await db.update(users).set({ readReceiptsEnabled: parsed.data.enabled }).where(eq(users.id, req.user!.id));
+  res.json({ enabled: parsed.data.enabled });
+});
+
+// Replace-all, same pattern as /api/listings/subscriptions/mine — the
+// client always sends the full set of people it wants excluded.
+router.put("/read-receipts/exclusions", async (req, res) => {
+  const schema = z.object({ userIds: z.array(z.string()) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+
+  const meId = req.user!.id;
+  const userIds = parsed.data.userIds.filter((id) => id !== meId);
+  await db.delete(readReceiptExclusions).where(eq(readReceiptExclusions.userId, meId));
+  if (userIds.length > 0) {
+    await db.insert(readReceiptExclusions).values(userIds.map((excludedUserId) => ({ userId: meId, excludedUserId })));
+  }
+  res.json({ excludedUserIds: userIds });
 });
 
 export default router;
