@@ -24,7 +24,7 @@ export async function sendEmail(opts: { to: string; subject: string; text: strin
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        from: process.env.SMTP_FROM || "PullMarket TCG <onboarding@resend.dev>",
+        from: process.env.SMTP_FROM || "PullMarket TCG <Sales@pullmarkettcg.com>",
         to: opts.to,
         subject: opts.subject,
         text: opts.text,

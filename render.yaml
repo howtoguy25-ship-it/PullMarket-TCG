@@ -70,8 +70,14 @@ services:
       # provider/credentials. Get an API key from Resend's dashboard.
       - key: RESEND_API_KEY
         sync: false
+      # Sending "from" pullmarkettcg.com requires that domain to be
+      # verified in Resend's dashboard (Domains > Add Domain > add the
+      # DKIM/SPF/DMARC records it gives you) — until it's verified, Resend
+      # will reject every send with a "domain not verified" error and OTP
+      # emails will silently stop delivering. Verify the domain first, or
+      # temporarily fall back to the default onboarding@resend.dev sender.
       - key: SMTP_FROM
-        value: "PullMarket TCG <onboarding@resend.dev>"
+        value: "PullMarket TCG <Sales@pullmarkettcg.com>"
       - key: OWNER_REPORT_EMAIL
         sync: false
       - key: GOOGLE_WEB_CLIENT_ID
