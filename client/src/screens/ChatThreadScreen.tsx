@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useState } from "react";
+import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Text, FlatList, TextInput, Pressable, Image, Platform, KeyboardAvoidingView, ActivityIndicator, Modal, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -151,6 +151,19 @@ export default function ChatThreadScreen() {
   const { data: convo } = useQuery<ConversationDetail>({ queryKey: [`/api/chat/conversations/${conversationId}`], refetchInterval: 4000, meta: { silent401: true } });
   const { data: messages, isLoading } = useQuery<Message[]>({ queryKey: [`/api/chat/conversations/${conversationId}/messages`], refetchInterval: 3000, meta: { silent401: true } });
 
+  // The API returns newest-first (see server/src/routes/chat.ts). Rendered
+  // oldest-first in a normal (non-inverted) FlatList, auto-scrolled to the
+  // end below — deliberately not using FlatList's `inverted` prop, which
+  // proved unreliable here (messages rendered newest-at-top instead of
+  // newest-at-bottom on a real device), a documented class of issue with
+  // inverted lists on React Native's New Architecture. This is the same
+  // scroll-to-bottom pattern virtually every production chat app uses.
+  const listRef = useRef<FlatList<Message>>(null);
+  const orderedMessages = useMemo(() => [...(messages ?? [])].reverse(), [messages]);
+  const scrollToBottom = useCallback((animated: boolean) => {
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated }));
+  }, []);
+
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: [`/api/chat/conversations/${conversationId}`] });
     queryClient.invalidateQueries({ queryKey: [`/api/chat/conversations/${conversationId}/messages`] });
@@ -181,6 +194,7 @@ export default function ChatThreadScreen() {
       setPendingMedia([]);
       setReplyingTo(null);
       invalidateAll();
+      scrollToBottom(true);
     },
     onError: (err) => showAlert("Couldn't send", err instanceof ApiError ? err.message : "Please try again."),
   });
@@ -308,10 +322,11 @@ export default function ChatThreadScreen() {
         </View>
       ) : (
         <FlatList
-          data={messages ?? []}
+          ref={listRef}
+          data={orderedMessages}
           keyExtractor={(item) => item.id}
-          inverted
           contentContainerStyle={{ padding: Spacing.md, flexGrow: 1, justifyContent: "flex-end" }}
+          onContentSizeChange={() => scrollToBottom(false)}
           renderItem={({ item }) => {
             const mine = item.senderId !== convo?.otherUser?.id;
             const isDeleted = !!item.deletedForEveryoneAt;
