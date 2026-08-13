@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Text, FlatList, Pressable, TextInput, ActivityIndicator } from "react-native";
+import { View, StyleSheet, Text, FlatList, Pressable, TextInput, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -36,6 +36,7 @@ interface PriceCard {
   marketPriceCents: number | null;
   priceChange24hr: number | null;
   lastUpdated: number | null;
+  imageUrl: string | null;
 }
 
 interface PricesPage {
@@ -56,6 +57,18 @@ function formatPrice(cents: number | null): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+function CardImage({ uri }: { uri: string | null }) {
+  const [failed, setFailed] = useState(!uri);
+  if (!uri || failed) {
+    return (
+      <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
+        <Feather name="image" size={22} color={Colors.textMuted} />
+      </View>
+    );
+  }
+  return <Image source={{ uri }} style={styles.cardImage} resizeMode="contain" onError={() => setFailed(true)} />;
+}
+
 function PriceCardTile({ card, color }: { card: PriceCard; color: string }) {
   const change = card.priceChange24hr;
   const changeUp = change !== null && change !== undefined && change > 0;
@@ -63,13 +76,14 @@ function PriceCardTile({ card, color }: { card: PriceCard; color: string }) {
 
   return (
     <View style={[styles.tile, { borderTopColor: color }]}>
-      {card.rarity ? <Text style={styles.rarity} numberOfLines={1}>{card.rarity}</Text> : null}
-      <Text style={styles.cardName} numberOfLines={2}>
-        {card.name}
-      </Text>
-      <Text style={styles.setName} numberOfLines={1}>
-        {card.setName}
-      </Text>
+      <CardImage uri={card.imageUrl} />
+      {card.rarity ? <Text style={styles.rarity}>{card.rarity}</Text> : null}
+      {/* Full name and set, no truncation — these can run to a couple of
+         lines for longer product names (e.g. "Pokemon Base Set
+         (Shadowless) [1st Edition]"), which is preferable to cutting off
+         real information a buyer would want to see. */}
+      <Text style={styles.cardName}>{card.name}</Text>
+      <Text style={styles.setName}>{card.setName}</Text>
       <View style={styles.priceRow}>
         <View>
           <Text style={styles.priceLabel}>Market price</Text>
@@ -245,8 +259,10 @@ const styles = StyleSheet.create({
     gap: 2,
     ...Shadow.card,
   },
+  cardImage: { width: "100%", aspectRatio: 1, borderRadius: BorderRadius.sm, marginBottom: Spacing.xs, backgroundColor: Colors.surfaceAlt },
+  cardImagePlaceholder: { alignItems: "center", justifyContent: "center" },
   rarity: { ...Typography.small, color: Colors.textMuted, fontSize: 10, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4 },
-  cardName: { ...Typography.bodyBold, color: Colors.text, minHeight: 38 },
+  cardName: { ...Typography.bodyBold, color: Colors.text },
   setName: { ...Typography.small, color: Colors.textSecondary },
   priceRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: Spacing.xs },
   priceLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.3 },

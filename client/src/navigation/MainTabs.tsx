@@ -55,7 +55,10 @@ export function MainTabs() {
       <Tab.Screen name="Search" component={SearchScreen} />
       <Tab.Screen name="Sell" component={SellScreen} />
       <Tab.Screen name="Prices" component={PricesScreen} />
-      <Tab.Screen name="Messages" component={ChatListScreen} />
+      {/* Label shortened to "Chat" — "Messages" was the one label long
+         enough to get ellipsized/crowded in a 7-tab bar on web; the route
+         name (used for navigation, badges, deep links) is unchanged. */}
+      <Tab.Screen name="Messages" component={ChatListScreen} options={{ tabBarLabel: "Chat" }} />
       <Tab.Screen name="Favorites" component={FavoritesScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>

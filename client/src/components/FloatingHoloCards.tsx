@@ -72,7 +72,17 @@ function MiniHoloCard({ spec }: { spec: CardSpec }) {
     >
       <LinearGradient colors={spec.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.card, { width: spec.size, height: cardHeight, borderRadius: spec.size * 0.12 }]}>
         <View style={styles.cardInner}>
-          <Text style={[styles.cardLabel, { fontSize: spec.size * 0.13 }]} numberOfLines={2}>
+          {/* Single line, sized to always fit: at the smallest card sizes,
+             "POKÉMON"/"ONE PIECE" wrapping mid-word left a lone orphaned
+             "N" on its own line, which read as a spacing glitch rather
+             than text wrap. A smaller size-scaled font with no
+             letterSpacing measures narrower than the old one at every
+             card size in this layout (44-64px), so it fits on one line
+             without needing to wrap or truncate — adjustsFontSizeToFit is
+             also set as a native-only safety net (react-native-web
+             doesn't support it, hence sizing to fit outright instead of
+             relying on it). */}
+          <Text style={[styles.cardLabel, { fontSize: spec.size * 0.14 }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
             {spec.label}
           </Text>
         </View>
@@ -102,6 +112,6 @@ export function FloatingHoloCards() {
 const styles = StyleSheet.create({
   cardPosition: { position: "absolute" },
   card: { flex: 1, overflow: "hidden", opacity: 0.5, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" },
-  cardInner: { flex: 1, alignItems: "center", justifyContent: "center", padding: 4 },
-  cardLabel: { color: "rgba(255,255,255,0.95)", fontWeight: "800", textAlign: "center", letterSpacing: 0.5 },
+  cardInner: { flex: 1, alignItems: "center", justifyContent: "center", padding: 2 },
+  cardLabel: { color: "rgba(255,255,255,0.95)", fontWeight: "800", textAlign: "center" },
 });

@@ -35,6 +35,7 @@ interface JustTcgCard {
   set_name: string;
   number?: string;
   rarity?: string;
+  tcgplayerId?: string;
   variants: JustTcgVariant[];
 }
 
@@ -74,6 +75,7 @@ export interface PriceCardResult {
   marketPriceCents: number | null;
   priceChange24hr: number | null;
   lastUpdated: number | null;
+  imageUrl: string | null;
 }
 
 function normalizeCard(card: JustTcgCard): PriceCardResult {
@@ -93,6 +95,12 @@ function normalizeCard(card: JustTcgCard): PriceCardResult {
     marketPriceCents: variant ? Math.round(variant.price * 100) : null,
     priceChange24hr: variant?.priceChange24hr ?? null,
     lastUpdated: variant?.lastUpdated ?? null,
+    // JustTCG's own card data has no image field, but it does carry the
+    // matching TCGplayer product id, which resolves to a real product
+    // photo on TCGplayer's own image CDN (verified directly: a known id
+    // returns the actual booster-box/card photo, a bogus one 403s) —
+    // the client treats a failed load as "no image" rather than erroring.
+    imageUrl: card.tcgplayerId ? `https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayerId}_200w.jpg` : null,
   };
 }
 
