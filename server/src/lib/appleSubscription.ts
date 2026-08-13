@@ -20,6 +20,16 @@ export function getAppleIapProductId(): string {
   return process.env.APPLE_IAP_PRODUCT_ID || "";
 }
 
+// Remove Ads — a separate one-time (non-consumable) IAP product, distinct
+// from the Pro subscription product above.
+export function isAppleRemoveAdsConfigured(): boolean {
+  return !!process.env.APPLE_IAP_REMOVE_ADS_PRODUCT_ID;
+}
+
+export function getAppleRemoveAdsProductId(): string {
+  return process.env.APPLE_IAP_REMOVE_ADS_PRODUCT_ID || "";
+}
+
 // The app's bundle id is fixed (see app.config.js ios.bundleIdentifier);
 // the numeric App Store Connect app id only matters for notification
 // verification's cross-check and is public info (same value already

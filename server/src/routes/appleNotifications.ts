@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "../db";
 import { users } from "@shared/schema";
 import { eq } from "drizzle-orm";
-import { verifyAppleNotification, verifyAppleTransaction, isAppleTransactionActive } from "../lib/appleSubscription";
+import { verifyAppleNotification, verifyAppleTransaction, isAppleTransactionActive, getAppleIapProductId, getAppleRemoveAdsProductId } from "../lib/appleSubscription";
 
 const router = Router();
 
@@ -34,14 +34,24 @@ router.post("/notifications", async (req, res) => {
     if (!transaction.originalTransactionId) return res.json({ received: true });
 
     const active = isAppleTransactionActive(transaction);
-    await db
-      .update(users)
-      .set({
-        proStatus: active ? "active" : "canceled",
-        proSource: "apple",
-        proCurrentPeriodEnd: transaction.expiresDate ? new Date(transaction.expiresDate) : null,
-      })
-      .where(eq(users.proAppleOriginalTransactionId, transaction.originalTransactionId));
+    if (transaction.productId === getAppleIapProductId()) {
+      await db
+        .update(users)
+        .set({
+          proStatus: active ? "active" : "canceled",
+          proSource: "apple",
+          proCurrentPeriodEnd: transaction.expiresDate ? new Date(transaction.expiresDate) : null,
+        })
+        .where(eq(users.proAppleOriginalTransactionId, transaction.originalTransactionId));
+    } else if (transaction.productId === getAppleRemoveAdsProductId()) {
+      // Remove Ads is one-time/non-consumable — the only way `active` ever
+      // goes false here is a refund/revocation, which is exactly the case
+      // this notification exists to catch (there's no renewal to track).
+      await db
+        .update(users)
+        .set({ adsRemoved: active, adsRemovedSource: "apple" })
+        .where(eq(users.adsRemovedAppleOriginalTransactionId, transaction.originalTransactionId));
+    }
   } catch (err) {
     console.error("Apple notification transaction handling failed:", err);
   }

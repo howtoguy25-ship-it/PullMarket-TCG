@@ -174,6 +174,7 @@ export default function ProfileScreen() {
         <MenuRow icon="package" label="My orders" onPress={() => navigation.navigate("Orders", {})} />
         <MenuRow icon="shopping-cart" label="Cart" onPress={() => navigation.navigate("Cart")} />
         <MenuRow icon="bell" label="Notifications" onPress={() => navigation.navigate("Notifications")} />
+        <MenuRow icon="slash" label="Remove Ads" subtitle="$39.99 one-time — removes all ads" onPress={() => navigation.navigate("RemoveAds")} />
       </View>
 
       <Text style={styles.sectionHeader}>Privacy</Text>

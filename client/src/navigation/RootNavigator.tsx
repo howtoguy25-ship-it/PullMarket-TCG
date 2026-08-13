@@ -30,6 +30,8 @@ import ReadReceiptSettingsScreen from "@/screens/ReadReceiptSettingsScreen";
 import BlockedUsersScreen from "@/screens/BlockedUsersScreen";
 import SubscriptionScreen from "@/screens/SubscriptionScreen";
 import SubscriptionReturnScreen from "@/screens/SubscriptionReturnScreen";
+import RemoveAdsScreen from "@/screens/RemoveAdsScreen";
+import RemoveAdsReturnScreen from "@/screens/RemoveAdsReturnScreen";
 import FollowersScreen from "@/screens/FollowersScreen";
 import OwnerPanelScreen from "@/screens/owner/OwnerPanelScreen";
 import OwnerReportDetailScreen from "@/screens/owner/OwnerReportDetailScreen";
@@ -92,6 +94,8 @@ function MainNavigator() {
       <RootStack.Screen name="BlockedUsers" component={BlockedUsersScreen} options={{ title: "Blocked Users" }} />
       <RootStack.Screen name="Subscription" component={SubscriptionScreen} options={{ title: "PullMarket Pro" }} />
       <RootStack.Screen name="SubscriptionReturn" component={SubscriptionReturnScreen} options={{ title: "", headerBackVisible: false }} />
+      <RootStack.Screen name="RemoveAds" component={RemoveAdsScreen} options={{ title: "Remove Ads" }} />
+      <RootStack.Screen name="RemoveAdsReturn" component={RemoveAdsReturnScreen} options={{ title: "", headerBackVisible: false }} />
       <RootStack.Screen name="Followers" component={FollowersScreen} options={({ route }) => ({ title: `@${route.params.username}'s followers` })} />
       <RootStack.Screen name="OwnerPanel" component={OwnerPanelScreen} options={{ title: "Owner Panel" }} />
       <RootStack.Screen name="OwnerReportDetail" component={OwnerReportDetailScreen} options={{ title: "Incident Report" }} />
@@ -119,6 +123,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       CheckoutReturn: "checkout-return",
       IdentityVerification: "identity-verification",
       SubscriptionReturn: "subscription-return",
+      RemoveAdsReturn: "remove-ads-return",
     },
   },
 };

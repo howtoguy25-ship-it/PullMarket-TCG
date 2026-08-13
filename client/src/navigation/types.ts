@@ -32,6 +32,8 @@ export type RootStackParamList = {
   BlockedUsers: undefined;
   Subscription: undefined;
   SubscriptionReturn: { status?: string };
+  RemoveAds: undefined;
+  RemoveAdsReturn: { status?: string };
   Followers: { userId: string; username: string };
   OwnerPanel: undefined;
   OwnerReportDetail: { reportId: string };

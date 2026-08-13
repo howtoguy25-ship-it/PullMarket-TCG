@@ -35,6 +35,8 @@ router.post("/", async (req, res) => {
       if (orderId) {
         await copyShippingFromCheckoutSession(orderId, session);
         await markOrderPaid(orderId);
+      } else if (session.metadata?.kind === "remove_ads" && session.metadata.userId) {
+        await markAdsRemoved(session.metadata.userId, session.payment_intent as string | null);
       }
     } else if (event.type === "payment_intent.succeeded") {
       // The custom in-app checkout (native) creates and confirms a
@@ -44,10 +46,15 @@ router.post("/", async (req, res) => {
       // markOrderPaid is idempotent (only acts on a still-pending order),
       // and copyShippingFromCheckoutSession runs unconditionally whenever
       // its own event arrives, so handling both for the same order is
-      // harmless regardless of delivery order.
+      // harmless regardless of delivery order. Same idempotency logic
+      // applies to markAdsRemoved below.
       const paymentIntent = event.data.object as Stripe.PaymentIntent;
       const orderId = paymentIntent.metadata?.orderId;
-      if (orderId) await markOrderPaid(orderId);
+      if (orderId) {
+        await markOrderPaid(orderId);
+      } else if (paymentIntent.metadata?.kind === "remove_ads" && paymentIntent.metadata.userId) {
+        await markAdsRemoved(paymentIntent.metadata.userId, paymentIntent.id);
+      }
     } else if (event.type.startsWith("identity.verification_session.")) {
       const session = event.data.object as Stripe.Identity.VerificationSession;
       await handleIdentitySessionEvent(event.type, session);
@@ -171,6 +178,13 @@ async function handleIdentitySessionEvent(eventType: string, session: Stripe.Ide
       body: session.last_error?.reason || "We couldn't verify your identity. You can try again from your profile.",
     });
   }
+}
+
+async function markAdsRemoved(userId: string, stripePaymentIntentId: string | null) {
+  await db
+    .update(users)
+    .set({ adsRemoved: true, adsRemovedSource: "stripe", adsRemovedStripePaymentIntentId: stripePaymentIntentId })
+    .where(eq(users.id, userId));
 }
 
 // Maps Stripe's subscription lifecycle onto the three states the rest of

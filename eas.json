@@ -11,7 +11,9 @@
         "EXPO_PUBLIC_API_URL": "https://www.pullmarkettcg.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878738587499-f1m1h9scgone6mb3md478ikqj4qlbed2.apps.googleusercontent.com",
         "GOOGLE_IOS_CLIENT_ID": "878738587499-tpejf58kvvkjik0bjc9b8o64fqgkb0hd.apps.googleusercontent.com",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_live_51U2mdu2f6K1SHrtxXbmx0a9z0zqDJk6MUprjIIQllIInTI55O4sraHPlGP5xjn7h0aq2pOgj9ojNSYWhwPGkenG900fvImHCoJ"
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_live_51U2mdu2f6K1SHrtxXbmx0a9z0zqDJk6MUprjIIQllIInTI55O4sraHPlGP5xjn7h0aq2pOgj9ojNSYWhwPGkenG900fvImHCoJ",
+        "EXPO_PUBLIC_ADMOB_IOS_APP_ID": "ca-app-pub-6423632749110820~9022361895",
+        "EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID_IOS": "ca-app-pub-6423632749110820/1487290684"
       }
     },
     "preview": {
@@ -21,7 +23,9 @@
         "EXPO_PUBLIC_API_URL": "https://www.pullmarkettcg.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878738587499-f1m1h9scgone6mb3md478ikqj4qlbed2.apps.googleusercontent.com",
         "GOOGLE_IOS_CLIENT_ID": "878738587499-tpejf58kvvkjik0bjc9b8o64fqgkb0hd.apps.googleusercontent.com",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_live_51U2mdu2f6K1SHrtxXbmx0a9z0zqDJk6MUprjIIQllIInTI55O4sraHPlGP5xjn7h0aq2pOgj9ojNSYWhwPGkenG900fvImHCoJ"
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_live_51U2mdu2f6K1SHrtxXbmx0a9z0zqDJk6MUprjIIQllIInTI55O4sraHPlGP5xjn7h0aq2pOgj9ojNSYWhwPGkenG900fvImHCoJ",
+        "EXPO_PUBLIC_ADMOB_IOS_APP_ID": "ca-app-pub-6423632749110820~9022361895",
+        "EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID_IOS": "ca-app-pub-6423632749110820/1487290684"
       }
     },
     "production": {
@@ -31,7 +35,9 @@
         "EXPO_PUBLIC_API_URL": "https://www.pullmarkettcg.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "878738587499-f1m1h9scgone6mb3md478ikqj4qlbed2.apps.googleusercontent.com",
         "GOOGLE_IOS_CLIENT_ID": "878738587499-tpejf58kvvkjik0bjc9b8o64fqgkb0hd.apps.googleusercontent.com",
-        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_live_51U2mdu2f6K1SHrtxXbmx0a9z0zqDJk6MUprjIIQllIInTI55O4sraHPlGP5xjn7h0aq2pOgj9ojNSYWhwPGkenG900fvImHCoJ"
+        "EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY": "pk_live_51U2mdu2f6K1SHrtxXbmx0a9z0zqDJk6MUprjIIQllIInTI55O4sraHPlGP5xjn7h0aq2pOgj9ojNSYWhwPGkenG900fvImHCoJ",
+        "EXPO_PUBLIC_ADMOB_IOS_APP_ID": "ca-app-pub-6423632749110820~9022361895",
+        "EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID_IOS": "ca-app-pub-6423632749110820/1487290684"
       }
     }
   },

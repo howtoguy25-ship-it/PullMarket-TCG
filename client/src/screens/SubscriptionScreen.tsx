@@ -36,11 +36,13 @@ const PERKS: { icon: keyof typeof Feather.glyphMap; title: string; body: string 
   { icon: "search", title: "Search recognition", body: "When someone's typing a name or card search that matches you or your listing, you get a little extra prominence among equally-relevant results." },
 ];
 
+const PRO_PRODUCT_ID = (Constants.expoConfig?.extra?.APPLE_IAP_PRODUCT_ID as string) || "";
+
 export default function SubscriptionScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
-  const apple = useApplePurchase();
+  const apple = useApplePurchase({ productId: PRO_PRODUCT_ID, type: "subs", verifyEndpoint: "/api/subscription/apple/verify" });
 
   const { data: status, isLoading } = useQuery<SubscriptionStatus>({ queryKey: ["/api/subscription/status"] });
 

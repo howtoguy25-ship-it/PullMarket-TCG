@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { PRO_SUBSCRIPTION_LOOKUP_KEY, PRO_SUBSCRIPTION_PRICE_CENTS } from "@shared/validation";
+import { PRO_SUBSCRIPTION_LOOKUP_KEY, PRO_SUBSCRIPTION_PRICE_CENTS, REMOVE_ADS_LOOKUP_KEY, REMOVE_ADS_PRICE_CENTS } from "@shared/validation";
 
 let stripeClient: Stripe | null = null;
 
@@ -53,4 +53,28 @@ export async function getOrCreateProPriceId(): Promise<string> {
   });
   cachedProPriceId = price.id;
   return cachedProPriceId;
+}
+
+// Remove Ads — a one-time $39.99 Price (no `recurring` block), same
+// find-or-create-by-lookup_key pattern as the Pro Price above.
+let cachedRemoveAdsPriceId: string | null = null;
+export async function getOrCreateRemoveAdsPriceId(): Promise<string> {
+  if (cachedRemoveAdsPriceId) return cachedRemoveAdsPriceId;
+  const stripe = getStripe();
+
+  const existing = await stripe.prices.list({ lookup_keys: [REMOVE_ADS_LOOKUP_KEY], active: true, limit: 1 });
+  if (existing.data[0]) {
+    cachedRemoveAdsPriceId = existing.data[0].id;
+    return cachedRemoveAdsPriceId;
+  }
+
+  const product = await stripe.products.create({ name: "PullMarket — Remove Ads", description: "Removes banner and app-open ads for this account, permanently." });
+  const price = await stripe.prices.create({
+    product: product.id,
+    currency: "usd",
+    unit_amount: REMOVE_ADS_PRICE_CENTS,
+    lookup_key: REMOVE_ADS_LOOKUP_KEY,
+  });
+  cachedRemoveAdsPriceId = price.id;
+  return cachedRemoveAdsPriceId;
 }

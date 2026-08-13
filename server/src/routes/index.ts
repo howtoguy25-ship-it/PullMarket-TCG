@@ -17,6 +17,7 @@ import blocksRoutes from "./blocks";
 import subscriptionRoutes from "./subscription";
 import followsRoutes from "./follows";
 import appleNotificationsRoutes from "./appleNotifications";
+import adsRoutes from "./ads";
 import chatRoutes from "./chat";
 import pricesRoutes from "./prices";
 import { UPLOAD_DIR_PATH } from "../lib/upload";
@@ -47,6 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/follows", followsRoutes);
   // No authenticateToken — Apple calls this directly (see appleNotifications.ts).
   app.use("/api/apple", appleNotificationsRoutes);
+  app.use("/api/ads", adsRoutes);
   app.use("/api/chat", chatRoutes);
   app.use("/api/prices", pricesRoutes);
 

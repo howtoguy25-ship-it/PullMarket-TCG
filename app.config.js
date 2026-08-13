@@ -7,9 +7,19 @@ function iosClientIdToUrlScheme(iosClientId) {
   return `com.googleusercontent.apps.${iosClientId.slice(0, -suffix.length)}`;
 }
 
+// Google's own official public test App IDs — used as the default so the
+// app builds and shows real (test) ads out of the box before real AdMob
+// App IDs are configured, instead of crashing the native Ads SDK init on
+// an empty/invalid App ID. See developers.google.com/admob/ios/test-ads
+// and developers.google.com/admob/android/test-ads.
+const ADMOB_TEST_IOS_APP_ID = "ca-app-pub-3940256099942544~1458002511";
+const ADMOB_TEST_ANDROID_APP_ID = "ca-app-pub-3940256099942544~3347511713";
+
 module.exports = () => {
   const googleIosClientId = process.env.GOOGLE_IOS_CLIENT_ID || "";
   const googleIosUrlScheme = googleIosClientId ? iosClientIdToUrlScheme(googleIosClientId) : null;
+  const admobIosAppId = process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID || ADMOB_TEST_IOS_APP_ID;
+  const admobAndroidAppId = process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID || ADMOB_TEST_ANDROID_APP_ID;
 
   return {
     expo: {
@@ -120,6 +130,24 @@ module.exports = () => {
         // getConfig — this is a real bug in the plugin, not a config
         // mistake here).
         ["@stripe/stripe-react-native", {}],
+        // Real App Tracking Transparency prompt (iOS 14.5+) — required
+        // before requesting the IDFA that personalized AdMob ads use.
+        // Declining just means AdMob falls back to non-personalized ads;
+        // the app works identically either way.
+        "expo-tracking-transparency",
+        // Real AdMob ads (App Open + Banner — see lib/ads.ts). App IDs
+        // default to Google's own public test IDs (above) until real ones
+        // are configured, so the app always builds and shows working
+        // (test) ads rather than crashing on an invalid App ID.
+        [
+          "react-native-google-mobile-ads",
+          {
+            iosAppId: admobIosAppId,
+            androidAppId: admobAndroidAppId,
+            userTrackingUsageDescription: "PullMarket uses this to show you more relevant ads. You can decline and still use the app normally.",
+            skAdNetworkItems: ["cstr6suwn9.skadnetwork"],
+          },
+        ],
       ],
       extra: {
         API_URL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:5050",
@@ -141,6 +169,16 @@ module.exports = () => {
         // purchase button from ever appearing rather than trying to buy a
         // product that doesn't exist.
         APPLE_IAP_PRODUCT_ID: process.env.EXPO_PUBLIC_APPLE_IAP_PRODUCT_ID || "",
+        // Remove Ads — a separate one-time (non-consumable) IAP product.
+        APPLE_IAP_REMOVE_ADS_PRODUCT_ID: process.env.EXPO_PUBLIC_APPLE_IAP_REMOVE_ADS_PRODUCT_ID || "",
+        // Real AdMob ad unit IDs (see lib/ads.ts) — each falls back to
+        // Google's own public test unit ID for that ad format/platform
+        // (TestIds from react-native-google-mobile-ads) when unset, so
+        // ads work for real in every build before real units are wired up.
+        ADMOB_APP_OPEN_UNIT_ID_IOS: process.env.EXPO_PUBLIC_ADMOB_APP_OPEN_UNIT_ID_IOS || "",
+        ADMOB_APP_OPEN_UNIT_ID_ANDROID: process.env.EXPO_PUBLIC_ADMOB_APP_OPEN_UNIT_ID_ANDROID || "",
+        ADMOB_BANNER_UNIT_ID_IOS: process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID_IOS || "",
+        ADMOB_BANNER_UNIT_ID_ANDROID: process.env.EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID_ANDROID || "",
         OWNER_PHONE_NUMBER: process.env.OWNER_PHONE_NUMBER || "+61474011265",
         eas: {
           projectId: "05a0dc7c-a7bb-472f-8260-671880a5b3e7",

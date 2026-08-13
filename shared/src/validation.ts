@@ -4,6 +4,9 @@ export const PRO_SUBSCRIPTION_PRICE_CENTS = 1999; // $19.99/mo
 export const PRO_SUBSCRIPTION_LOOKUP_KEY = "pullmarket_pro_monthly";
 export const PRO_LISTING_BOOST_HOURS = 48;
 
+export const REMOVE_ADS_PRICE_CENTS = 3999; // $39.99 one-time
+export const REMOVE_ADS_LOOKUP_KEY = "pullmarket_remove_ads";
+
 /**
  * Single source of truth for "is this user's Pro membership currently
  * active" — used both server-side (gating follow/boost/search-ranking) and

@@ -20,6 +20,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AmbientSoundProvider } from "@/contexts/AmbientSoundContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { CallOverlay } from "@/components/CallOverlay";
+import { AppOpenAdManager } from "@/components/AppOpenAdManager";
 import { RootNavigator } from "@/navigation/RootNavigator";
 import { applyPendingUpdate } from "@/lib/autoUpdate";
 
@@ -77,6 +78,7 @@ export default function App() {
                 <StatusBar style="dark" />
                 <RootNavigator />
                 <CallOverlay />
+                <AppOpenAdManager />
               </CallProvider>
             </AmbientSoundProvider>
           </AuthProvider>

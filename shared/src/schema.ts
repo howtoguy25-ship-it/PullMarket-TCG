@@ -63,6 +63,15 @@ export const users = pgTable(
     // which changes every renewal).
     proAppleOriginalTransactionId: text("pro_apple_original_transaction_id"),
 
+    // Remove Ads — a one-time $39.99 purchase (not recurring, so no period
+    // fields needed). Same dual-billing-system shape as the Pro fields
+    // above and for the same reason: Stripe on web, real Apple IAP
+    // (non-consumable) on iOS.
+    adsRemoved: boolean("ads_removed").notNull().default(false),
+    adsRemovedSource: text("ads_removed_source"), // 'stripe' | 'apple', null when adsRemoved is false
+    adsRemovedStripePaymentIntentId: text("ads_removed_stripe_payment_intent_id"),
+    adsRemovedAppleOriginalTransactionId: text("ads_removed_apple_original_transaction_id"),
+
     isOwner: boolean("is_owner").default(false),
     isSuspended: boolean("is_suspended").default(false),
     suspendedAt: timestamp("suspended_at"),
