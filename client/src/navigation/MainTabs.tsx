@@ -1,6 +1,7 @@
 import React from "react";
 import { Keyboard } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Colors, Fonts } from "@/constants/theme";
@@ -33,6 +34,7 @@ function useUnreadMessageCount() {
 
 export function MainTabs() {
   const unreadMessages = useUnreadMessageCount();
+  const insets = useSafeAreaInsets();
 
   return (
     <Tab.Navigator
@@ -45,8 +47,13 @@ export function MainTabs() {
         tabBarInactiveTintColor: Colors.textMuted,
         tabBarIcon: ({ color, size }) => <Feather name={ICONS[route.name as keyof MainTabsParamList]} size={size} color={color} />,
         tabBarLabelStyle: { fontFamily: Fonts.bodySemiBold, fontSize: 11, marginTop: 2 },
-        tabBarItemStyle: { paddingTop: 4 },
-        tabBarStyle: { borderTopColor: Colors.gold, borderTopWidth: 2, height: 60 },
+        tabBarItemStyle: { paddingTop: 4, paddingBottom: 2 },
+        // A hardcoded height wasn't reliably getting the home-indicator
+        // safe-area inset added on top of it on real iOS devices — labels
+        // ended up sliced off at the very bottom of the screen. Computing
+        // the height and padding from the actual inset explicitly removes
+        // any doubt about what the library does by default.
+        tabBarStyle: { borderTopColor: Colors.gold, borderTopWidth: 2, height: 56 + insets.bottom, paddingBottom: insets.bottom },
         tabBarBadge: route.name === "Messages" && unreadMessages > 0 ? (unreadMessages > 9 ? "9+" : unreadMessages) : undefined,
         tabBarBadgeStyle: { backgroundColor: Colors.primary, fontSize: 10, fontFamily: Fonts.bodyBold },
       })}

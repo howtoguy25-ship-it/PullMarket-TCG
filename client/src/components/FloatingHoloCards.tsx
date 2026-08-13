@@ -18,11 +18,14 @@ interface CardSpec {
 }
 
 // Fixed layout (not re-randomized per render) so cards don't jump around on
-// re-render — six original, non-infringing holo-card graphics (a colored
-// gradient panel + franchise label, same idea as RotatingHoloCard but small
-// and numerous) scattered as pure background texture. Positions are
-// percentages of the viewport so they scale across phones without needing
-// per-screen-size tuning.
+// re-render — non-infringing holo-card graphics (a colored gradient panel +
+// franchise label, same idea as RotatingHoloCard but small and numerous)
+// scattered as pure background texture. Positions are percentages of the
+// viewport so they scale across phones without needing per-screen-size
+// tuning. Spread across the whole screen (not just the top) since the real
+// content — search bar, franchise tabs, listing grid — sits in translucent
+// panels above this layer, leaving plenty of open galaxy visible around and
+// below them for more cards to show through.
 const CARD_SPECS: CardSpec[] = [
   { label: "POKÉMON", colors: ["#38BDF8", "#2563EB", "#1E3A8A"], top: 0.06, left: 0.06, size: 64, spinDuration: 6000, spinDelay: 0, bobDuration: 2400, rotateDirection: 1 },
   { label: "ONE PIECE", colors: ["#F97316", "#DC2626", "#7C2D12"], top: 0.1, left: 0.72, size: 56, spinDuration: 7200, spinDelay: 400, bobDuration: 2800, rotateDirection: -1 },
@@ -30,6 +33,13 @@ const CARD_SPECS: CardSpec[] = [
   { label: "ONE PIECE", colors: ["#FBBF24", "#DC2626", "#7C2D12"], top: 0.34, left: 0.1, size: 58, spinDuration: 8000, spinDelay: 200, bobDuration: 3200, rotateDirection: -1 },
   { label: "POKÉMON", colors: ["#A855F7", "#7C3AED", "#4C1D95"], top: 0.4, left: 0.78, size: 50, spinDuration: 6600, spinDelay: 1200, bobDuration: 2600, rotateDirection: 1 },
   { label: "ONE PIECE", colors: ["#F43F5E", "#DB2777", "#831843"], top: 0.16, left: 0.28, size: 44, spinDuration: 5000, spinDelay: 600, bobDuration: 1800, rotateDirection: -1 },
+  { label: "POKÉMON", colors: ["#34D399", "#059669", "#065F46"], top: 0.5, left: 0.14, size: 52, spinDuration: 7000, spinDelay: 1500, bobDuration: 2700, rotateDirection: -1 },
+  { label: "ONE PIECE", colors: ["#FB923C", "#EA580C", "#7C2D12"], top: 0.55, left: 0.62, size: 60, spinDuration: 6200, spinDelay: 300, bobDuration: 3000, rotateDirection: 1 },
+  { label: "POKÉMON", colors: ["#60A5FA", "#3B82F6", "#1E40AF"], top: 0.64, left: 0.32, size: 46, spinDuration: 5800, spinDelay: 1100, bobDuration: 2200, rotateDirection: 1 },
+  { label: "ONE PIECE", colors: ["#F472B6", "#DB2777", "#831843"], top: 0.7, left: 0.8, size: 54, spinDuration: 6800, spinDelay: 700, bobDuration: 2900, rotateDirection: -1 },
+  { label: "POKÉMON", colors: ["#FDE047", "#EAB308", "#854D0E"], top: 0.78, left: 0.06, size: 50, spinDuration: 5600, spinDelay: 1400, bobDuration: 2500, rotateDirection: -1 },
+  { label: "ONE PIECE", colors: ["#C084FC", "#9333EA", "#581C87"], top: 0.84, left: 0.5, size: 58, spinDuration: 7400, spinDelay: 500, bobDuration: 3100, rotateDirection: 1 },
+  { label: "POKÉMON", colors: ["#F87171", "#DC2626", "#7F1D1D"], top: 0.9, left: 0.75, size: 44, spinDuration: 5200, spinDelay: 1000, bobDuration: 2000, rotateDirection: 1 },
 ];
 
 function MiniHoloCard({ spec }: { spec: CardSpec }) {
