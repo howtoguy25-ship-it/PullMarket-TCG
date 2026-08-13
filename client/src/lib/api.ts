@@ -113,3 +113,16 @@ export async function apiJson<T>(method: string, path: string, body?: unknown, o
   const res = await apiRequest(method, path, body, optionsOrIsFormData);
   return res.json();
 }
+
+// Turns any error a mutation can throw into one line with enough in it to
+// diagnose without server logs: the server's own message, plus the HTTP
+// status (or "network" for a fetch-level failure) so "couldn't do the
+// thing" never has to mean guessing whether that was a 401, a 404, a 500,
+// or the phone never reaching the server at all.
+export function describeApiError(err: unknown): string {
+  if (err instanceof ApiError) {
+    const where = err.status === 0 ? "network" : `HTTP ${err.status}`;
+    return `${err.message} (${where})`;
+  }
+  return err instanceof Error ? err.message : "Please try again.";
+}

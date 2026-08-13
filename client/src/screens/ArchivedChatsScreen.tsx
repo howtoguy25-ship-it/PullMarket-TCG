@@ -12,7 +12,7 @@ import { Avatar } from "@/components/Avatar";
 import { ChatSwipeRow } from "@/components/ChatSwipeRow";
 import { MuteDurationSheet, MuteChoice } from "@/components/MuteDurationSheet";
 import { RootStackParamList } from "@/navigation/types";
-import { apiJson, apiRequest, ApiError } from "@/lib/api";
+import { apiJson, apiRequest, describeApiError } from "@/lib/api";
 import { timeAgoShort } from "@/lib/timeAgo";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -71,17 +71,17 @@ export default function ArchivedChatsScreen() {
   const muteMutation = useMutation({
     mutationFn: ({ id, choice }: { id: string; choice: MuteChoice }) => apiJson("POST", `/api/chat/conversations/${id}/mute`, choice),
     onSuccess: invalidate,
-    onError: (err) => showAlert("Couldn't update mute", err instanceof ApiError ? err.message : "Please try again."),
+    onError: (err) => showAlert("Couldn't update mute", describeApiError(err)),
   });
   const unarchiveMutation = useMutation({
     mutationFn: (id: string) => apiJson("POST", `/api/chat/conversations/${id}/unarchive`),
     onSuccess: invalidate,
-    onError: (err) => showAlert("Couldn't unarchive", err instanceof ApiError ? err.message : "Please try again."),
+    onError: (err) => showAlert("Couldn't unarchive", describeApiError(err)),
   });
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiRequest("DELETE", `/api/chat/conversations/${id}`),
     onSuccess: invalidate,
-    onError: (err) => showAlert("Couldn't delete", err instanceof ApiError ? err.message : "Please try again."),
+    onError: (err) => showAlert("Couldn't delete", describeApiError(err)),
   });
 
   const handleDelete = async (row: ConversationRow) => {
