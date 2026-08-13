@@ -25,6 +25,7 @@ export GOOGLE_IOS_CLIENT_ID="878738587499-tpejf58kvvkjik0bjc9b8o64fqgkb0hd.apps.
 export EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_live_51U2mdu2f6K1SHrtxXbmx0a9z0zqDJk6MUprjIIQllIInTI55O4sraHPlGP5xjn7h0aq2pOgj9ojNSYWhwPGkenG900fvImHCoJ"
 export EXPO_PUBLIC_ADMOB_IOS_APP_ID="ca-app-pub-6423632749110820~9022361895"
 export EXPO_PUBLIC_ADMOB_BANNER_UNIT_ID_IOS="ca-app-pub-6423632749110820/1487290684"
+export EXPO_PUBLIC_ADMOB_APP_OPEN_UNIT_ID_IOS="ca-app-pub-6423632749110820/2756336446"
 
 MESSAGE="${1:-Production update}"
 npx eas-cli update --branch production --message "$MESSAGE" --non-interactive
