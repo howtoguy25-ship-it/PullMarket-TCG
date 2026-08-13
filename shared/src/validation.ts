@@ -28,6 +28,11 @@ export const COURIER_LABELS: Record<string, string> = {
   dhl: "DHL",
   fedex: "FedEx",
   other: "Other / local courier",
+  // Third-party sellers shipping via a courier outside the fixed list —
+  // the seller names the business and Claude checks the tracking number's
+  // format is actually consistent with it (see lib/carrierDetection.ts on
+  // the server). Distinct from plain "other", which has no such check.
+  custom: "Custom tracking (AI-verified)",
 };
 
 export const COURIER_PATTERNS: Record<string, RegExp> = {

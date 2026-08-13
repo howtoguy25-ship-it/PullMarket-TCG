@@ -52,6 +52,10 @@ interface OrderDetail {
   courier: string | null;
   trackingNumber: string | null;
   boxSizeLabel: string | null;
+  customBusinessDeclared: string | null;
+  customBusinessDetected: string | null;
+  customTrackingVerified: boolean | null;
+  customTrackingNote: string | null;
   shippingDeadline: string | null;
   shippedAt: string | null;
   shippingName: string | null;
@@ -82,9 +86,16 @@ export default function OrderDetailScreen() {
   const [courier, setCourier] = useState("other");
   const [trackingNumber, setTrackingNumber] = useState("");
   const [boxSize, setBoxSize] = useState("");
+  const [customBusiness, setCustomBusiness] = useState("");
 
   const shipMutation = useMutation({
-    mutationFn: () => apiJson("POST", `/api/orders/${orderId}/ship`, { courier, trackingNumber, boxSizeLabel: boxSize || undefined }),
+    mutationFn: () =>
+      apiJson("POST", `/api/orders/${orderId}/ship`, {
+        courier,
+        trackingNumber,
+        boxSizeLabel: boxSize || undefined,
+        customBusinessDeclared: courier === "custom" ? customBusiness : undefined,
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/orders/${orderId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/orders/mine"] });
@@ -120,7 +131,12 @@ export default function OrderDetailScreen() {
 
   const isSeller = user?.id === order.seller?.id;
   const isBuyer = user?.id === order.buyer?.id;
-  const trackingLooksValid = trackingNumber.trim().length > 0 && isValidTrackingNumber(courier, trackingNumber);
+  // "Custom" can't be format-checked client-side — Claude verifies it
+  // server-side against the declared business when the order is shipped.
+  const trackingLooksValid =
+    courier === "custom"
+      ? trackingNumber.trim().length >= 4 && customBusiness.trim().length > 0
+      : trackingNumber.trim().length > 0 && isValidTrackingNumber(courier, trackingNumber);
 
   const handleRefund = async () => {
     const reason = await promptText("Why are you requesting a refund?", "This helps the seller and our team review it.");
@@ -161,9 +177,17 @@ export default function OrderDetailScreen() {
         <View style={styles.trackingCard}>
           <Feather name="truck" size={18} color={Colors.secondary} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.trackingCourier}>{COURIER_LABELS[order.courier ?? "other"]}</Text>
+            <Text style={styles.trackingCourier}>
+              {order.courier === "custom" ? `Custom · ${order.customBusinessDeclared ?? "Third-party"}` : COURIER_LABELS[order.courier ?? "other"]}
+            </Text>
             <Text style={styles.trackingNumber}>{order.trackingNumber}</Text>
             {order.boxSizeLabel ? <Text style={styles.trackingMeta}>Box: {order.boxSizeLabel}</Text> : null}
+            {order.courier === "custom" && order.customTrackingNote ? (
+              <View style={styles.customNoteBox}>
+                <Feather name="info" size={11} color={Colors.textMuted} />
+                <Text style={styles.customNoteText}>{order.customTrackingNote}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
       ) : null}
@@ -198,11 +222,28 @@ export default function OrderDetailScreen() {
             ))}
           </View>
 
+          {courier === "custom" ? (
+            <>
+              <Text style={styles.fieldLabel}>Shipping from which business? (required)</Text>
+              <Text style={styles.helper}>
+                For third-party shipping (a courier not listed above). AI checks the tracking number's format actually matches this business before you can ship.
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Sendle, China Post, Yun Express…"
+                placeholderTextColor={Colors.textMuted}
+                value={customBusiness}
+                onChangeText={setCustomBusiness}
+              />
+            </>
+          ) : null}
+
           <Text style={styles.fieldLabel}>Tracking number (required)</Text>
           <TextInput style={styles.input} placeholder="e.g. 1234567890" placeholderTextColor={Colors.textMuted} value={trackingNumber} onChangeText={setTrackingNumber} autoCapitalize="characters" />
-          {trackingNumber.length > 0 && !trackingLooksValid ? (
+          {courier !== "custom" && trackingNumber.length > 0 && !trackingLooksValid ? (
             <Text style={styles.errorText}>That doesn't look like a valid {COURIER_LABELS[courier]} tracking number.</Text>
           ) : null}
+          {courier === "custom" && trackingLooksValid ? <Text style={styles.helper}>AI will verify this matches "{customBusiness}" when you mark as shipped.</Text> : null}
 
           <Text style={styles.fieldLabel}>Box size (optional)</Text>
           <TextInput style={styles.input} placeholder="e.g. Small satchel" placeholderTextColor={Colors.textMuted} value={boxSize} onChangeText={setBoxSize} />
@@ -244,6 +285,8 @@ const styles = StyleSheet.create({
   trackingCourier: { ...Typography.small, color: Colors.secondary, fontWeight: "700" },
   trackingNumber: { ...Typography.bodyBold, color: Colors.text },
   trackingMeta: { ...Typography.small, color: Colors.textSecondary },
+  customNoteBox: { flexDirection: "row", alignItems: "flex-start", gap: 5, marginTop: Spacing.xs },
+  customNoteText: { fontSize: 11, color: Colors.textMuted, flex: 1, lineHeight: 15 },
   addressCard: { flexDirection: "row", gap: Spacing.sm, backgroundColor: Colors.surfaceAlt, padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.lg, alignItems: "flex-start" },
   addressName: { ...Typography.bodyBold, color: Colors.text, marginBottom: 2 },
   addressLine: { ...Typography.small, color: Colors.textSecondary },

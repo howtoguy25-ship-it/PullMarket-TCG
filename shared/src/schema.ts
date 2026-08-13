@@ -203,7 +203,7 @@ export const ORDER_STATUSES = [
   "refunded",
   "cancelled",
 ] as const;
-export const COURIERS = ["australia_post", "dhl", "fedex", "other"] as const;
+export const COURIERS = ["australia_post", "dhl", "fedex", "other", "custom"] as const;
 
 export const orders = pgTable(
   "orders",
@@ -226,6 +226,19 @@ export const orders = pgTable(
     courier: text("courier"), // one of COURIERS, nullable until seller ships
     trackingNumber: text("tracking_number"),
     boxSizeLabel: text("box_size_label"), // 'small' | 'medium' | 'large' | free text
+
+    // "Custom tracking" (courier === "custom"): for third-party sellers
+    // shipping via a courier not in the fixed list. The seller declares
+    // which business it's from; Claude checks whether the tracking
+    // number's format is actually consistent with that declared business
+    // and the result is stored as a disclosed note — this is AI pattern
+    // matching against known tracking-number formats, not a live carrier
+    // API lookup, same honesty caveat as the format-only regex checks for
+    // the fixed couriers (see lib/carrierDetection.ts).
+    customBusinessDeclared: text("custom_business_declared"),
+    customBusinessDetected: text("custom_business_detected"),
+    customTrackingVerified: boolean("custom_tracking_verified"),
+    customTrackingNote: text("custom_tracking_note"),
 
     // Buyer's delivery address — collected by Stripe Checkout itself
     // (shipping_address_collection) and copied over from the completed

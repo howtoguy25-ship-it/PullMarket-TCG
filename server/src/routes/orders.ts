@@ -8,9 +8,70 @@ import { authenticateToken } from "../middleware/auth";
 import { isValidTrackingNumber } from "@shared/validation";
 import { getStripe, isStripeConfigured } from "../lib/stripeClient";
 import { notifyUser } from "../lib/notify";
+import { detectCarrier, isCarrierDetectionConfigured } from "../lib/carrierDetection";
 
 const router = Router();
 router.use(authenticateToken);
+
+type Courier = (typeof COURIERS)[number];
+
+interface TrackingFields {
+  courier: Courier;
+  trackingNumber: string;
+  customBusinessDeclared: string | null;
+  customBusinessDetected: string | null;
+  customTrackingVerified: boolean | null;
+  customTrackingNote: string | null;
+}
+
+type TrackingResolution = { ok: true; data: TrackingFields } | { ok: false; status: number; message: string };
+
+// Shared by PATCH /:id/tracking and POST /:id/ship — the fixed couriers
+// (Australia Post/DHL/FedEx/other) keep using regex format validation;
+// "custom" routes through Claude to check the tracking number's format is
+// actually consistent with the business the seller says it's from (see
+// lib/carrierDetection.ts for what this can and can't confirm).
+async function resolveTracking(courier: Courier, trackingNumber: string, customBusinessDeclared: string | undefined): Promise<TrackingResolution> {
+  if (courier === "custom") {
+    const declared = (customBusinessDeclared ?? "").trim();
+    if (!declared) {
+      return { ok: false, status: 400, message: "For custom tracking, enter which business/courier this tracking number is from." };
+    }
+    if (!isCarrierDetectionConfigured()) {
+      return { ok: false, status: 503, message: "Custom tracking isn't configured yet. Set ANTHROPIC_API_KEY (see .env.example)." };
+    }
+    const result = await detectCarrier(trackingNumber, declared);
+    if (!result) {
+      return { ok: false, status: 502, message: "Couldn't verify this tracking number right now — try again shortly." };
+    }
+    if (!result.matchesDeclared) {
+      return {
+        ok: false,
+        status: 400,
+        message: `That tracking number doesn't look like it's really from "${declared}" (AI thinks it's more likely ${result.detectedBusiness}). Double-check the business name and number, or pick a different courier.`,
+      };
+    }
+    return {
+      ok: true,
+      data: {
+        courier,
+        trackingNumber: trackingNumber.trim(),
+        customBusinessDeclared: declared,
+        customBusinessDetected: result.detectedBusiness,
+        customTrackingVerified: true,
+        customTrackingNote: `AI-verified custom tracking via ${declared} (confidence: ${result.confidence}). ${result.reasoning} Note: this is an AI format check, not a live carrier lookup.`,
+      },
+    };
+  }
+
+  if (!isValidTrackingNumber(courier, trackingNumber)) {
+    return { ok: false, status: 400, message: `That doesn't look like a real ${courier} tracking number. Double-check and try again.` };
+  }
+  return {
+    ok: true,
+    data: { courier, trackingNumber: trackingNumber.trim(), customBusinessDeclared: null, customBusinessDetected: null, customTrackingVerified: null, customTrackingNote: null },
+  };
+}
 
 async function withItemsAndParties(orderRows: (typeof orders.$inferSelect)[]) {
   if (orderRows.length === 0) return [];
@@ -69,6 +130,7 @@ router.patch("/:id/tracking", async (req, res) => {
     courier: z.enum(COURIERS).optional(),
     trackingNumber: z.string().min(1),
     boxSizeLabel: z.string().max(60).optional(),
+    customBusinessDeclared: z.string().max(120).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
@@ -79,13 +141,12 @@ router.patch("/:id/tracking", async (req, res) => {
   if (order.status === "refunded" || order.status === "cancelled") return res.status(400).json({ message: "This order can't be updated" });
 
   const courier = parsed.data.courier ?? "other";
-  if (!isValidTrackingNumber(courier, parsed.data.trackingNumber)) {
-    return res.status(400).json({ message: `That doesn't look like a real ${courier} tracking number. Double-check and try again.` });
-  }
+  const resolved = await resolveTracking(courier, parsed.data.trackingNumber, parsed.data.customBusinessDeclared);
+  if (!resolved.ok) return res.status(resolved.status).json({ message: resolved.message });
 
   const [updated] = await db
     .update(orders)
-    .set({ courier, trackingNumber: parsed.data.trackingNumber.trim(), boxSizeLabel: parsed.data.boxSizeLabel, updatedAt: new Date() })
+    .set({ ...resolved.data, boxSizeLabel: parsed.data.boxSizeLabel, updatedAt: new Date() })
     .where(eq(orders.id, order.id))
     .returning();
 
@@ -98,6 +159,7 @@ router.post("/:id/ship", async (req, res) => {
     courier: z.enum(COURIERS).optional(),
     trackingNumber: z.string().min(1).optional(),
     boxSizeLabel: z.string().max(60).optional(),
+    customBusinessDeclared: z.string().max(120).optional(),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
@@ -108,21 +170,20 @@ router.post("/:id/ship", async (req, res) => {
   if (order.status !== "paid") return res.status(400).json({ message: "Only a paid, unshipped order can be marked shipped" });
 
   const trackingNumber = (parsed.data.trackingNumber ?? order.trackingNumber ?? "").trim();
-  const courier = parsed.data.courier ?? (order.courier as (typeof COURIERS)[number] | null) ?? "other";
+  const courier = parsed.data.courier ?? (order.courier as Courier | null) ?? "other";
+  const customBusinessDeclared = parsed.data.customBusinessDeclared ?? order.customBusinessDeclared ?? undefined;
 
   if (!trackingNumber) {
     return res.status(400).json({ message: "A tracking number is required before you can mark this order as shipped." });
   }
-  if (!isValidTrackingNumber(courier, trackingNumber)) {
-    return res.status(400).json({ message: `That doesn't look like a real ${courier} tracking number. Double-check and try again.` });
-  }
+  const resolved = await resolveTracking(courier, trackingNumber, customBusinessDeclared);
+  if (!resolved.ok) return res.status(resolved.status).json({ message: resolved.message });
 
   const [updated] = await db
     .update(orders)
     .set({
       status: "shipped",
-      courier,
-      trackingNumber,
+      ...resolved.data,
       boxSizeLabel: parsed.data.boxSizeLabel ?? order.boxSizeLabel,
       shippedAt: new Date(),
       updatedAt: new Date(),
@@ -133,7 +194,10 @@ router.post("/:id/ship", async (req, res) => {
   await notifyUser(order.buyerId, {
     type: "shipped",
     title: "Your order has shipped!",
-    body: `Tracking: ${trackingNumber} (${courier.replace("_", " ")}). Expect delivery in 1-5 business days.`,
+    body:
+      courier === "custom"
+        ? `Tracking: ${trackingNumber} (${resolved.data.customBusinessDetected}). Delivery times vary for third-party shipping.`
+        : `Tracking: ${trackingNumber} (${courier.replace("_", " ")}). Expect delivery in 1-5 business days.`,
     data: { orderId: order.id, courier, trackingNumber },
   });
 
