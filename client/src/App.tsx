@@ -22,7 +22,7 @@ import { CallProvider } from "@/contexts/CallContext";
 import { CallOverlay } from "@/components/CallOverlay";
 import { AppOpenAdManager } from "@/components/AppOpenAdManager";
 import { RootNavigator } from "@/navigation/RootNavigator";
-import { applyPendingUpdate } from "@/lib/autoUpdate";
+import { applyPendingUpdate, watchForUpdatesOnForeground } from "@/lib/autoUpdate";
 
 // Best-effort — if this fails for some reason the app must still start, so
 // every call site here is fire-and-forget with its own catch.
@@ -49,6 +49,7 @@ export default function App() {
 
   useEffect(() => {
     void applyPendingUpdate();
+    return watchForUpdatesOnForeground();
   }, []);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 
 /**
  * expo-updates' default behavior only checks for a new OTA update in the
@@ -27,4 +27,24 @@ export async function applyPendingUpdate(): Promise<void> {
     // running, same as before this existed.
     console.warn("[autoUpdate] Update check failed:", err);
   }
+}
+
+/**
+ * Backgrounding an app (home button, app switcher) suspends its process
+ * without tearing down the JS engine — App.tsx's mount effect (which runs
+ * applyPendingUpdate above) never re-fires, so a user who only ever
+ * backgrounds/foregrounds the app instead of a true force-quit can stay on
+ * stale JS indefinitely even though a newer update has already been
+ * published. Re-checking on every return-to-foreground closes that gap
+ * without requiring the user to know the difference between "switched
+ * away" and "force-quit". Call once near app startup; returns an unsubscribe.
+ */
+export function watchForUpdatesOnForeground(): () => void {
+  if (Platform.OS === "web") return () => {};
+  let previous = AppState.currentState;
+  const sub = AppState.addEventListener("change", (next) => {
+    if (previous.match(/inactive|background/) && next === "active") void applyPendingUpdate();
+    previous = next;
+  });
+  return () => sub.remove();
 }
