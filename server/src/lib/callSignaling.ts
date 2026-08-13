@@ -20,7 +20,7 @@ import { notifyUser } from "./notify";
 const RING_TIMEOUT_MS = 45_000;
 
 type ClientMessage =
-  | { type: "invite"; conversationId: string; calleeId: string; sdp: unknown }
+  | { type: "invite"; conversationId: string; calleeId: string; sdp: unknown; isVideo?: boolean }
   | { type: "answer"; callId: string; sdp: unknown }
   | { type: "decline"; callId: string }
   | { type: "end"; callId: string }
@@ -82,21 +82,23 @@ export function setupCallSignaling(server: HttpServer): void {
           if (msg.calleeId !== convo.userAId && msg.calleeId !== convo.userBId) return;
 
           const [caller] = await db.select({ id: users.id, username: users.username, displayName: users.displayName, avatarUrl: users.avatarUrl }).from(users).where(eq(users.id, userId));
-          const [call] = await db.insert(calls).values({ conversationId: convo.id, callerId: userId, calleeId: msg.calleeId, status: "ringing" }).returning();
+          const isVideo = !!msg.isVideo;
+          const [call] = await db.insert(calls).values({ conversationId: convo.id, callerId: userId, calleeId: msg.calleeId, status: "ringing", isVideo }).returning();
           activeCalls.set(call.id, { callerId: userId, calleeId: msg.calleeId });
 
           send(userId, { type: "invited", callId: call.id });
-          send(msg.calleeId, { type: "incoming", callId: call.id, conversationId: convo.id, sdp: msg.sdp, caller });
+          send(msg.calleeId, { type: "incoming", callId: call.id, conversationId: convo.id, sdp: msg.sdp, caller, isVideo });
 
           // Always fires — the callee may not have this WebSocket open
           // (app backgrounded/killed), so the push notification is the
           // real "someone's calling you" signal in that case, not the
           // "incoming" WS message above.
+          const callKind = isVideo ? "video calling" : "calling";
           void notifyUser(msg.calleeId, {
             type: "incoming_call",
-            title: `Incoming call`,
-            body: caller?.displayName || caller?.username ? `${caller.displayName || caller.username} is calling you` : "You have an incoming call",
-            data: { callId: call.id, conversationId: convo.id, callerId: userId },
+            title: isVideo ? "Incoming video call" : "Incoming call",
+            body: caller?.displayName || caller?.username ? `${caller.displayName || caller.username} is ${callKind} you` : "You have an incoming call",
+            data: { callId: call.id, conversationId: convo.id, callerId: userId, isVideo },
           });
 
           ringTimeouts.set(

@@ -66,7 +66,7 @@ module.exports = () => {
         [
           "expo-camera",
           {
-            cameraPermission: "PullMarket needs camera access to scan and photograph cards you're listing for sale.",
+            cameraPermission: "PullMarket needs camera access to scan and photograph cards you're listing for sale, and for video calls in chat.",
           },
         ],
         [
@@ -101,12 +101,12 @@ module.exports = () => {
         // set — harmless to include the plugin either way, but the scheme is
         // required for Google's sign-in redirect to return to the app on iOS.
         ...(googleIosUrlScheme ? [["@react-native-google-signin/google-signin", { iosUrlScheme: googleIosUrlScheme }]] : []),
-        // In-app audio calling (see contexts/CallContext.tsx). Pinned to the
-        // Expo SDK 54-compatible release of this config plugin.
+        // In-app audio and video calling (see contexts/CallContext.tsx).
+        // Pinned to the Expo SDK 54-compatible release of this config plugin.
         [
           "@config-plugins/react-native-webrtc",
           {
-            microphonePermission: "PullMarket needs microphone access so you can make audio calls to other users in chat.",
+            microphonePermission: "PullMarket needs microphone access so you can make audio and video calls to other users in chat.",
           },
         ],
       ],

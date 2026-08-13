@@ -134,9 +134,14 @@ export default function ChatThreadScreen() {
                web build, so this simply doesn't render on web rather than
                show a button that can't work. */}
             {Platform.OS !== "web" && convo.status === "accepted" ? (
-              <Pressable hitSlop={8} style={{ paddingHorizontal: Spacing.sm }} onPress={() => void startCall(conversationId, convo.otherUser!)}>
-                <Feather name="phone" size={18} color={Colors.primary} />
-              </Pressable>
+              <>
+                <Pressable hitSlop={8} style={{ paddingHorizontal: Spacing.sm }} onPress={() => void startCall(conversationId, convo.otherUser!, false)}>
+                  <Feather name="phone" size={18} color={Colors.primary} />
+                </Pressable>
+                <Pressable hitSlop={8} style={{ paddingHorizontal: Spacing.sm }} onPress={() => void startCall(conversationId, convo.otherUser!, true)}>
+                  <Feather name="video" size={18} color={Colors.primary} />
+                </Pressable>
+              </>
             ) : null}
             <Pressable
               hitSlop={8}

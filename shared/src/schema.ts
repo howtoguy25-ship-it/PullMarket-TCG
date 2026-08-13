@@ -476,6 +476,7 @@ export const calls = pgTable(
     callerId: varchar("caller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     calleeId: varchar("callee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     status: text("status").notNull().default("ringing"), // one of CALL_STATUSES
+    isVideo: boolean("is_video").notNull().default(false),
     startedAt: timestamp("started_at").defaultNow(),
     answeredAt: timestamp("answered_at"),
     endedAt: timestamp("ended_at"),
