@@ -124,6 +124,13 @@ module.exports = () => {
       extra: {
         API_URL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:5050",
         STRIPE_PUBLISHABLE_KEY: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || "",
+        // Real address-search autocomplete in checkout (see AddressSheet in
+        // screens/CheckoutForm.native.tsx). iOS gets this for free from
+        // Apple's own on-device address completer — no key needed. Android
+        // needs a Google Places API key (Google Cloud Console → enable
+        // "Places API" → create a key); without it Android checkout still
+        // works, just without autocomplete suggestions while typing.
+        GOOGLE_PLACES_API_KEY: process.env.EXPO_PUBLIC_GOOGLE_PLACES_API_KEY || "",
         GOOGLE_WEB_CLIENT_ID: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || "",
         GOOGLE_IOS_CLIENT_ID: googleIosClientId,
         GOOGLE_ANDROID_CLIENT_ID: process.env.GOOGLE_ANDROID_CLIENT_ID || "",

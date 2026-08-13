@@ -10,7 +10,7 @@
 // react-native-webrtc and react-native-incall-manager elsewhere in the
 // calling feature).
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Text, ScrollView, TextInput, Pressable, Modal, Platform, Alert } from "react-native";
+import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -18,7 +18,8 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Constants from "expo-constants";
 import { Feather } from "@expo/vector-icons";
-import { CardField, useConfirmPayment, initStripe, CardFieldInput } from "@stripe/stripe-react-native";
+import { CardField, useConfirmPayment, initStripe, CardFieldInput, AddressSheet, AddressSheetError } from "@stripe/stripe-react-native";
+import type { AddressDetails } from "@stripe/stripe-react-native";
 import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
@@ -55,40 +56,6 @@ interface CartResponse {
   grandTotalCents: number;
 }
 
-function CountryPicker({ value, onChange }: { value: string; onChange: (code: string) => void }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <Pressable style={[styles.input, styles.countryField]} onPress={() => setOpen(true)}>
-        <Text style={styles.countryFieldText}>{SHIPPING_COUNTRY_LABELS[value] ?? value}</Text>
-        <Feather name="chevron-down" size={16} color={Colors.textMuted} />
-      </Pressable>
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Delivery country</Text>
-            <ScrollView style={{ maxHeight: 360 }}>
-              {SHIPPING_COUNTRIES.map((code) => (
-                <Pressable
-                  key={code}
-                  style={[styles.countryOption, value === code && styles.countryOptionActive]}
-                  onPress={() => {
-                    onChange(code);
-                    setOpen(false);
-                  }}
-                >
-                  <Text style={[styles.countryOptionText, value === code && { color: Colors.primary, fontWeight: "700" }]}>{SHIPPING_COUNTRY_LABELS[code] ?? code}</Text>
-                  {value === code ? <Feather name="check" size={16} color={Colors.primary} /> : null}
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        </Pressable>
-      </Modal>
-    </>
-  );
-}
-
 export default function CheckoutForm() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Rt>();
@@ -109,39 +76,33 @@ export default function CheckoutForm() {
   const { data: cart, isLoading } = useQuery<CartResponse>({ queryKey: ["/api/cart"] });
   const group = cart?.groups.find((g) => g.sellerId === sellerId);
 
-  const [name, setName] = useState("");
-  const [line1, setLine1] = useState("");
-  const [line2, setLine2] = useState("");
-  const [city, setCity] = useState("");
-  const [stateField, setStateField] = useState("");
-  const [postalCode, setPostalCode] = useState("");
-  const [country, setCountry] = useState("AU");
-  const [phone, setPhone] = useState("");
+  const [addressSheetVisible, setAddressSheetVisible] = useState(false);
+  const [address, setAddress] = useState<AddressDetails | null>(null);
   const [cardComplete, setCardComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const addressComplete = !!(name.trim() && line1.trim() && city.trim() && stateField.trim() && postalCode.trim() && phone.trim());
+  const addressComplete = !!(address?.name?.trim() && address.address?.line1?.trim() && address.address?.city?.trim() && address.address?.postalCode?.trim() && address.address?.country?.trim() && address.phone?.trim());
   const canPay = addressComplete && cardComplete && stripeReady && !!group;
 
   const handlePay = async () => {
-    if (!group) return;
+    if (!group || !address?.address) return;
     setSubmitting(true);
     try {
       const { orderId, clientSecret } = await apiJson<{ orderId: string; clientSecret: string }>("POST", "/api/checkout/intent", {
         sellerId,
-        shippingName: name.trim(),
-        shippingLine1: line1.trim(),
-        shippingLine2: line2.trim() || undefined,
-        shippingCity: city.trim(),
-        shippingState: stateField.trim(),
-        shippingPostalCode: postalCode.trim(),
-        shippingCountry: country,
-        shippingPhone: phone.trim(),
+        shippingName: address.name!.trim(),
+        shippingLine1: address.address.line1!.trim(),
+        shippingLine2: address.address.line2?.trim() || undefined,
+        shippingCity: address.address.city!.trim(),
+        shippingState: address.address.state?.trim() || "",
+        shippingPostalCode: address.address.postalCode!.trim(),
+        shippingCountry: address.address.country!,
+        shippingPhone: address.phone!.trim(),
       });
 
       const { error } = await confirmPayment(clientSecret, {
         paymentMethodType: "Card",
-        paymentMethodData: { billingDetails: { name: name.trim(), address: { country } } },
+        paymentMethodData: { billingDetails: { name: address.name!.trim(), address: { country: address.address.country } } },
       });
 
       if (error) {
@@ -173,28 +134,65 @@ export default function CheckoutForm() {
 
       <View style={[styles.card, Shadow.card]}>
         <Text style={styles.sectionTitle}>Delivery address</Text>
-        <TextInput style={styles.input} placeholder="Full name" placeholderTextColor={Colors.textMuted} value={name} onChangeText={setName} />
-        <TextInput style={styles.input} placeholder="Address line 1" placeholderTextColor={Colors.textMuted} value={line1} onChangeText={setLine1} />
-        <TextInput style={styles.input} placeholder="Address line 2 (optional)" placeholderTextColor={Colors.textMuted} value={line2} onChangeText={setLine2} />
-        <View style={styles.row}>
-          <TextInput style={[styles.input, styles.rowInput]} placeholder="City" placeholderTextColor={Colors.textMuted} value={city} onChangeText={setCity} />
-          <TextInput style={[styles.input, styles.rowInput]} placeholder="State" placeholderTextColor={Colors.textMuted} value={stateField} onChangeText={setStateField} />
-        </View>
-        <View style={styles.row}>
-          <TextInput
-            style={[styles.input, styles.rowInput]}
-            placeholder="Postcode"
-            placeholderTextColor={Colors.textMuted}
-            value={postalCode}
-            onChangeText={setPostalCode}
-            keyboardType="number-pad"
-          />
-          <View style={styles.rowInput}>
-            <CountryPicker value={country} onChange={setCountry} />
+        {address?.address ? (
+          <View style={styles.addressDisplay}>
+            <View style={styles.addressDisplayRow}>
+              <Feather name="map-pin" size={16} color={Colors.primary} style={{ marginTop: 2 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.addressName}>{address.name}</Text>
+                <Text style={styles.addressLine}>{address.address.line1}</Text>
+                {address.address.line2 ? <Text style={styles.addressLine}>{address.address.line2}</Text> : null}
+                <Text style={styles.addressLine}>
+                  {[address.address.city, address.address.state, address.address.postalCode].filter(Boolean).join(", ")}
+                </Text>
+                <Text style={styles.addressLine}>{SHIPPING_COUNTRY_LABELS[address.address.country ?? ""] ?? address.address.country}</Text>
+                {address.phone ? <Text style={styles.addressPhone}>{address.phone}</Text> : null}
+              </View>
+            </View>
+            <Pressable style={styles.editAddressBtn} onPress={() => setAddressSheetVisible(true)}>
+              <Feather name="edit-2" size={13} color={Colors.primary} />
+              <Text style={styles.editAddressText}>Edit address</Text>
+            </Pressable>
           </View>
-        </View>
-        <TextInput style={styles.input} placeholder="Phone number" placeholderTextColor={Colors.textMuted} value={phone} onChangeText={setPhone} keyboardType="phone-pad" />
+        ) : (
+          <Pressable style={styles.addAddressBtn} onPress={() => setAddressSheetVisible(true)}>
+            <Feather name="search" size={16} color={Colors.primary} />
+            <Text style={styles.addAddressText}>Search for your delivery address</Text>
+          </Pressable>
+        )}
+        <Text style={styles.addressHint}>Start typing to search real addresses — pick one from the list so we can confirm it's correct before you pay.</Text>
       </View>
+
+      <AddressSheet
+        visible={addressSheetVisible}
+        onSubmit={(result) => {
+          setAddress(result);
+          setAddressSheetVisible(false);
+        }}
+        onError={(err) => {
+          setAddressSheetVisible(false);
+          if (err.code !== AddressSheetError.Canceled) {
+            showAlert("Couldn't save address", err.message);
+          }
+        }}
+        defaultValues={address ?? { address: { country: "AU" } }}
+        additionalFields={{ phoneNumber: "required" }}
+        allowedCountries={[...SHIPPING_COUNTRIES]}
+        autocompleteCountries={[...SHIPPING_COUNTRIES]}
+        googlePlacesApiKey={(Constants.expoConfig?.extra?.GOOGLE_PLACES_API_KEY as string) || undefined}
+        appearance={{
+          colors: {
+            primary: Colors.primary,
+            background: Colors.background,
+            componentBackground: Colors.surface,
+            componentBorder: Colors.border,
+            componentText: Colors.text,
+            primaryText: Colors.text,
+            secondaryText: Colors.textSecondary,
+            placeholderText: Colors.textMuted,
+          },
+        }}
+      />
 
       <View style={[styles.card, Shadow.card]}>
         <Text style={styles.sectionTitle}>Payment</Text>
@@ -249,11 +247,27 @@ const styles = StyleSheet.create({
   subtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 2, marginBottom: Spacing.md },
   card: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, padding: Spacing.md, marginBottom: Spacing.md, gap: Spacing.sm },
   sectionTitle: { ...Typography.bodyBold, color: Colors.text, marginBottom: 2 },
-  input: { borderWidth: 1.5, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 11, backgroundColor: Colors.surface, color: Colors.text, fontSize: 15 },
-  row: { flexDirection: "row", gap: Spacing.sm },
-  rowInput: { flex: 1 },
-  countryField: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  countryFieldText: { fontSize: 15, color: Colors.text },
+  addAddressBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    borderWidth: 1.5,
+    borderColor: Colors.primary,
+    borderStyle: "dashed",
+    borderRadius: BorderRadius.md,
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.surfaceAlt,
+  },
+  addAddressText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },
+  addressDisplay: { backgroundColor: Colors.surfaceAlt, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, padding: Spacing.md, gap: Spacing.sm },
+  addressDisplayRow: { flexDirection: "row", gap: Spacing.sm },
+  addressName: { ...Typography.bodyBold, color: Colors.text, marginBottom: 2 },
+  addressLine: { ...Typography.small, color: Colors.textSecondary, lineHeight: 19 },
+  addressPhone: { ...Typography.small, color: Colors.textMuted, marginTop: 4 },
+  editAddressBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start" },
+  editAddressText: { ...Typography.small, color: Colors.primary, fontWeight: "600" },
+  addressHint: { ...Typography.small, color: Colors.textMuted, fontSize: 12, marginTop: 2 },
   cardField: { height: 50, marginTop: Spacing.xs },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 },
   summaryLabel: { ...Typography.small, color: Colors.textSecondary },
@@ -262,10 +276,4 @@ const styles = StyleSheet.create({
   summaryTotalLabel: { ...Typography.bodyBold, color: Colors.text },
   summaryTotalValue: { ...Typography.bodyBold, color: Colors.primary, fontSize: 17 },
   secureNote: { ...Typography.small, color: Colors.textMuted, textAlign: "center", marginTop: Spacing.md },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: Spacing.xl },
-  modalCard: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.md, width: "100%", maxWidth: 360 },
-  modalTitle: { ...Typography.bodyBold, color: Colors.text, marginBottom: Spacing.sm, paddingHorizontal: Spacing.xs },
-  countryOption: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 12, paddingHorizontal: Spacing.xs, borderRadius: BorderRadius.sm },
-  countryOptionActive: { backgroundColor: Colors.surfaceAlt },
-  countryOptionText: { fontSize: 15, color: Colors.text },
 });
