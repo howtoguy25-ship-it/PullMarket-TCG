@@ -1,5 +1,5 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { View, StyleSheet, Text, FlatList, TextInput, Pressable, Image, Platform, KeyboardAvoidingView, ActivityIndicator, Modal, Alert } from "react-native";
+import { View, StyleSheet, Text, FlatList, ScrollView, TextInput, Pressable, Image, Platform, KeyboardAvoidingView, ActivityIndicator, Modal, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -152,16 +152,21 @@ export default function ChatThreadScreen() {
   const { data: messages, isLoading } = useQuery<Message[]>({ queryKey: [`/api/chat/conversations/${conversationId}/messages`], refetchInterval: 3000, meta: { silent401: true } });
 
   // The API returns newest-first (see server/src/routes/chat.ts). Rendered
-  // oldest-first in a normal (non-inverted) FlatList, auto-scrolled to the
-  // end below — deliberately not using FlatList's `inverted` prop, which
-  // proved unreliable here (messages rendered newest-at-top instead of
-  // newest-at-bottom on a real device), a documented class of issue with
-  // inverted lists on React Native's New Architecture. This is the same
-  // scroll-to-bottom pattern virtually every production chat app uses.
-  const listRef = useRef<FlatList<Message>>(null);
+  // oldest-first, auto-scrolled to the end below. Deliberately a plain
+  // ScrollView + .map() rather than FlatList: FlatList's `inverted` prop
+  // rendered newest-at-top instead of newest-at-bottom on a real iOS
+  // device, and even switching away from `inverted` (reversing the array
+  // manually, non-inverted FlatList) still reproduced the same reversed
+  // order on-device despite rendering correctly on web — pointing at
+  // FlatList's native virtualization itself (Fabric/New Architecture)
+  // rather than anything JS-level. A ScrollView has no virtualization to
+  // get wrong: children render in exactly the DOM/view order they're
+  // given, on every platform. Chat threads aren't long enough for
+  // virtualization to matter in practice anyway.
+  const scrollViewRef = useRef<ScrollView>(null);
   const orderedMessages = useMemo(() => [...(messages ?? [])].reverse(), [messages]);
   const scrollToBottom = useCallback((animated: boolean) => {
-    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated }));
+    requestAnimationFrame(() => scrollViewRef.current?.scrollToEnd({ animated }));
   }, []);
 
   const invalidateAll = () => {
@@ -321,17 +326,17 @@ export default function ChatThreadScreen() {
           <ActivityIndicator color={Colors.primary} />
         </View>
       ) : (
-        <FlatList
-          ref={listRef}
-          data={orderedMessages}
-          keyExtractor={(item) => item.id}
+        <ScrollView
+          ref={scrollViewRef}
           contentContainerStyle={{ padding: Spacing.md, flexGrow: 1, justifyContent: "flex-end" }}
           onContentSizeChange={() => scrollToBottom(false)}
-          renderItem={({ item }) => {
+        >
+          {orderedMessages.map((item) => {
             const mine = item.senderId !== convo?.otherUser?.id;
             const isDeleted = !!item.deletedForEveryoneAt;
             return (
               <Pressable
+                key={item.id}
                 onLongPress={() => !isDeleted && setActionMessage(item)}
                 style={[styles.bubbleRow, mine ? styles.bubbleRowMine : styles.bubbleRowTheirs]}
               >
@@ -385,8 +390,8 @@ export default function ChatThreadScreen() {
                 </View>
               </Pressable>
             );
-          }}
-        />
+          })}
+        </ScrollView>
       )}
 
       {showRequestBanner ? (
