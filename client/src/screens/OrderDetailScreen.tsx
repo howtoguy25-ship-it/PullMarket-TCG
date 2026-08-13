@@ -6,7 +6,7 @@ import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
+import { Colors, Spacing, Typography, BorderRadius, Shadow, Fonts } from "@/constants/theme";
 import { Button, Badge, PriceTag } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
@@ -42,6 +42,16 @@ function promptText(title: string, message: string): Promise<string | null> {
 }
 
 const COURIERS = Object.entries(COURIER_LABELS);
+
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  pending_payment: { label: "Awaiting payment", color: Colors.textMuted },
+  paid: { label: "Paid — not shipped", color: Colors.warning },
+  shipped: { label: "Shipped", color: Colors.secondary },
+  delivered: { label: "Delivered", color: Colors.success },
+  refund_requested: { label: "Refund requested", color: Colors.danger },
+  refunded: { label: "Refunded", color: Colors.danger },
+  cancelled: { label: "Cancelled", color: Colors.textMuted },
+};
 
 interface OrderDetail {
   id: string;
@@ -143,22 +153,41 @@ export default function OrderDetailScreen() {
     if (reason) refundMutation.mutate(reason);
   };
 
+  const statusMeta = STATUS_META[order.status] ?? { label: order.status, color: Colors.textMuted };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ padding: Spacing.lg, paddingTop: headerHeight + Spacing.md, paddingBottom: insets.bottom + Spacing.xl }}>
-      <Text style={styles.orderId}>Order #{order.id.slice(0, 8).toUpperCase()}</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.orderId}>Order #{order.id.slice(0, 8).toUpperCase()}</Text>
+        <Badge label={statusMeta.label} color={statusMeta.color} />
+      </View>
 
-      {order.items.map((item, i) => (
-        <View key={i} style={styles.itemRow}>
-          {item.imageUrlSnapshot ? <Image source={{ uri: resolveImageUrl(item.imageUrlSnapshot) }} style={styles.itemImage} /> : <View style={[styles.itemImage, styles.itemImagePlaceholder]} />}
-          <View style={{ flex: 1 }}>
-            <Text style={styles.itemTitle}>{item.titleSnapshot}</Text>
-            <Text style={styles.itemMeta}>Qty {item.quantity}</Text>
+      <View style={[styles.sectionCard, styles.itemsCard]}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={[styles.sectionIcon, { backgroundColor: Colors.primary }]}>
+            <Feather name="package" size={13} color={Colors.white} />
           </View>
-          <PriceTag cents={item.priceCentsSnapshot * item.quantity} style={{ fontSize: 14 }} />
+          <Text style={styles.sectionTitle}>Items</Text>
         </View>
-      ))}
+        {order.items.map((item, i) => (
+          <View key={i} style={[styles.itemRow, i > 0 && styles.rowDivider]}>
+            {item.imageUrlSnapshot ? <Image source={{ uri: resolveImageUrl(item.imageUrlSnapshot) }} style={styles.itemImage} /> : <View style={[styles.itemImage, styles.itemImagePlaceholder]} />}
+            <View style={{ flex: 1 }}>
+              <Text style={styles.itemTitle}>{item.titleSnapshot}</Text>
+              <Text style={styles.itemMeta}>Qty {item.quantity}</Text>
+            </View>
+            <PriceTag cents={item.priceCentsSnapshot * item.quantity} style={{ fontSize: 14 }} />
+          </View>
+        ))}
+      </View>
 
-      <View style={styles.summaryBlock}>
+      <View style={[styles.sectionCard, styles.summaryCard]}>
+        <View style={styles.sectionHeaderRow}>
+          <View style={[styles.sectionIcon, { backgroundColor: Colors.goldDark }]}>
+            <Feather name="dollar-sign" size={13} color={Colors.white} />
+          </View>
+          <Text style={styles.sectionTitle}>Summary</Text>
+        </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Subtotal</Text>
           <Text style={styles.summaryValue}>${(order.subtotalCents / 100).toFixed(2)}</Text>
@@ -167,63 +196,74 @@ export default function OrderDetailScreen() {
           <Text style={styles.summaryLabel}>Platform fee</Text>
           <Text style={styles.summaryValue}>${(order.platformFeeCents / 100).toFixed(2)}</Text>
         </View>
-        <View style={styles.summaryRow}>
+        <View style={[styles.summaryRow, styles.summaryTotalRow]}>
           <Text style={styles.summaryTotalLabel}>Total</Text>
           <Text style={styles.summaryTotalValue}>${(order.totalCents / 100).toFixed(2)}</Text>
         </View>
       </View>
 
       {order.trackingNumber ? (
-        <View style={styles.trackingCard}>
-          <Feather name="truck" size={18} color={Colors.secondary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.trackingCourier}>
-              {order.courier === "custom" ? `Custom · ${order.customBusinessDeclared ?? "Third-party"}` : COURIER_LABELS[order.courier ?? "other"]}
-            </Text>
-            <Text style={styles.trackingNumber}>{order.trackingNumber}</Text>
-            {order.boxSizeLabel ? <Text style={styles.trackingMeta}>Box: {order.boxSizeLabel}</Text> : null}
-            {order.courier === "custom" && order.customTrackingNote ? (
-              <View style={styles.customNoteBox}>
-                <Feather name="info" size={11} color={Colors.textMuted} />
-                <Text style={styles.customNoteText}>{order.customTrackingNote}</Text>
-              </View>
-            ) : null}
+        <View style={[styles.sectionCard, styles.trackingCardOuter]}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={[styles.sectionIcon, { backgroundColor: Colors.secondary }]}>
+              <Feather name="truck" size={13} color={Colors.white} />
+            </View>
+            <Text style={styles.sectionTitle}>Tracking</Text>
           </View>
+          <Text style={styles.trackingCourier}>
+            {order.courier === "custom" ? `Custom · ${order.customBusinessDeclared ?? "Third-party"}` : COURIER_LABELS[order.courier ?? "other"]}
+          </Text>
+          <Text style={styles.trackingNumber}>{order.trackingNumber}</Text>
+          {order.boxSizeLabel ? <Text style={styles.trackingMeta}>Box: {order.boxSizeLabel}</Text> : null}
+          {order.courier === "custom" && order.customTrackingNote ? (
+            <View style={styles.customNoteBox}>
+              <Feather name="info" size={11} color={Colors.textMuted} />
+              <Text style={styles.customNoteText}>{order.customTrackingNote}</Text>
+            </View>
+          ) : null}
         </View>
       ) : null}
 
       {isSeller && order.shippingLine1 ? (
-        <View style={styles.addressCard}>
-          <Feather name="map-pin" size={18} color={Colors.secondary} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.addressName}>{order.shippingName ?? "Buyer"}</Text>
-            <Text style={styles.addressLine}>{order.shippingLine1}</Text>
-            {order.shippingLine2 ? <Text style={styles.addressLine}>{order.shippingLine2}</Text> : null}
-            <Text style={styles.addressLine}>
-              {[order.shippingCity, order.shippingState, order.shippingPostalCode].filter(Boolean).join(", ")}
-            </Text>
-            {order.shippingCountry ? <Text style={styles.addressLine}>{order.shippingCountry}</Text> : null}
-            {order.shippingPhone ? <Text style={styles.addressMeta}>{order.shippingPhone}</Text> : null}
+        <View style={[styles.sectionCard, styles.addressCardOuter]}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={[styles.sectionIcon, { backgroundColor: Colors.warning }]}>
+              <Feather name="map-pin" size={13} color={Colors.white} />
+            </View>
+            <Text style={styles.sectionTitle}>Delivery address</Text>
           </View>
+          <Text style={styles.addressName}>{order.shippingName ?? "Buyer"}</Text>
+          <Text style={styles.addressLine}>{order.shippingLine1}</Text>
+          {order.shippingLine2 ? <Text style={styles.addressLine}>{order.shippingLine2}</Text> : null}
+          <Text style={styles.addressLine}>{[order.shippingCity, order.shippingState, order.shippingPostalCode].filter(Boolean).join(", ")}</Text>
+          {order.shippingCountry ? <Text style={styles.addressLine}>{order.shippingCountry}</Text> : null}
+          {order.shippingPhone ? <Text style={styles.addressMeta}>{order.shippingPhone}</Text> : null}
         </View>
       ) : null}
 
       {isSeller && order.status === "paid" ? (
-        <View style={styles.shipForm}>
-          <Text style={styles.sectionTitle}>Ship this order</Text>
+        <View style={[styles.sectionCard, styles.shipCardOuter]}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={[styles.sectionIcon, { backgroundColor: Colors.primary }]}>
+              <Feather name="send" size={13} color={Colors.white} />
+            </View>
+            <Text style={styles.sectionTitle}>Ship this order</Text>
+          </View>
           <Text style={styles.helper}>A real tracking number is required before you can mark this shipped.</Text>
 
-          <Text style={styles.fieldLabel}>Courier (optional)</Text>
-          <View style={styles.courierRow}>
-            {COURIERS.map(([key, label]) => (
-              <Pressable key={key} onPress={() => setCourier(key)} style={[styles.courierChip, courier === key && styles.courierChipActive]}>
-                <Text style={[styles.courierChipText, courier === key && { color: Colors.white }]}>{label}</Text>
-              </Pressable>
-            ))}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldLabel}>Courier (optional)</Text>
+            <View style={styles.courierRow}>
+              {COURIERS.map(([key, label]) => (
+                <Pressable key={key} onPress={() => setCourier(key)} style={[styles.courierChip, courier === key && styles.courierChipActive]}>
+                  <Text style={[styles.courierChipText, courier === key && { color: Colors.white }]}>{label}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
 
           {courier === "custom" ? (
-            <>
+            <View style={styles.fieldBlock}>
               <Text style={styles.fieldLabel}>Shipping from which business? (required)</Text>
               <Text style={styles.helper}>
                 For third-party shipping (a courier not listed above). AI checks the tracking number's format actually matches this business before you can ship.
@@ -235,20 +275,24 @@ export default function OrderDetailScreen() {
                 value={customBusiness}
                 onChangeText={setCustomBusiness}
               />
-            </>
+            </View>
           ) : null}
 
-          <Text style={styles.fieldLabel}>Tracking number (required)</Text>
-          <TextInput style={styles.input} placeholder="e.g. 1234567890" placeholderTextColor={Colors.textMuted} value={trackingNumber} onChangeText={setTrackingNumber} autoCapitalize="characters" />
-          {courier !== "custom" && trackingNumber.length > 0 && !trackingLooksValid ? (
-            <Text style={styles.errorText}>That doesn't look like a valid {COURIER_LABELS[courier]} tracking number.</Text>
-          ) : null}
-          {courier === "custom" && trackingLooksValid ? <Text style={styles.helper}>AI will verify this matches "{customBusiness}" when you mark as shipped.</Text> : null}
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldLabel}>Tracking number (required)</Text>
+            <TextInput style={styles.input} placeholder="e.g. 1234567890" placeholderTextColor={Colors.textMuted} value={trackingNumber} onChangeText={setTrackingNumber} autoCapitalize="characters" />
+            {courier !== "custom" && trackingNumber.length > 0 && !trackingLooksValid ? (
+              <Text style={styles.errorText}>That doesn't look like a valid {COURIER_LABELS[courier]} tracking number.</Text>
+            ) : null}
+            {courier === "custom" && trackingLooksValid ? <Text style={styles.helper}>AI will verify this matches "{customBusiness}" when you mark as shipped.</Text> : null}
+          </View>
 
-          <Text style={styles.fieldLabel}>Box size (optional)</Text>
-          <TextInput style={styles.input} placeholder="e.g. Small satchel" placeholderTextColor={Colors.textMuted} value={boxSize} onChangeText={setBoxSize} />
+          <View style={styles.fieldBlock}>
+            <Text style={styles.fieldLabel}>Box size (optional)</Text>
+            <TextInput style={styles.input} placeholder="e.g. Small satchel" placeholderTextColor={Colors.textMuted} value={boxSize} onChangeText={setBoxSize} />
+          </View>
 
-          <Button title="Mark as Shipped" onPress={() => shipMutation.mutate()} loading={shipMutation.isPending} disabled={!trackingLooksValid} style={{ marginTop: Spacing.md }} />
+          <Button title="Mark as Shipped" onPress={() => shipMutation.mutate()} loading={shipMutation.isPending} disabled={!trackingLooksValid} style={{ marginTop: Spacing.sm }} />
         </View>
       ) : null}
 
@@ -259,9 +303,6 @@ export default function OrderDetailScreen() {
       {isBuyer && order.status === "shipped" ? (
         <Button title="Mark as Received" variant="secondary" onPress={() => markDeliveredMutation.mutate()} loading={markDeliveredMutation.isPending} style={{ marginTop: Spacing.lg }} />
       ) : null}
-
-      {order.status === "delivered" ? <Badge label="Delivered" color={Colors.success} style={{ alignSelf: "flex-start", marginTop: Spacing.lg }} /> : null}
-      {order.status === "refunded" ? <Badge label="Refunded" color={Colors.danger} style={{ alignSelf: "flex-start", marginTop: Spacing.lg }} /> : null}
     </ScrollView>
   );
 }
@@ -269,36 +310,75 @@ export default function OrderDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
   loading: { textAlign: "center", marginTop: Spacing.xl, color: Colors.textSecondary },
-  orderId: { ...Typography.h3, color: Colors.text, marginBottom: Spacing.md },
-  itemRow: { flexDirection: "row", gap: Spacing.sm, alignItems: "center", paddingVertical: Spacing.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: Spacing.sm, marginBottom: Spacing.xs },
+  orderId: { ...Typography.h3, color: Colors.text },
+
+  // Shared "table barrier" card shell — every section on this screen sits
+  // inside one of these, with a colored icon badge + Baloo display-font
+  // title as the header, so each block of info reads as its own bordered
+  // module instead of everything running together in one long list.
+  sectionCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    marginTop: Spacing.lg,
+    padding: Spacing.md,
+    ...Shadow.card,
+  },
+  itemsCard: { borderColor: Colors.primary + "33" },
+  summaryCard: { borderColor: Colors.goldDark + "40" },
+  trackingCardOuter: { borderColor: Colors.secondary + "33" },
+  addressCardOuter: { borderColor: Colors.warning + "40" },
+  shipCardOuter: { borderColor: Colors.primary + "33" },
+
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginBottom: Spacing.sm },
+  sectionIcon: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  sectionTitle: { fontFamily: Fonts.displayBold, fontSize: 16, color: Colors.text },
+
+  // Divider rule between rows inside a card — the literal "table barrier"
+  // between entries (items, summary lines) rather than a floating list.
+  rowDivider: { borderTopWidth: 1, borderTopColor: Colors.border, marginTop: Spacing.xs, paddingTop: Spacing.sm },
+
+  itemRow: { flexDirection: "row", gap: Spacing.sm, alignItems: "center", paddingVertical: Spacing.xs },
   itemImage: { width: 48, height: 62, borderRadius: BorderRadius.sm, backgroundColor: Colors.surfaceAlt },
   itemImagePlaceholder: {},
   itemTitle: { ...Typography.bodyBold, color: Colors.text, fontSize: 14 },
   itemMeta: { ...Typography.small, color: Colors.textSecondary },
-  summaryBlock: { marginTop: Spacing.md, paddingTop: Spacing.sm },
-  summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 },
+
+  summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 3 },
   summaryLabel: { ...Typography.small, color: Colors.textSecondary },
-  summaryValue: { ...Typography.small, color: Colors.text },
-  summaryTotalLabel: { ...Typography.bodyBold, color: Colors.text },
-  summaryTotalValue: { ...Typography.bodyBold, color: Colors.primary },
-  trackingCard: { flexDirection: "row", gap: Spacing.sm, backgroundColor: "#EAF1FB", padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.lg, alignItems: "center" },
-  trackingCourier: { ...Typography.small, color: Colors.secondary, fontWeight: "700" },
-  trackingNumber: { ...Typography.bodyBold, color: Colors.text },
-  trackingMeta: { ...Typography.small, color: Colors.textSecondary },
-  customNoteBox: { flexDirection: "row", alignItems: "flex-start", gap: 5, marginTop: Spacing.xs },
+  summaryValue: { ...Typography.small, color: Colors.text, fontWeight: "600" },
+  summaryTotalRow: { borderTopWidth: 1, borderTopColor: Colors.border, marginTop: Spacing.xs, paddingTop: Spacing.sm },
+  summaryTotalLabel: { fontFamily: Fonts.displayBold, fontSize: 15, color: Colors.text },
+  summaryTotalValue: { fontFamily: Fonts.display, fontSize: 20, color: Colors.goldDark },
+
+  trackingCourier: { ...Typography.small, color: Colors.secondary, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.3 },
+  trackingNumber: { fontFamily: Fonts.displayBold, fontSize: 17, color: Colors.text, marginTop: 2 },
+  trackingMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: 2 },
+  customNoteBox: { flexDirection: "row", alignItems: "flex-start", gap: 5, marginTop: Spacing.sm, backgroundColor: Colors.surfaceAlt, borderRadius: BorderRadius.sm, padding: Spacing.sm },
   customNoteText: { fontSize: 11, color: Colors.textMuted, flex: 1, lineHeight: 15 },
-  addressCard: { flexDirection: "row", gap: Spacing.sm, backgroundColor: Colors.surfaceAlt, padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.lg, alignItems: "flex-start" },
-  addressName: { ...Typography.bodyBold, color: Colors.text, marginBottom: 2 },
+
+  addressName: { fontFamily: Fonts.bodyBold, fontSize: 15, color: Colors.text, marginBottom: 2 },
   addressLine: { ...Typography.small, color: Colors.textSecondary },
   addressMeta: { ...Typography.small, color: Colors.textMuted, marginTop: 4 },
-  shipForm: { marginTop: Spacing.xl, gap: Spacing.xs },
-  sectionTitle: { ...Typography.bodyBold, color: Colors.text },
-  helper: { ...Typography.small, color: Colors.textSecondary, marginBottom: Spacing.sm },
-  fieldLabel: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginTop: Spacing.sm },
+
+  helper: { ...Typography.small, color: Colors.textSecondary, marginBottom: Spacing.xs },
+  fieldBlock: { marginTop: Spacing.md },
+  fieldLabel: { fontSize: 12, color: Colors.secondary, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.3, marginBottom: Spacing.xs },
   courierRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
-  courierChip: { paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: Colors.border },
+  courierChip: { paddingHorizontal: Spacing.sm, paddingVertical: 7, borderRadius: BorderRadius.pill, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surfaceAlt },
   courierChipActive: { backgroundColor: Colors.secondary, borderColor: Colors.secondary },
-  courierChipText: { ...Typography.small, color: Colors.text },
-  input: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 10, backgroundColor: Colors.surface, color: Colors.text },
-  errorText: { ...Typography.small, color: Colors.danger },
+  courierChipText: { ...Typography.small, color: Colors.text, fontWeight: "600" },
+  input: {
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 11,
+    backgroundColor: Colors.surface,
+    color: Colors.text,
+    fontSize: 15,
+  },
+  errorText: { ...Typography.small, color: Colors.danger, marginTop: Spacing.xs },
 });
