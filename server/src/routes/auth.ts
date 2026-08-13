@@ -9,6 +9,7 @@ import { authenticateToken } from "../middleware/auth";
 import { OAuth2Client } from "google-auth-library";
 import appleSignin from "apple-signin-auth";
 import { getStripe, isStripeConfigured } from "../lib/stripeClient";
+import { isOwnerIdentity } from "../lib/owner";
 
 const router = Router();
 
@@ -43,14 +44,6 @@ function errorDetail(err: unknown): string {
     if (anyErr.message) return anyErr.message;
   }
   return String(err);
-}
-
-function isOwnerIdentity(phoneNumber?: string | null, email?: string | null): boolean {
-  const ownerPhone = process.env.OWNER_PHONE_NUMBER;
-  const ownerEmail = process.env.OWNER_EMAIL;
-  if (ownerPhone && phoneNumber === ownerPhone) return true;
-  if (ownerEmail && email && email.toLowerCase() === ownerEmail.toLowerCase()) return true;
-  return false;
 }
 
 // ── Request OTP (phone, any country code, or email) ──────────────────────
@@ -141,6 +134,11 @@ router.post("/signup/complete", async (req, res) => {
       email: channel === "email" ? destination : null,
       displayName: username,
       isOwner,
+      // The owner is the platform's own operator — running Stripe Identity's
+      // document/selfie flow on themselves doesn't buy any real trust
+      // signal, so their account starts pre-verified and can list
+      // immediately instead of going through KYC on their own marketplace.
+      ...(isOwner ? { identityVerificationStatus: "verified" as const, identityVerifiedAt: new Date() } : {}),
     })
     .returning();
 
@@ -291,7 +289,14 @@ router.post("/apple/signup/complete", async (req, res) => {
 
   const [user] = await db
     .insert(users)
-    .values({ username, appleId, email: email ?? null, displayName: displayName || username, isOwner })
+    .values({
+      username,
+      appleId,
+      email: email ?? null,
+      displayName: displayName || username,
+      isOwner,
+      ...(isOwner ? { identityVerificationStatus: "verified" as const, identityVerifiedAt: new Date() } : {}),
+    })
     .returning();
 
   const token = signAuthToken({ userId: user.id, tokenVersion: user.tokenVersion ?? 0 });
@@ -317,7 +322,15 @@ router.post("/google/signup/complete", async (req, res) => {
 
   const [user] = await db
     .insert(users)
-    .values({ username, googleId, email, displayName: displayName || username, avatarUrl, isOwner })
+    .values({
+      username,
+      googleId,
+      email,
+      displayName: displayName || username,
+      avatarUrl,
+      isOwner,
+      ...(isOwner ? { identityVerificationStatus: "verified" as const, identityVerifiedAt: new Date() } : {}),
+    })
     .returning();
 
   const token = signAuthToken({ userId: user.id, tokenVersion: user.tokenVersion ?? 0 });
