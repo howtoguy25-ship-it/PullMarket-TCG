@@ -136,6 +136,10 @@ function PriceCardDetailBody({
             <Text style={[styles.changeText, changeUp && styles.changeTextUp, changeDown && styles.changeTextDown]}>{Math.abs(change).toFixed(2)}% last 24h</Text>
           </View>
         ) : null}
+        <View style={styles.marketNoteRow}>
+          <Feather name="info" size={12} color={Colors.textMuted} />
+          <Text style={styles.marketNoteText}>Live market reference price, not a specific seller's listing price on PullMarket</Text>
+        </View>
       </View>
 
       <View style={styles.separatorInline} />
@@ -150,7 +154,7 @@ function PriceCardDetailBody({
       </View>
 
       <Text style={styles.disclaimer}>
-        Prices are live volume-weighted market averages sourced from JustTCG, converted from USD to AUD using a live exchange rate. Actual sale prices on listings in this app may vary.
+        This market price is a live, volume-weighted average sourced from JustTCG and converted from USD to AUD using a live exchange rate — it's a reference figure for this card generally, not the price of any individual item for sale. Sellers on PullMarket set their own listing prices, which may be higher or lower than this market price.
       </Text>
     </ScrollView>
   );
@@ -191,6 +195,8 @@ const styles = StyleSheet.create({
   changeText: { fontSize: 12, fontWeight: "700", color: Colors.textMuted },
   changeTextUp: { color: Colors.success },
   changeTextDown: { color: Colors.danger },
+  marketNoteRow: { flexDirection: "row", alignItems: "flex-start", gap: 5, marginTop: Spacing.sm },
+  marketNoteText: { fontSize: 11, color: Colors.textMuted, flex: 1, lineHeight: 15 },
   sectionTitle: { ...Typography.bodyBold, color: Colors.text, paddingHorizontal: Spacing.xl, marginTop: Spacing.lg, marginBottom: Spacing.sm },
   detailsCard: {
     marginHorizontal: Spacing.xl,
