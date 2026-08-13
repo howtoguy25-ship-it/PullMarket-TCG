@@ -1,8 +1,23 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Platform } from "react-native";
+import { Platform, PermissionsAndroid, Alert } from "react-native";
 import * as Haptics from "expo-haptics";
 import { getToken, getApiUrl } from "@/lib/api";
 import { useAuth } from "./AuthContext";
+
+// react-native-webrtc's native getUserMedia does NOT request Android's
+// runtime RECORD_AUDIO/CAMERA permissions itself — it just fails if they
+// aren't already granted (confirmed against its Android source: no
+// PermissionsAndroid/requestPermissions call anywhere in it). Without this,
+// every call on Android would silently fail to attach a local audio track
+// the first time a user calls (before they'd ever been prompted), leaving
+// both sides with no sound. iOS doesn't need this: getUserMedia's native
+// implementation there triggers the OS mic/camera prompt on its own.
+async function ensureCallPermissions(video: boolean): Promise<boolean> {
+  if (Platform.OS !== "android") return true;
+  const permissions = [PermissionsAndroid.PERMISSIONS.RECORD_AUDIO, ...(video ? [PermissionsAndroid.PERMISSIONS.CAMERA] : [])];
+  const results = await PermissionsAndroid.requestMultiple(permissions);
+  return permissions.every((p) => results[p] === PermissionsAndroid.RESULTS.GRANTED);
+}
 
 // react-native-webrtc is a native module with no web build — loaded
 // dynamically, and only ever on native, so importing this file doesn't
@@ -75,6 +90,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const localStreamRef = useRef<import("react-native-webrtc").MediaStream | null>(null);
   const pendingIncomingSdpRef = useRef<unknown>(null);
   const pendingCandidatesRef = useRef<unknown[]>([]);
+  // The caller's own ICE candidates can start gathering (pc.onicecandidate
+  // firing) before the "invited" ack round-trips back with a callId to tag
+  // them with — those early candidates (often the first host candidate)
+  // used to just be silently dropped since there was nowhere to send them
+  // yet. Buffered here and flushed the moment callIdRef.current is set.
+  const pendingLocalCandidatesRef = useRef<unknown[]>([]);
   const callIdRef = useRef<string | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const isVideoRef = useRef(false);
@@ -112,6 +133,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       localStreamRef.current = null;
       pendingIncomingSdpRef.current = null;
       pendingCandidatesRef.current = [];
+      pendingLocalCandidatesRef.current = [];
       callIdRef.current = null;
       conversationIdRef.current = null;
       isVideoRef.current = false;
@@ -176,7 +198,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     const { RTCPeerConnection } = await loadWebRTC();
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     pc.onicecandidate = (event: any) => {
-      if (event.candidate && callIdRef.current) send({ type: "ice-candidate", callId: callIdRef.current, candidate: event.candidate });
+      if (!event.candidate) return;
+      if (callIdRef.current) send({ type: "ice-candidate", callId: callIdRef.current, candidate: event.candidate });
+      else pendingLocalCandidatesRef.current.push(event.candidate);
     };
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === "connected") {
@@ -210,6 +234,13 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const startCall = useCallback(
     async (conversationId: string, callee: CallPeer, video = false) => {
       if (Platform.OS === "web") return;
+
+      const granted = await ensureCallPermissions(video);
+      if (!granted) {
+        Alert.alert("Permission needed", video ? "Camera and microphone access are needed to make a video call." : "Microphone access is needed to make a call.");
+        return;
+      }
+
       isVideoRef.current = video;
       setIsVideo(video);
       setIsSpeakerOn(video); // InCallManager defaults speaker-on for video, earpiece for audio — keep the UI toggle in sync
@@ -218,43 +249,61 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setEndReason(null);
       conversationIdRef.current = conversationId;
 
-      const InCallManager = await loadInCallManager();
-      InCallManager.start({ media: video ? "video" : "audio", auto: true });
-      InCallManager.startRingback("_DEFAULT_");
+      try {
+        const InCallManager = await loadInCallManager();
+        InCallManager.start({ media: video ? "video" : "audio", auto: true });
+        InCallManager.startRingback("_DEFAULT_");
 
-      const { RTCSessionDescription } = await loadWebRTC();
-      const pc = await createPeerConnection();
-      await attachLocalMedia(pc, video);
-      const offer = await pc.createOffer({});
-      await pc.setLocalDescription(new RTCSessionDescription(offer));
-      send({ type: "invite", conversationId, calleeId: callee.id, sdp: pc.localDescription, isVideo: video });
+        const { RTCSessionDescription } = await loadWebRTC();
+        const pc = await createPeerConnection();
+        await attachLocalMedia(pc, video);
+        const offer = await pc.createOffer({});
+        await pc.setLocalDescription(new RTCSessionDescription(offer));
+        send({ type: "invite", conversationId, calleeId: callee.id, sdp: pc.localDescription, isVideo: video });
+      } catch (err) {
+        console.error("startCall failed:", err);
+        resetCallState("Couldn't start the call — check your microphone/camera access and try again.");
+      }
     },
-    [attachLocalMedia, createPeerConnection, send],
+    [attachLocalMedia, createPeerConnection, resetCallState, send],
   );
 
   const answerCall = useCallback(async () => {
     if (!callIdRef.current || !pendingIncomingSdpRef.current) return;
+
+    const video = isVideoRef.current;
+    const granted = await ensureCallPermissions(video);
+    if (!granted) {
+      if (callIdRef.current) send({ type: "decline", callId: callIdRef.current });
+      resetCallState(video ? "Camera and microphone access are needed to answer a video call." : "Microphone access is needed to answer a call.");
+      return;
+    }
+
     setPhase("connecting");
     void stopRingingEffects();
-    const video = isVideoRef.current;
     setIsSpeakerOn(video);
 
-    const InCallManager = await loadInCallManager();
-    InCallManager.start({ media: video ? "video" : "audio", auto: true });
+    try {
+      const InCallManager = await loadInCallManager();
+      InCallManager.start({ media: video ? "video" : "audio", auto: true });
 
-    const { RTCSessionDescription } = await loadWebRTC();
-    const pc = await createPeerConnection();
-    await attachLocalMedia(pc, video);
-    await pc.setRemoteDescription(new RTCSessionDescription(pendingIncomingSdpRef.current as any));
-    for (const candidate of pendingCandidatesRef.current) {
-      const { RTCIceCandidate } = await loadWebRTC();
-      await pc.addIceCandidate(new RTCIceCandidate(candidate as any));
+      const { RTCSessionDescription, RTCIceCandidate } = await loadWebRTC();
+      const pc = await createPeerConnection();
+      await attachLocalMedia(pc, video);
+      await pc.setRemoteDescription(new RTCSessionDescription(pendingIncomingSdpRef.current as any));
+      for (const candidate of pendingCandidatesRef.current) {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate as any));
+      }
+      pendingCandidatesRef.current = [];
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(new RTCSessionDescription(answer));
+      send({ type: "answer", callId: callIdRef.current, sdp: pc.localDescription });
+    } catch (err) {
+      console.error("answerCall failed:", err);
+      if (callIdRef.current) send({ type: "decline", callId: callIdRef.current });
+      resetCallState("Couldn't answer the call — check your microphone/camera access and try again.");
     }
-    pendingCandidatesRef.current = [];
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(new RTCSessionDescription(answer));
-    send({ type: "answer", callId: callIdRef.current, sdp: pc.localDescription });
-  }, [attachLocalMedia, createPeerConnection, send, stopRingingEffects]);
+  }, [attachLocalMedia, createPeerConnection, resetCallState, send, stopRingingEffects]);
 
   const declineCall = useCallback(() => {
     if (callIdRef.current) send({ type: "decline", callId: callIdRef.current });
@@ -283,6 +332,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   async function handleSignal(msg: any) {
     if (msg.type === "invited") {
       callIdRef.current = msg.callId;
+      if (pendingLocalCandidatesRef.current.length > 0) {
+        for (const candidate of pendingLocalCandidatesRef.current) {
+          send({ type: "ice-candidate", callId: msg.callId, candidate });
+        }
+        pendingLocalCandidatesRef.current = [];
+      }
     } else if (msg.type === "incoming") {
       callIdRef.current = msg.callId;
       conversationIdRef.current = msg.conversationId;
@@ -309,8 +364,18 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     } else if (msg.type === "answered") {
       if (msg.callId !== callIdRef.current || !pcRef.current) return;
       void stopRingingEffects();
-      const { RTCSessionDescription } = await loadWebRTC();
+      const { RTCSessionDescription, RTCIceCandidate } = await loadWebRTC();
       await pcRef.current.setRemoteDescription(new RTCSessionDescription(msg.sdp));
+      // Same flush answerCall already does on the callee side — any ICE
+      // candidates that arrived from the callee before this SDP answer did
+      // (a real race, not an edge case) were queued in pendingCandidatesRef
+      // and need to be applied now that there's a remoteDescription to
+      // apply them against. Without this they were silently dropped here,
+      // which can leave the media path (audio/video) never connecting.
+      for (const candidate of pendingCandidatesRef.current) {
+        await pcRef.current.addIceCandidate(new RTCIceCandidate(candidate as any));
+      }
+      pendingCandidatesRef.current = [];
       setPhase("connecting");
     } else if (msg.type === "ice-candidate") {
       if (msg.callId !== callIdRef.current) return;
