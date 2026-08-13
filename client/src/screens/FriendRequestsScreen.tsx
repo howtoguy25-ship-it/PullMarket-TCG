@@ -50,45 +50,65 @@ export default function FriendRequestsScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: headerHeight + Spacing.md, paddingBottom: insets.bottom }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: Spacing.xl }}>
-        <Text style={styles.sectionTitle}>Incoming · {incoming.length}</Text>
-            {incoming.length === 0 ? (
-              <Text style={styles.emptyRowText}>No pending requests</Text>
-            ) : (
-              incoming.map((req) => (
-                <View key={req.id} style={styles.row}>
-                  <Pressable style={styles.rowInfo} onPress={() => req.requester && navigation.navigate("UserProfile", { userId: req.requester.id })}>
-                    <Avatar avatarUrl={req.requester?.avatarUrl} seed={req.requester?.username ?? req.id} size={44} />
-                    <Text style={styles.username}>@{req.requester?.username ?? "Unknown"}</Text>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl }}>
+        <View style={[styles.sectionCard, styles.incomingCard]}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={[styles.sectionIcon, { backgroundColor: Colors.primary }]}>
+              <Feather name="user-plus" size={15} color={Colors.white} />
+            </View>
+            <Text style={styles.sectionTitle}>Incoming</Text>
+            <View style={styles.countPill}>
+              <Text style={styles.countPillText}>{incoming.length}</Text>
+            </View>
+          </View>
+          {incoming.length === 0 ? (
+            <Text style={styles.emptyRowText}>No pending requests</Text>
+          ) : (
+            incoming.map((req, i) => (
+              <View key={req.id} style={[styles.row, i > 0 && styles.rowDivider]}>
+                <Pressable style={styles.rowInfo} onPress={() => req.requester && navigation.navigate("UserProfile", { userId: req.requester.id })}>
+                  <Avatar avatarUrl={req.requester?.avatarUrl} seed={req.requester?.username ?? req.id} size={44} />
+                  <Text style={styles.username}>@{req.requester?.username ?? "Unknown"}</Text>
+                </Pressable>
+                <View style={styles.actions}>
+                  <Pressable onPress={() => declineMutation.mutate(req.id)} style={[styles.actionButton, styles.declineButton]} hitSlop={6}>
+                    <Feather name="x" size={16} color={Colors.white} />
                   </Pressable>
-                  <View style={styles.actions}>
-                    <Pressable onPress={() => declineMutation.mutate(req.id)} style={[styles.actionButton, styles.declineButton]} hitSlop={6}>
-                      <Feather name="x" size={16} color={Colors.white} />
-                    </Pressable>
-                    <Pressable onPress={() => acceptMutation.mutate(req.id)} style={[styles.actionButton, styles.acceptButton]} hitSlop={6}>
-                      <Feather name="check" size={16} color={Colors.white} />
-                    </Pressable>
-                  </View>
+                  <Pressable onPress={() => acceptMutation.mutate(req.id)} style={[styles.actionButton, styles.acceptButton]} hitSlop={6}>
+                    <Feather name="check" size={16} color={Colors.white} />
+                  </Pressable>
                 </View>
-              ))
-            )}
+              </View>
+            ))
+          )}
+        </View>
 
-            <Text style={styles.sectionTitle}>Sent · {outgoing.length}</Text>
-            {outgoing.length === 0 ? (
-              <Text style={styles.emptyRowText}>No sent requests</Text>
-            ) : (
-              outgoing.map((req) => (
-                <View key={req.id} style={styles.row}>
-                  <Pressable style={styles.rowInfo} onPress={() => req.recipient && navigation.navigate("UserProfile", { userId: req.recipient.id })}>
-                    <Avatar avatarUrl={req.recipient?.avatarUrl} seed={req.recipient?.username ?? req.id} size={44} />
-                    <Text style={styles.username}>@{req.recipient?.username ?? "Unknown"}</Text>
-                  </Pressable>
-                  <Pressable onPress={() => req.recipient && cancelMutation.mutate(req.recipient.id)} style={styles.cancelButton}>
-                    <Text style={styles.cancelButtonText}>Cancel</Text>
-                  </Pressable>
-                </View>
-              ))
-            )}
+        <View style={[styles.sectionCard, styles.sentCard]}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={[styles.sectionIcon, { backgroundColor: Colors.secondary }]}>
+              <Feather name="send" size={14} color={Colors.white} />
+            </View>
+            <Text style={styles.sectionTitle}>Sent</Text>
+            <View style={[styles.countPill, { backgroundColor: Colors.secondary + "22" }]}>
+              <Text style={[styles.countPillText, { color: Colors.secondary }]}>{outgoing.length}</Text>
+            </View>
+          </View>
+          {outgoing.length === 0 ? (
+            <Text style={styles.emptyRowText}>No sent requests</Text>
+          ) : (
+            outgoing.map((req, i) => (
+              <View key={req.id} style={[styles.row, i > 0 && styles.rowDivider]}>
+                <Pressable style={styles.rowInfo} onPress={() => req.recipient && navigation.navigate("UserProfile", { userId: req.recipient.id })}>
+                  <Avatar avatarUrl={req.recipient?.avatarUrl} seed={req.recipient?.username ?? req.id} size={44} />
+                  <Text style={styles.username}>@{req.recipient?.username ?? "Unknown"}</Text>
+                </Pressable>
+                <Pressable onPress={() => req.recipient && cancelMutation.mutate(req.recipient.id)} style={styles.cancelButton}>
+                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                </Pressable>
+              </View>
+            ))
+          )}
+        </View>
 
         {!isLoading && incoming.length === 0 && outgoing.length === 0 ? (
           <EmptyState icon={<Feather name="users" size={40} color={Colors.textMuted} />} title="No friend requests" subtitle="Search for people to send a friend request" />
@@ -100,9 +120,28 @@ export default function FriendRequestsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  sectionTitle: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: Spacing.xs, letterSpacing: 0.3 },
-  emptyRowText: { ...Typography.small, color: Colors.textMuted, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
+  sectionCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    marginTop: Spacing.md,
+    paddingVertical: Spacing.sm,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  incomingCard: { borderColor: Colors.primary + "33" },
+  sentCard: { borderColor: Colors.secondary + "33" },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
+  sectionIcon: { width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center" },
+  sectionTitle: { ...Typography.bodyBold, color: Colors.text, fontSize: 15, flex: 1 },
+  countPill: { backgroundColor: Colors.primary + "22", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 },
+  countPillText: { ...Typography.small, color: Colors.primary, fontWeight: "800" },
+  emptyRowText: { ...Typography.small, color: Colors.textMuted, paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
+  rowDivider: { borderTopWidth: 1, borderTopColor: Colors.border },
   rowInfo: { flex: 1, flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   username: { ...Typography.bodyBold, color: Colors.text, fontSize: 15 },
   actions: { flexDirection: "row", gap: Spacing.xs },

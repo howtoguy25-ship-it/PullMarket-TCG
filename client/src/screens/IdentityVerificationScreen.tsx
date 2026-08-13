@@ -2,7 +2,7 @@ import React from "react";
 import { View, StyleSheet, Text, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
@@ -22,8 +22,20 @@ function showAlert(title: string, message: string) {
 export default function IdentityVerificationScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
+  const queryClient = useQueryClient();
 
   const { data: status, refetch, isFetching } = useQuery<{ status: string; verifiedAt: string | null }>({ queryKey: ["/api/auth/identity/status"] });
+
+  const cancelMutation = useMutation({
+    mutationFn: () => apiJson<{ status: string }>("POST", "/api/auth/identity/cancel"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/identity/status"] });
+    },
+    onError: (err) => {
+      const message = err instanceof ApiError ? err.message : "Please try again.";
+      showAlert("Couldn't cancel verification", message);
+    },
+  });
 
   const startMutation = useMutation({
     mutationFn: () => {
@@ -83,7 +95,9 @@ export default function IdentityVerificationScreen() {
       <Text style={styles.subtitle}>
         {failed
           ? "We couldn't verify your identity. Double-check your ID is valid and unexpired, then try again in good lighting."
-          : "To keep the marketplace safe, we verify sellers with Stripe Identity — a government ID scan and a live selfie match, plus your name, address, and date of birth. This helps prevent fraud and protects buyers."}
+          : pending
+            ? "Your verification session is open with Stripe. “Pending review” means a session was started, not that we've received your ID yet — finish the secure Stripe form to submit it, or cancel below to start over."
+            : "To keep the marketplace safe, we verify sellers with Stripe Identity — a government ID scan and a live selfie match, plus your name, address, and date of birth. This helps prevent fraud and protects buyers."}
       </Text>
 
       <View style={styles.statusRow}>
@@ -93,14 +107,36 @@ export default function IdentityVerificationScreen() {
       {!verified && !pending ? (
         <Button title={failed ? "Try verification again" : "Start verification"} onPress={() => startMutation.mutate()} loading={startMutation.isPending} style={{ marginTop: Spacing.lg }} />
       ) : null}
-      <Button
-        title={isFetching ? "Checking…" : "Refresh status"}
-        variant="ghost"
-        icon={<Feather name="refresh-cw" size={15} color={Colors.primary} />}
-        onPress={() => refetch()}
-        disabled={isFetching}
-        style={{ marginTop: Spacing.sm }}
-      />
+      {pending ? (
+        <Button
+          title="Cancel verification"
+          variant="outline"
+          icon={<Feather name="x-circle" size={15} color={Colors.danger} />}
+          onPress={() =>
+            Platform.OS === "web"
+              ? window.confirm("Cancel this verification session? You'll be able to start a new one right away.") && cancelMutation.mutate()
+              : Alert.alert("Cancel verification?", "You'll be able to start a new one right away.", [
+                  { text: "Keep it", style: "cancel" },
+                  { text: "Cancel verification", style: "destructive", onPress: () => cancelMutation.mutate() },
+                ])
+          }
+          loading={cancelMutation.isPending}
+          textColor={Colors.danger}
+          style={{ marginTop: Spacing.lg, borderColor: Colors.danger }}
+        />
+      ) : null}
+
+      <View style={styles.refreshSeparatorWrap}>
+        <View style={styles.refreshSeparatorLine} />
+        <Button
+          title={isFetching ? "Checking…" : "Refresh status"}
+          variant="ghost"
+          icon={<Feather name="refresh-cw" size={15} color={Colors.primary} />}
+          onPress={() => refetch()}
+          disabled={isFetching}
+        />
+        <View style={styles.refreshSeparatorLine} />
+      </View>
     </View>
   );
 }
@@ -110,5 +146,7 @@ const styles = StyleSheet.create({
   iconCircle: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center", marginBottom: Spacing.lg },
   title: { ...Typography.h2, color: Colors.text, textAlign: "center" },
   subtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: "center", marginTop: Spacing.sm },
+  refreshSeparatorWrap: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginTop: Spacing.xl, width: "100%" },
+  refreshSeparatorLine: { flex: 1, height: 1, backgroundColor: Colors.border },
   statusRow: { marginTop: Spacing.lg },
 });

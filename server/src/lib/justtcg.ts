@@ -71,6 +71,7 @@ export interface PriceCardResult {
   id: string;
   name: string;
   setName: string;
+  number: string | null;
   rarity: string | null;
   marketPriceCents: number | null;
   priceChange24hr: number | null;
@@ -91,6 +92,7 @@ function normalizeCard(card: JustTcgCard): PriceCardResult {
     id: card.uuid || card.id,
     name: card.name,
     setName: card.set_name,
+    number: card.number ?? null,
     rarity: card.rarity ?? null,
     marketPriceCents: variant ? Math.round(variant.price * 100) : null,
     priceChange24hr: variant?.priceChange24hr ?? null,

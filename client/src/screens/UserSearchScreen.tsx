@@ -86,10 +86,12 @@ export default function UserSearchScreen() {
   const { data: results, isLoading } = useQuery<UserResult[]>({ queryKey: [`/api/users/search?q=${encodeURIComponent(query)}`], enabled: query.trim().length > 0 });
 
   return (
-    <View style={[styles.container, { paddingTop: headerHeight + Spacing.sm, paddingBottom: insets.bottom }]}>
+    <View style={[styles.container, { paddingTop: headerHeight, paddingBottom: insets.bottom }]}>
       <View style={styles.searchRow}>
         <View style={styles.searchBar}>
-          <Feather name="search" size={18} color={Colors.textMuted} />
+          <View style={styles.searchIconWrap}>
+            <Feather name="search" size={15} color={Colors.primary} />
+          </View>
           <TextInput
             style={styles.searchInput}
             placeholder="Search username or phone number…"
@@ -133,19 +135,27 @@ export default function UserSearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  searchRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg, marginBottom: Spacing.sm },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, marginBottom: Spacing.sm },
   searchBar: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 11,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 8,
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.pill,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: 1.5,
+    borderColor: Colors.primary + "33",
     ...Shadow.card,
+  },
+  searchIconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FCE9E4",
   },
   searchInput: { flex: 1, color: Colors.text, fontSize: 15, ...NoWebFocusOutline },
   cancelText: { ...Typography.body, color: Colors.primary, fontWeight: "600" },

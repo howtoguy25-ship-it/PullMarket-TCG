@@ -10,6 +10,7 @@ export function Button({
   disabled = false,
   style,
   icon,
+  textColor: textColorOverride,
   ...rest
 }: {
   title: string;
@@ -19,6 +20,7 @@ export function Button({
   disabled?: boolean;
   style?: ViewStyle;
   icon?: React.ReactNode;
+  textColor?: string;
 } & Omit<PressableProps, "style">) {
   const bg =
     variant === "primary"
@@ -33,13 +35,14 @@ export function Button({
               ? Colors.white
               : "transparent";
   const textColor =
-    variant === "outline" || variant === "ghost"
+    textColorOverride ??
+    (variant === "outline" || variant === "ghost"
       ? Colors.primary
       : variant === "gold" || variant === "white"
         ? "#3A2A00"
         : variant === "outlineOnDark"
           ? Colors.white
-          : Colors.white;
+          : Colors.white);
 
   return (
     <Pressable

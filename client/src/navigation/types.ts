@@ -35,6 +35,18 @@ export type RootStackParamList = {
   UserProfile: { userId: string };
   FriendRequests: undefined;
   ChatThread: { conversationId: string; otherUserId?: string };
+  // Only scalar params — React Navigation's web URL sync stringifies
+  // params with a plain String() for any screen not given a custom
+  // linking config, which mangles a full object into "[object Object]"
+  // in the address bar (breaks refresh/back-forward/deep-linking on
+  // web). The detail screen re-reads the actual card data out of the
+  // already-fetched Prices React Query cache using cardId + franchise.
+  PriceCardDetail: {
+    cardId: string;
+    franchise: "pokemon" | "one_piece";
+    franchiseLabel: string;
+    color: string;
+  };
 };
 
 export type MainTabsParamList = {

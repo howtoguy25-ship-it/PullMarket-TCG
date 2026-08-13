@@ -33,6 +33,7 @@ import UserSearchScreen from "@/screens/UserSearchScreen";
 import UserProfileScreen from "@/screens/UserProfileScreen";
 import FriendRequestsScreen from "@/screens/FriendRequestsScreen";
 import ChatThreadScreen from "@/screens/ChatThreadScreen";
+import PriceCardDetailScreen from "@/screens/PriceCardDetailScreen";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -89,6 +90,7 @@ function MainNavigator() {
       <RootStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: "" }} />
       <RootStack.Screen name="FriendRequests" component={FriendRequestsScreen} options={{ title: "Friend requests" }} />
       <RootStack.Screen name="ChatThread" component={ChatThreadScreen} options={{ title: "" }} />
+      <RootStack.Screen name="PriceCardDetail" component={PriceCardDetailScreen} options={{ title: "" }} />
     </RootStack.Navigator>
   );
 }

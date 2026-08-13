@@ -387,4 +387,32 @@ router.get("/identity/status", authenticateToken, async (req, res) => {
   });
 });
 
+// Lets a user back out of a "pending" verification (e.g. they closed
+// Stripe's hosted flow without finishing, or want to redo it with different
+// info) since Stripe never notifies us when a session is abandoned rather
+// than completed — without this, identityVerificationStatus would stay
+// "pending" forever with no way to start a fresh session.
+router.post("/identity/cancel", authenticateToken, async (req, res) => {
+  if (req.user!.identityVerificationStatus !== "pending") {
+    return res.status(400).json({ message: "No pending verification to cancel." });
+  }
+  const stripe = isStripeConfigured() ? getStripe() : null;
+  const sessionId = req.user!.identityVerificationSessionId;
+  if (stripe && sessionId) {
+    try {
+      await stripe.identity.verificationSessions.cancel(sessionId);
+    } catch (err) {
+      // The session may already be canceled/expired on Stripe's side (e.g.
+      // the user finished or it timed out) — either way, our own status
+      // still needs to be reset so the user isn't stuck.
+      console.error("Failed to cancel Stripe identity session:", err);
+    }
+  }
+  await db
+    .update(users)
+    .set({ identityVerificationStatus: "unverified", identityVerificationSessionId: null })
+    .where(eq(users.id, req.user!.id));
+  res.json({ status: "unverified" });
+});
+
 export default router;

@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { View, StyleSheet, Text, FlatList, Pressable, TextInput, ActivityIndicator, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming, Easing } from "react-native-reanimated";
@@ -8,6 +10,9 @@ import { Colors, Spacing, Typography, BorderRadius, Shadow, Fonts, NoWebFocusOut
 import { EmptyState } from "@/components/ui";
 import { SkyBackground } from "@/components/SkyBackground";
 import { apiJson, ApiError } from "@/lib/api";
+import { RootStackParamList } from "@/navigation/types";
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 function LiveDot() {
   const opacity = useSharedValue(1);
@@ -28,21 +33,24 @@ function timeAgo(ms: number): string {
 
 type Franchise = "pokemon" | "one_piece";
 
-interface PriceCard {
+export interface PriceCard {
   id: string;
   name: string;
   setName: string;
+  number: string | null;
   rarity: string | null;
   marketPriceCents: number | null;
+  marketPriceAudCents: number | null;
   priceChange24hr: number | null;
   lastUpdated: number | null;
   imageUrl: string | null;
 }
 
-interface PricesPage {
+export interface PricesPage {
   cards: PriceCard[];
   total: number;
   hasMore: boolean;
+  fxRateUsdToAud: number;
 }
 
 const PAGE_SIZE = 40;
@@ -52,9 +60,14 @@ const FRANCHISES: { key: Franchise; label: string; color: string }[] = [
   { key: "one_piece", label: "One Piece", color: Colors.onePiece },
 ];
 
-function formatPrice(cents: number | null): string {
+function formatUsd(cents: number | null): string {
   if (cents === null) return "—";
-  return `$${(cents / 100).toFixed(2)}`;
+  return `US$${(cents / 100).toFixed(2)}`;
+}
+
+function formatAud(cents: number | null): string {
+  if (cents === null) return "—";
+  return `AU$${(cents / 100).toFixed(2)}`;
 }
 
 function CardImage({ uri }: { uri: string | null }) {
@@ -69,13 +82,16 @@ function CardImage({ uri }: { uri: string | null }) {
   return <Image source={{ uri }} style={styles.cardImage} resizeMode="contain" onError={() => setFailed(true)} />;
 }
 
-function PriceCardTile({ card, color }: { card: PriceCard; color: string }) {
+function PriceCardTile({ card, color, franchise, franchiseLabel, navigation }: { card: PriceCard; color: string; franchise: Franchise; franchiseLabel: string; navigation: Nav }) {
   const change = card.priceChange24hr;
   const changeUp = change !== null && change !== undefined && change > 0;
   const changeDown = change !== null && change !== undefined && change < 0;
 
   return (
-    <View style={[styles.tile, { borderTopColor: color }]}>
+    <Pressable
+      style={[styles.tile, { borderTopColor: color }]}
+      onPress={() => navigation.navigate("PriceCardDetail", { cardId: card.id, franchise, franchiseLabel, color })}
+    >
       <CardImage uri={card.imageUrl} />
       {card.rarity ? <Text style={styles.rarity}>{card.rarity}</Text> : null}
       {/* Full name and set, no truncation — these can run to a couple of
@@ -87,7 +103,8 @@ function PriceCardTile({ card, color }: { card: PriceCard; color: string }) {
       <View style={styles.priceRow}>
         <View>
           <Text style={styles.priceLabel}>Market price</Text>
-          <Text style={styles.price}>{formatPrice(card.marketPriceCents)}</Text>
+          <Text style={styles.price}>{formatAud(card.marketPriceAudCents)}</Text>
+          <Text style={styles.priceUsd}>{formatUsd(card.marketPriceCents)}</Text>
         </View>
         {change !== null && change !== undefined ? (
           <View style={[styles.changeBadge, changeUp && styles.changeBadgeUp, changeDown && styles.changeBadgeDown]}>
@@ -96,12 +113,13 @@ function PriceCardTile({ card, color }: { card: PriceCard; color: string }) {
           </View>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 export default function PricesScreen() {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<Nav>();
   const [franchise, setFranchise] = useState<Franchise>("pokemon");
   const [filterText, setFilterText] = useState("");
 
@@ -195,7 +213,7 @@ export default function PricesScreen() {
             contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
             renderItem={({ item }) => (
               <View style={styles.tileWrap}>
-                <PriceCardTile card={item} color={activeColor} />
+                <PriceCardTile card={item} color={activeColor} franchise={franchise} franchiseLabel={FRANCHISES.find((f) => f.key === franchise)!.label} navigation={navigation} />
               </View>
             )}
             onEndReachedThreshold={0.4}
@@ -267,6 +285,7 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: Spacing.xs },
   priceLabel: { fontSize: 9, color: Colors.textMuted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.3 },
   price: { fontFamily: Fonts.display, fontSize: 18, color: Colors.goldDark },
+  priceUsd: { fontSize: 10, color: Colors.textMuted, fontWeight: "600" },
   changeBadge: { flexDirection: "row", alignItems: "center", gap: 2, paddingHorizontal: 6, paddingVertical: 3, borderRadius: BorderRadius.pill, backgroundColor: Colors.surfaceAlt },
   changeBadgeUp: { backgroundColor: "#E3F6ED" },
   changeBadgeDown: { backgroundColor: "#FCE9E4" },
