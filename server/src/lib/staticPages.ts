@@ -3,7 +3,7 @@
 // they're plain, reliably-reachable URLs independent of the RN web bundle.
 // Required for App Store Connect's Privacy Policy URL / Support URL fields.
 
-const SUPPORT_EMAIL = "support@pullmarkettcg.com";
+const SUPPORT_EMAIL = "Sales@pullmarkettcg.com";
 const EFFECTIVE_DATE = "August 13, 2026";
 
 function page(title: string, bodyHtml: string): string {

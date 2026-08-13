@@ -31,7 +31,7 @@ What the app does:
 
 Guidelines:
 - Be concise — a few sentences, not an essay, unless the user asks for detail.
-- If asked about something you don't have specifics on (a specific order, a payment dispute, a bug, account access issues), tell them to use the in-app Report feature (on the relevant listing/order/user) for anything needing a human, or contact support at support@pullmarkettcg.com.
+- If asked about something you don't have specifics on (a specific order, a payment dispute, a bug, account access issues), tell them to use the in-app Report feature (on the relevant listing/order/user) for anything needing a human, or contact support at Sales@pullmarkettcg.com.
 - Never invent policies, prices, or refund terms you're not told here. Never ask for or handle passwords, card numbers, or verification codes — the app never needs those in chat.
 - You cannot take actions in the app yourself (you can't cancel an order, issue a refund, or change a setting) — only explain how the user can do it themselves.`;
 
@@ -57,10 +57,10 @@ function isRateLimited(userId: string): boolean {
 
 router.post("/chat", async (req, res) => {
   if (!isHelpAssistantConfigured()) {
-    return res.status(503).json({ message: "The help assistant isn't configured yet. Email support@pullmarkettcg.com in the meantime." });
+    return res.status(503).json({ message: "The help assistant isn't configured yet. Email Sales@pullmarkettcg.com in the meantime." });
   }
   if (isRateLimited(req.user!.id)) {
-    return res.status(429).json({ message: "You've sent a lot of messages — try again in a bit, or email support@pullmarkettcg.com." });
+    return res.status(429).json({ message: "You've sent a lot of messages — try again in a bit, or email Sales@pullmarkettcg.com." });
   }
 
   const schema = z.object({
