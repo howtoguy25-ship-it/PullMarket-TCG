@@ -17,6 +17,7 @@ import UsernameSetupScreen from "@/screens/auth/UsernameSetupScreen";
 import ListingDetailScreen from "@/screens/ListingDetailScreen";
 import ImageViewerScreen from "@/screens/ImageViewerScreen";
 import CartScreen from "@/screens/CartScreen";
+import CheckoutScreen from "@/screens/CheckoutScreen";
 import CheckoutReturnScreen from "@/screens/CheckoutReturnScreen";
 import OrdersScreen from "@/screens/OrdersScreen";
 import OrderDetailScreen from "@/screens/OrderDetailScreen";
@@ -74,6 +75,7 @@ function MainNavigator() {
       <RootStack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "", headerTransparent: false, headerStyle: { backgroundColor: Colors.background } }} />
       <RootStack.Screen name="ImageViewer" component={ImageViewerScreen} options={{ headerShown: false, presentation: "fullScreenModal" }} />
       <RootStack.Screen name="Cart" component={CartScreen} options={{ title: "Your Cart" }} />
+      <RootStack.Screen name="Checkout" component={CheckoutScreen} options={{ title: "Checkout" }} />
       <RootStack.Screen name="CheckoutReturn" component={CheckoutReturnScreen} options={{ title: "", headerBackVisible: false }} />
       <RootStack.Screen name="Orders" component={OrdersScreen} options={{ title: "My Orders" }} />
       <RootStack.Screen name="OrderDetail" component={OrderDetailScreen} options={{ title: "Order Details" }} />

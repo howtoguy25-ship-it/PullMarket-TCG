@@ -94,7 +94,7 @@ export const LISTING_REPORT_REASONS = ["counterfeit", "not_as_described", "never
 // this constant is surfaced in the UI copy.
 export const REFUND_WINDOW_HOURS = 48;
 export const SHIPPING_DEADLINE_BUSINESS_DAYS = 5;
-export const PLATFORM_FEE_CENTS_DEFAULT = 200;
+export const PLATFORM_FEE_CENTS_DEFAULT = 299;
 
 // Countries Stripe Checkout will collect a shipping address for. Kept to
 // countries this marketplace can realistically reach via the existing
@@ -104,3 +104,29 @@ export const SHIPPING_COUNTRIES = [
   "US", "CA", "GB", "AU", "NZ", "IE", "DE", "FR", "ES", "IT", "PT", "NL", "BE",
   "CH", "AT", "SE", "NO", "DK", "FI", "PL", "JP", "SG", "HK",
 ] as const;
+
+export const SHIPPING_COUNTRY_LABELS: Record<string, string> = {
+  US: "United States",
+  CA: "Canada",
+  GB: "United Kingdom",
+  AU: "Australia",
+  NZ: "New Zealand",
+  IE: "Ireland",
+  DE: "Germany",
+  FR: "France",
+  ES: "Spain",
+  IT: "Italy",
+  PT: "Portugal",
+  NL: "Netherlands",
+  BE: "Belgium",
+  CH: "Switzerland",
+  AT: "Austria",
+  SE: "Sweden",
+  NO: "Norway",
+  DK: "Denmark",
+  FI: "Finland",
+  PL: "Poland",
+  JP: "Japan",
+  SG: "Singapore",
+  HK: "Hong Kong",
+};

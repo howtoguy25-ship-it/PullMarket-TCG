@@ -8,7 +8,12 @@
       "@/*": ["./client/src/*"],
       "@shared/*": ["./shared/src/*"]
     },
-    "types": ["node"]
+    "types": ["node"],
+    // Lets tsc resolve Foo.native.tsx/Foo.web.tsx pairs the same way Metro
+    // does (see CheckoutForm.native.tsx/.web.tsx) — this single project-wide
+    // typecheck run picks the .native variant for any bare import, since
+    // that's the one with real logic; the .web fallback is a trivial stub.
+    "moduleSuffixes": [".native", ""]
   },
   "include": ["client/**/*.ts", "client/**/*.tsx", "server/**/*.ts", "shared/**/*.ts"],
   "exclude": ["node_modules", "web-build", "server-dist"]

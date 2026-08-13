@@ -19,6 +19,7 @@ export type RootStackParamList = {
   ListingDetail: { listingId: string };
   ImageViewer: { images: string[]; startIndex: number };
   Cart: undefined;
+  Checkout: { sellerId: string };
   CheckoutReturn: { status?: string; order?: string };
   Orders: { role?: "buyer" | "seller" };
   OrderDetail: { orderId: string };

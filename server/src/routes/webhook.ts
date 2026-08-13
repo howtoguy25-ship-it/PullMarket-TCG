@@ -27,9 +27,27 @@ router.post("/", async (req, res) => {
 
   try {
     if (event.type === "checkout.session.completed") {
+      // The web fallback (Stripe's hosted page) — the only path where the
+      // buyer's address is collected by Stripe itself rather than the
+      // app's own form, so it's copied over here before marking paid.
       const session = event.data.object as Stripe.Checkout.Session;
       const orderId = session.metadata?.orderId;
-      if (orderId) await markOrderPaid(orderId, session);
+      if (orderId) {
+        await copyShippingFromCheckoutSession(orderId, session);
+        await markOrderPaid(orderId);
+      }
+    } else if (event.type === "payment_intent.succeeded") {
+      // The custom in-app checkout (native) creates and confirms a
+      // PaymentIntent directly — but note a Checkout Session ALSO creates
+      // its own underlying PaymentIntent, so this fires for the web path
+      // too, in either order relative to checkout.session.completed.
+      // markOrderPaid is idempotent (only acts on a still-pending order),
+      // and copyShippingFromCheckoutSession runs unconditionally whenever
+      // its own event arrives, so handling both for the same order is
+      // harmless regardless of delivery order.
+      const paymentIntent = event.data.object as Stripe.PaymentIntent;
+      const orderId = paymentIntent.metadata?.orderId;
+      if (orderId) await markOrderPaid(orderId);
     } else if (event.type.startsWith("identity.verification_session.")) {
       const session = event.data.object as Stripe.Identity.VerificationSession;
       await handleIdentitySessionEvent(event.type, session);
@@ -42,29 +60,40 @@ router.post("/", async (req, res) => {
   res.json({ received: true });
 });
 
-async function markOrderPaid(orderId: string, session: Stripe.Checkout.Session) {
+async function copyShippingFromCheckoutSession(orderId: string, session: Stripe.Checkout.Session) {
+  const shipping = session.shipping_details;
+  const addr = shipping?.address;
+  if (!addr) return;
+  await db
+    .update(orders)
+    .set({
+      shippingName: shipping?.name ?? null,
+      shippingPhone: session.customer_details?.phone ?? null,
+      shippingLine1: addr.line1 ?? null,
+      shippingLine2: addr.line2 ?? null,
+      shippingCity: addr.city ?? null,
+      shippingState: addr.state ?? null,
+      shippingPostalCode: addr.postal_code ?? null,
+      shippingCountry: addr.country ?? null,
+    })
+    .where(eq(orders.id, orderId));
+}
+
+async function markOrderPaid(orderId: string) {
   const [order] = await db.select().from(orders).where(eq(orders.id, orderId));
   if (!order || order.status !== "pending_payment") return;
 
+  // For the custom in-app checkout, the shipping address is already on the
+  // order (written when it was created — see routes/checkout.ts POST
+  // /intent). For the web/Checkout Session path it's copied in by
+  // copyShippingFromCheckoutSession above before this runs.
   const shippingDeadline = addBusinessDays(new Date(), SHIPPING_DEADLINE_BUSINESS_DAYS);
-
-  const shipping = session.shipping_details;
-  const addr = shipping?.address;
 
   await db
     .update(orders)
     .set({
       status: "paid",
-      stripePaymentIntentId: typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id,
       shippingDeadline,
-      shippingName: shipping?.name ?? null,
-      shippingPhone: session.customer_details?.phone ?? null,
-      shippingLine1: addr?.line1 ?? null,
-      shippingLine2: addr?.line2 ?? null,
-      shippingCity: addr?.city ?? null,
-      shippingState: addr?.state ?? null,
-      shippingPostalCode: addr?.postal_code ?? null,
-      shippingCountry: addr?.country ?? null,
       updatedAt: new Date(),
     })
     .where(eq(orders.id, orderId));

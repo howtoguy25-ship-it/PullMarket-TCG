@@ -63,7 +63,10 @@ export default function CartScreen() {
     mutationFn: (itemId: string) => apiJson("DELETE", `/api/cart/${itemId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/cart"] }),
   });
-  const payMutation = useMutation({
+  // Native gets the app's own custom checkout screen (CardField, in-app —
+  // see CheckoutScreen.tsx); web has no Stripe SDK to build that with, so
+  // it keeps using Stripe's hosted checkout page, unchanged from before.
+  const webCheckoutMutation = useMutation({
     mutationFn: (sellerId: string) => {
       const returnUrl = Linking.createURL("checkout-return");
       return apiJson<{ url: string }>("POST", "/api/checkout/session", { sellerId, returnUrl });
@@ -78,6 +81,11 @@ export default function CartScreen() {
     },
     onError: (err) => showAlert("Couldn't start checkout", err instanceof ApiError ? err.message : "Please try again."),
   });
+
+  const handlePay = (sellerId: string) => {
+    if (Platform.OS === "web") webCheckoutMutation.mutate(sellerId);
+    else navigation.navigate("Checkout", { sellerId });
+  };
 
   if (!isLoading && (!cart || cart.groups.length === 0)) {
     return (
@@ -144,7 +152,12 @@ export default function CartScreen() {
             </View>
           </View>
 
-          <Button title={`Pay Now — $${(group.totalCents / 100).toFixed(2)}`} onPress={() => payMutation.mutate(group.sellerId)} loading={payMutation.isPending} style={{ marginTop: Spacing.md }} />
+          <Button
+            title={`Pay Now — $${(group.totalCents / 100).toFixed(2)}`}
+            onPress={() => handlePay(group.sellerId)}
+            loading={webCheckoutMutation.isPending}
+            style={{ marginTop: Spacing.md }}
+          />
         </View>
       ))}
     </ScrollView>

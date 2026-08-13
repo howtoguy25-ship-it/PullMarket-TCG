@@ -18,6 +18,10 @@ export function getStripe(): Stripe {
   return stripeClient;
 }
 
+// $2.99 per order, kept on the platform's own Stripe balance via
+// application_fee_amount on the Connect destination charge (see
+// routes/checkout.ts) — the rest transfers to the seller. Override with
+// PLATFORM_FEE_CENTS if a different amount is ever needed.
 export function getPlatformFeeCents(): number {
-  return Number(process.env.PLATFORM_FEE_CENTS || 200);
+  return Number(process.env.PLATFORM_FEE_CENTS || 299);
 }

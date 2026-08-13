@@ -109,6 +109,17 @@ module.exports = () => {
             microphonePermission: "PullMarket needs microphone access so you can make audio and video calls to other users in chat.",
           },
         ],
+        // Custom-built in-app checkout (CardField + confirmPayment — see
+        // screens/CheckoutScreen.tsx) instead of Stripe's hosted checkout
+        // page. No merchantIdentifier/enableGooglePay since this flow is
+        // card-only, not Apple Pay/Google Pay — but the plugin must still
+        // get an explicit (even empty) options object: passed as a bare
+        // string, its internal `props` is undefined rather than `{}`, and
+        // it crashes destructuring `undefined.merchantIdentifier` with no
+        // error output at all (confirmed directly against @expo/config's
+        // getConfig — this is a real bug in the plugin, not a config
+        // mistake here).
+        ["@stripe/stripe-react-native", {}],
       ],
       extra: {
         API_URL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:5050",
