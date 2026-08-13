@@ -14,6 +14,7 @@ import { RootStackParamList } from "@/navigation/types";
 import { apiJson, apiRequest, ApiError } from "@/lib/api";
 import { appendMediaToFormData } from "@/lib/formDataImage";
 import { resolveImageUrl } from "@/lib/media";
+import { useCall } from "@/contexts/CallContext";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type ThreadRoute = RouteProp<RootStackParamList, "ChatThread">;
@@ -77,6 +78,7 @@ export default function ChatThreadScreen() {
   const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
   const { conversationId } = route.params;
+  const { startCall } = useCall();
 
   const [text, setText] = useState("");
   const [pendingMedia, setPendingMedia] = useState<PendingMedia[]>([]);
@@ -127,18 +129,28 @@ export default function ChatThreadScreen() {
         ) : null,
       headerRight: () =>
         convo?.otherUser ? (
-          <Pressable
-            hitSlop={8}
-            style={{ paddingHorizontal: Spacing.sm }}
-            onPress={() =>
-              navigation.navigate("Report", { conversationId, reportedUserId: convo.otherUser!.id, reportedUsername: convo.otherUser!.username })
-            }
-          >
-            <Feather name="flag" size={18} color={Colors.textSecondary} />
-          </Pressable>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            {/* Calling is native-only for now — react-native-webrtc has no
+               web build, so this simply doesn't render on web rather than
+               show a button that can't work. */}
+            {Platform.OS !== "web" && convo.status === "accepted" ? (
+              <Pressable hitSlop={8} style={{ paddingHorizontal: Spacing.sm }} onPress={() => void startCall(conversationId, convo.otherUser!)}>
+                <Feather name="phone" size={18} color={Colors.primary} />
+              </Pressable>
+            ) : null}
+            <Pressable
+              hitSlop={8}
+              style={{ paddingHorizontal: Spacing.sm }}
+              onPress={() =>
+                navigation.navigate("Report", { conversationId, reportedUserId: convo.otherUser!.id, reportedUsername: convo.otherUser!.username })
+              }
+            >
+              <Feather name="flag" size={18} color={Colors.textSecondary} />
+            </Pressable>
+          </View>
         ) : null,
     });
-  }, [navigation, convo?.otherUser, conversationId]);
+  }, [navigation, convo?.otherUser, convo?.status, conversationId, startCall]);
 
   const pickMedia = async () => {
     if (pendingMedia.length >= 4) return;

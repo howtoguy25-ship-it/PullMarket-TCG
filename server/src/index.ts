@@ -10,6 +10,7 @@ import path from "path";
 import fs from "fs";
 import { registerRoutes } from "./routes";
 import webhookRoutes from "./routes/webhook";
+import { setupCallSignaling } from "./lib/callSignaling";
 
 const app = express();
 const log = console.log;
@@ -82,6 +83,7 @@ function setupErrorHandler(app: express.Application) {
   setupRequestLogging(app);
 
   const server = await registerRoutes(app);
+  setupCallSignaling(server);
 
   if (process.env.NODE_ENV === "production") {
     serveWebBuildInProduction(app);

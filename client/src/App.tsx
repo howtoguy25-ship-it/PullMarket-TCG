@@ -18,6 +18,8 @@ const Nunito_600SemiBold = require("@expo-google-fonts/nunito/600SemiBold/Nunito
 const Nunito_700Bold = require("@expo-google-fonts/nunito/700Bold/Nunito_700Bold.ttf");
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AmbientSoundProvider } from "@/contexts/AmbientSoundContext";
+import { CallProvider } from "@/contexts/CallContext";
+import { CallOverlay } from "@/components/CallOverlay";
 import { RootNavigator } from "@/navigation/RootNavigator";
 import { applyPendingUpdate } from "@/lib/autoUpdate";
 
@@ -71,8 +73,11 @@ export default function App() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <AmbientSoundProvider>
-              <StatusBar style="dark" />
-              <RootNavigator />
+              <CallProvider>
+                <StatusBar style="dark" />
+                <RootNavigator />
+                <CallOverlay />
+              </CallProvider>
             </AmbientSoundProvider>
           </AuthProvider>
         </QueryClientProvider>

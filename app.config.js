@@ -101,6 +101,14 @@ module.exports = () => {
         // set — harmless to include the plugin either way, but the scheme is
         // required for Google's sign-in redirect to return to the app on iOS.
         ...(googleIosUrlScheme ? [["@react-native-google-signin/google-signin", { iosUrlScheme: googleIosUrlScheme }]] : []),
+        // In-app audio calling (see contexts/CallContext.tsx). Pinned to the
+        // Expo SDK 54-compatible release of this config plugin.
+        [
+          "@config-plugins/react-native-webrtc",
+          {
+            microphonePermission: "PullMarket needs microphone access so you can make audio calls to other users in chat.",
+          },
+        ],
       ],
       extra: {
         API_URL: process.env.EXPO_PUBLIC_API_URL || "http://localhost:5050",

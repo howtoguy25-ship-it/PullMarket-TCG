@@ -447,6 +447,39 @@ export const conversationsRelations = relations(conversations, ({ one, many }) =
   messages: many(messages),
 }));
 
+export const CALL_STATUSES = ["ringing", "accepted", "declined", "missed", "ended"] as const;
+
+// One row per audio call attempt — created the moment the caller invites,
+// updated as the callee answers/declines/it times out, and closed out when
+// either side hangs up. The actual audio never touches this server (that's
+// a direct WebRTC peer connection between the two devices); this table and
+// the WebSocket signaling server (server/src/lib/callSignaling.ts) only
+// carry the connection-setup handshake and call history.
+export const calls = pgTable(
+  "calls",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    callerId: varchar("caller_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    calleeId: varchar("callee_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("ringing"), // one of CALL_STATUSES
+    startedAt: timestamp("started_at").defaultNow(),
+    answeredAt: timestamp("answered_at"),
+    endedAt: timestamp("ended_at"),
+  },
+  (table) => [
+    index("idx_calls_conversation").on(table.conversationId),
+    index("idx_calls_caller").on(table.callerId),
+    index("idx_calls_callee").on(table.calleeId),
+  ],
+);
+
+export const callsRelations = relations(calls, ({ one }) => ({
+  conversation: one(conversations, { fields: [calls.conversationId], references: [conversations.id] }),
+  caller: one(users, { fields: [calls.callerId], references: [users.id], relationName: "callCaller" }),
+  callee: one(users, { fields: [calls.calleeId], references: [users.id], relationName: "callCallee" }),
+}));
+
 export const messages = pgTable(
   "messages",
   {
