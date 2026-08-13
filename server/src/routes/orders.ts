@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { orders, orderItems, users } from "@shared/schema";
+import { orders, orderItems, users, reports } from "@shared/schema";
 import { COURIERS } from "@shared/schema";
 import { and, desc, eq, inArray, or } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
@@ -138,6 +138,29 @@ router.post("/:id/ship", async (req, res) => {
   });
 
   res.json(updated);
+});
+
+// ── Seller: log that a screenshot was taken while viewing buyer delivery
+// info. iOS gives no API to actually block screenshots (only Android does,
+// via FLAG_SECURE — enforced client-side, see useShippingInfoScreenCapture),
+// so on iOS the client detects the screenshot after the fact and reports
+// it here for the owner to review, same as any other report.
+router.post("/:id/screenshot-detected", async (req, res) => {
+  const order = await getOwnedOrder(req.params.id, req.user!.id);
+  if (order === null) return res.status(404).json({ message: "Order not found" });
+  if (order === "forbidden" || order.sellerId !== req.user!.id) return res.status(403).json({ message: "Only the seller can report this" });
+
+  await db.insert(reports).values({
+    reporterId: null,
+    source: "system",
+    orderId: order.id,
+    reportedUserId: order.sellerId,
+    reason: "screenshot_detected",
+    description: `Seller @${req.user!.username} took a screenshot while viewing the buyer's delivery details for order ${order.id.slice(0, 8).toUpperCase()}.`,
+    aiReasoning: "Detected via the OS screenshot-taken notification while the order's shipping-info card was on screen. This is detection, not prevention — iOS provides no API to block screenshots outright.",
+  });
+
+  res.status(201).json({ logged: true });
 });
 
 // ── Buyer: confirm delivery ────────────────────────────────────────────

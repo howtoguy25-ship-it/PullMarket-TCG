@@ -54,6 +54,7 @@
     "expo-linking": "~8.0.12",
     "expo-localization": "~17.0.9",
     "expo-notifications": "~0.32.17",
+    "expo-screen-capture": "~8.0.9",
     "expo-secure-store": "~15.0.8",
     "expo-sensors": "~15.0.8",
     "expo-splash-screen": "~31.0.13",

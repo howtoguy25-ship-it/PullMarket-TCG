@@ -344,7 +344,7 @@ export const readReceiptExclusionsRelations = relations(readReceiptExclusions, (
 
 // ─── Reports (listing/order/chat reports → owner panel) ─────────────────
 export const REPORT_STATUSES = ["pending", "reviewed", "actioned", "dismissed"] as const;
-export const REPORT_SOURCES = ["user", "ai_moderation"] as const;
+export const REPORT_SOURCES = ["user", "ai_moderation", "system"] as const;
 
 export const reports = pgTable(
   "reports",

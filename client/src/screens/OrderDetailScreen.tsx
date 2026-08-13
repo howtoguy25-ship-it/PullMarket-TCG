@@ -13,6 +13,7 @@ import { apiJson, ApiError } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
 import { COURIER_LABELS, isValidTrackingNumber } from "@shared/validation";
+import { useShippingInfoScreenCapture } from "@/hooks/useShippingInfoScreenCapture";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "OrderDetail">;
 type Rt = RouteProp<RootStackParamList, "OrderDetail">;
@@ -105,6 +106,9 @@ export default function OrderDetailScreen() {
     },
     onError: (err) => showAlert("Couldn't process refund", err instanceof ApiError ? err.message : "Please try again."),
   });
+
+  const isSellerViewingAddress = !!order && user?.id === order.seller?.id && !!order.shippingLine1;
+  useShippingInfoScreenCapture(orderId, isSellerViewingAddress);
 
   if (isLoading || !order) {
     return (

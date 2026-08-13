@@ -74,6 +74,7 @@ export const REPORT_REASON_LABELS: Record<string, string> = {
   scam: "Scam or fraud",
   inappropriate: "Inappropriate content",
   harassment: "Harassment or threats",
+  screenshot_detected: "Screenshotted buyer delivery info",
   other: "Other",
 };
 
