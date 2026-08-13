@@ -7,12 +7,86 @@ import { Pool } from "pg";
 // confirmation, not this one) — so it hangs forever in a CI/build
 // environment. Applying constraint-adding changes here first, idempotently,
 // means db:push sees "no changes" for them and never asks.
+//
+// The block below (Pro subscription / AdMob / chat reply-delete-forward-
+// block) exists for a related but distinct reason: production silently ran
+// several deploys behind the actual server code for a while (a Render
+// deploy issue unrelated to drizzle), so real users hit "column ... does
+// not exist" on routes that assumed this schema already existed. Every
+// statement here is copied directly from shared/src/schema.ts and is
+// idempotent (IF NOT EXISTS / DO...EXCEPTION), so re-running this against
+// an already-current database is always a safe no-op.
 const STATEMENTS = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS apple_id text;`,
   `DO $$ BEGIN
      ALTER TABLE users ADD CONSTRAINT users_apple_id_unique UNIQUE (apple_id);
    EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
    END $$;`,
+
+  // users: Pro membership + Remove Ads + read-receipts toggle
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_status text NOT NULL DEFAULT 'none';`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_source text;`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_current_period_end timestamp;`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_cancel_at_period_end boolean DEFAULT false;`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_stripe_subscription_id text;`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_apple_original_transaction_id text;`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_removed boolean NOT NULL DEFAULT false;`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_removed_source text;`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_removed_stripe_payment_intent_id text;`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS ads_removed_apple_original_transaction_id text;`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS read_receipts_enabled boolean DEFAULT true;`,
+
+  // listings: Pro 48h feed boost
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS boosted_until timestamp;`,
+  `CREATE INDEX IF NOT EXISTS idx_listings_boosted ON listings (boosted_until);`,
+
+  // orders: AI-verified custom/third-party tracking
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_business_declared text;`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_business_detected text;`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_tracking_verified boolean;`,
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_tracking_note text;`,
+
+  // messages: reply / forward / delete-for-everyone
+  `ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_message_id varchar REFERENCES messages(id) ON DELETE SET NULL;`,
+  `ALTER TABLE messages ADD COLUMN IF NOT EXISTS forwarded boolean NOT NULL DEFAULT false;`,
+  `ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_for_everyone_at timestamp;`,
+  `CREATE INDEX IF NOT EXISTS idx_messages_reply_to ON messages (reply_to_message_id);`,
+
+  // follows: Pro-member follow system
+  `CREATE TABLE IF NOT EXISTS follows (
+     follower_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     following_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     created_at timestamp DEFAULT now(),
+     PRIMARY KEY (follower_id, following_id)
+   );`,
+  `CREATE INDEX IF NOT EXISTS idx_follows_following ON follows (following_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows (follower_id);`,
+
+  // message_deletions: "delete for me"
+  `CREATE TABLE IF NOT EXISTS message_deletions (
+     user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     message_id varchar NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+     created_at timestamp DEFAULT now(),
+     PRIMARY KEY (user_id, message_id)
+   );`,
+  `CREATE INDEX IF NOT EXISTS idx_message_deletions_message ON message_deletions (message_id);`,
+
+  // blocks
+  `CREATE TABLE IF NOT EXISTS blocks (
+     blocker_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     blocked_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     created_at timestamp DEFAULT now(),
+     PRIMARY KEY (blocker_id, blocked_id)
+   );`,
+  `CREATE INDEX IF NOT EXISTS idx_blocks_blocked ON blocks (blocked_id);`,
+
+  // read_receipt_exclusions: per-contact read-receipt override
+  `CREATE TABLE IF NOT EXISTS read_receipt_exclusions (
+     user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     excluded_user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     created_at timestamp DEFAULT now(),
+     PRIMARY KEY (user_id, excluded_user_id)
+   );`,
 ];
 
 async function main() {
