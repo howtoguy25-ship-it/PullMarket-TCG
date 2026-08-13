@@ -87,6 +87,18 @@ const STATEMENTS = [
      created_at timestamp DEFAULT now(),
      PRIMARY KEY (user_id, excluded_user_id)
    );`,
+
+  // conversation_settings: per-user mute / archive / delete-for-me
+  `CREATE TABLE IF NOT EXISTS conversation_settings (
+     user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     conversation_id varchar NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+     muted_until timestamp,
+     muted_forever boolean NOT NULL DEFAULT false,
+     archived_at timestamp,
+     deleted_at timestamp,
+     updated_at timestamp DEFAULT now(),
+     PRIMARY KEY (user_id, conversation_id)
+   );`,
 ];
 
 async function main() {

@@ -1,5 +1,5 @@
-import React from "react";
-import { View, StyleSheet, Text, FlatList, Pressable } from "react-native";
+import React, { useState } from "react";
+import { View, StyleSheet, Text, FlatList, Pressable, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -8,9 +8,32 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
+import { ChatSwipeRow } from "@/components/ChatSwipeRow";
+import { MuteDurationSheet, MuteChoice } from "@/components/MuteDurationSheet";
 import { RootStackParamList } from "@/navigation/types";
-import { apiJson } from "@/lib/api";
+import { apiJson, apiRequest, ApiError } from "@/lib/api";
 import { timeAgoShort } from "@/lib/timeAgo";
+
+function showAlert(title: string, message: string) {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+  Alert.alert(title, message);
+}
+
+function confirmAsync(title: string, message: string, confirmLabel: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (Platform.OS === "web") {
+      resolve(window.confirm(`${title}\n${message}`));
+    } else {
+      Alert.alert(title, message, [
+        { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+        { text: confirmLabel, style: "destructive", onPress: () => resolve(true) },
+      ]);
+    }
+  });
+}
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -30,6 +53,10 @@ interface ConversationRow {
   otherUser: ChatUser | null;
   isIncomingRequest: boolean;
   unreadCount: number;
+  muted: boolean;
+  mutedForever: boolean;
+  mutedUntil: string | null;
+  archived: boolean;
 }
 
 function useConversations() {
@@ -47,6 +74,7 @@ export default function ChatListScreen() {
   const queryClient = useQueryClient();
   const { data: conversations, isLoading, refetch } = useConversations();
   const friendRequestCount = useFriendRequestCount();
+  const [mutePickerFor, setMutePickerFor] = useState<ConversationRow | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -62,6 +90,27 @@ export default function ChatListScreen() {
     mutationFn: (id: string) => apiJson("POST", `/api/chat/conversations/${id}/decline`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/chat/conversations"] }),
   });
+  const invalidateConversations = () => queryClient.invalidateQueries({ queryKey: ["/api/chat/conversations"] });
+  const muteMutation = useMutation({
+    mutationFn: ({ id, choice }: { id: string; choice: MuteChoice }) => apiJson("POST", `/api/chat/conversations/${id}/mute`, choice),
+    onSuccess: invalidateConversations,
+    onError: (err) => showAlert("Couldn't update mute", err instanceof ApiError ? err.message : "Please try again."),
+  });
+  const archiveMutation = useMutation({
+    mutationFn: (id: string) => apiJson("POST", `/api/chat/conversations/${id}/archive`),
+    onSuccess: invalidateConversations,
+    onError: (err) => showAlert("Couldn't archive", err instanceof ApiError ? err.message : "Please try again."),
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiRequest("DELETE", `/api/chat/conversations/${id}`),
+    onSuccess: invalidateConversations,
+    onError: (err) => showAlert("Couldn't delete", err instanceof ApiError ? err.message : "Please try again."),
+  });
+
+  const handleDelete = async (row: ConversationRow) => {
+    const ok = await confirmAsync("Delete chat", `Delete your conversation with @${row.otherUser?.username ?? "this user"}? It'll come back if they message you again.`, "Delete");
+    if (ok) deleteMutation.mutate(row.id);
+  };
 
   const rows = conversations ?? [];
   const requests = rows.filter((r) => r.isIncomingRequest);
@@ -74,6 +123,9 @@ export default function ChatListScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
         <View style={styles.headerActions}>
+          <Pressable onPress={() => navigation.navigate("ArchivedChats")} style={styles.headerButton} hitSlop={8}>
+            <Feather name="archive" size={20} color={Colors.text} />
+          </Pressable>
           <Pressable onPress={() => navigation.navigate("FriendRequests")} style={styles.headerButton} hitSlop={8}>
             <Feather name="users" size={20} color={Colors.text} />
             {friendRequestCount > 0 ? (
@@ -124,24 +176,34 @@ export default function ChatListScreen() {
         renderItem={({ item }) => {
           const pendingSentByMe = item.status === "pending" && item.initiatorId !== item.otherUser?.id;
           return (
-            <Pressable style={styles.chatRow} onPress={() => openThread(item)}>
-              <Avatar avatarUrl={item.otherUser?.avatarUrl} seed={item.otherUser?.username ?? item.id} size={50} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.chatName}>@{item.otherUser?.username ?? "Unknown"}</Text>
-                <Text style={[styles.chatPreview, item.unreadCount > 0 && styles.chatPreviewUnread]} numberOfLines={1}>
-                  {pendingSentByMe ? "Request sent · " : ""}
-                  {item.lastMessagePreview || "Say hello"}
-                </Text>
-              </View>
-              <View style={styles.chatMeta}>
-                <Text style={styles.chatTime}>{timeAgoShort(item.lastMessageAt)}</Text>
-                {item.unreadCount > 0 ? (
-                  <View style={styles.unreadDot}>
-                    <Text style={styles.unreadDotText}>{item.unreadCount > 9 ? "9+" : item.unreadCount}</Text>
+            <ChatSwipeRow
+              muted={item.muted}
+              onPressDelete={() => void handleDelete(item)}
+              onPressMute={() => setMutePickerFor(item)}
+              onArchive={() => archiveMutation.mutate(item.id)}
+            >
+              <Pressable style={styles.chatRow} onPress={() => openThread(item)}>
+                <Avatar avatarUrl={item.otherUser?.avatarUrl} seed={item.otherUser?.username ?? item.id} size={50} />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.chatNameRow}>
+                    <Text style={styles.chatName}>@{item.otherUser?.username ?? "Unknown"}</Text>
+                    {item.muted ? <Feather name="bell-off" size={13} color={Colors.textMuted} /> : null}
                   </View>
-                ) : null}
-              </View>
-            </Pressable>
+                  <Text style={[styles.chatPreview, item.unreadCount > 0 && styles.chatPreviewUnread]} numberOfLines={1}>
+                    {pendingSentByMe ? "Request sent · " : ""}
+                    {item.lastMessagePreview || "Say hello"}
+                  </Text>
+                </View>
+                <View style={styles.chatMeta}>
+                  <Text style={styles.chatTime}>{timeAgoShort(item.lastMessageAt)}</Text>
+                  {item.unreadCount > 0 ? (
+                    <View style={styles.unreadDot}>
+                      <Text style={styles.unreadDotText}>{item.unreadCount > 9 ? "9+" : item.unreadCount}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </Pressable>
+            </ChatSwipeRow>
           );
         }}
         ListEmptyComponent={
@@ -153,6 +215,12 @@ export default function ChatListScreen() {
             />
           ) : null
         }
+      />
+
+      <MuteDurationSheet
+        visible={!!mutePickerFor}
+        onClose={() => setMutePickerFor(null)}
+        onSelect={(choice) => mutePickerFor && muteMutation.mutate({ id: mutePickerFor.id, choice })}
       />
     </View>
   );
@@ -176,6 +244,7 @@ const styles = StyleSheet.create({
   acceptButton: { backgroundColor: Colors.success },
   declineButton: { backgroundColor: Colors.danger },
   chatRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
+  chatNameRow: { flexDirection: "row", alignItems: "center", gap: 5 },
   chatName: { ...Typography.bodyBold, color: Colors.text, fontSize: 15 },
   chatPreview: { ...Typography.small, color: Colors.textSecondary, marginTop: 2 },
   chatPreviewUnread: { color: Colors.text, fontWeight: "700" },

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { conversations, messages, messageAttachments, messageDeletions, users, reports, readReceiptExclusions } from "@shared/schema";
+import { conversations, messages, messageAttachments, messageDeletions, users, reports, readReceiptExclusions, conversationSettings } from "@shared/schema";
 import { and, desc, eq, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { chatUpload, attachmentTypeFromMime } from "../lib/chatUpload";
@@ -114,9 +114,30 @@ router.post("/conversations/with/:userId", async (req, res) => {
   res.status(201).json(created);
 });
 
+// Archiving/deleting a conversation only ever hides it from that one
+// viewer's own inbox — the moment a NEW message arrives after the
+// archive/delete timestamp, it reappears automatically (same as
+// WhatsApp), rather than staying hidden forever or needing an explicit
+// unarchive/undelete for every future message. Comparing against the
+// conversation's live lastMessageAt on every fetch gets this for free.
+function isHiddenAsOf(hiddenAt: Date | null, lastMessageAt: Date | null): boolean {
+  if (!hiddenAt) return false;
+  return hiddenAt.getTime() >= (lastMessageAt?.getTime() ?? 0);
+}
+
+function isCurrentlyMuted(setting: typeof conversationSettings.$inferSelect | undefined): boolean {
+  if (!setting) return false;
+  if (setting.mutedForever) return true;
+  return !!setting.mutedUntil && setting.mutedUntil.getTime() > Date.now();
+}
+
 // ── List my conversations (accepted chats + pending requests both ways) ──
+// ?archived=true returns only chats this viewer has archived (and that
+// haven't since gotten a new message); omitted/false returns the normal
+// inbox, which excludes both archived and "deleted for me" chats.
 router.get("/conversations", async (req, res) => {
   const meId = req.user!.id;
+  const wantArchived = req.query.archived === "true";
   const rows = await db
     .select()
     .from(conversations)
@@ -135,25 +156,97 @@ router.get("/conversations", async (req, res) => {
     .where(and(inArray(messages.conversationId, conversationIds), ne(messages.senderId, meId), isNull(messages.deliveredAt)));
 
   const otherIds = rows.map((r) => (r.userAId === meId ? r.userBId : r.userAId));
-  const [people, unreadRows] = await Promise.all([
+  const [people, unreadRows, settingsRows] = await Promise.all([
     db.select(PUBLIC_USER_COLUMNS).from(users).where(inArray(users.id, otherIds)),
     db
       .select({ conversationId: messages.conversationId, count: sql<number>`count(*)::int` })
       .from(messages)
       .where(and(inArray(messages.conversationId, conversationIds), ne(messages.senderId, meId), isNull(messages.readAt)))
       .groupBy(messages.conversationId),
+    db.select().from(conversationSettings).where(and(eq(conversationSettings.userId, meId), inArray(conversationSettings.conversationId, conversationIds))),
   ]);
   const peopleById = new Map(people.map((p) => [p.id, p]));
   const unreadByConvo = new Map(unreadRows.map((u) => [u.conversationId, u.count]));
+  const settingsByConvo = new Map(settingsRows.map((s) => [s.conversationId, s]));
+
+  const visibleRows = rows.filter((r) => {
+    const setting = settingsByConvo.get(r.id);
+    if (isHiddenAsOf(setting?.deletedAt ?? null, r.lastMessageAt)) return false;
+    const archived = isHiddenAsOf(setting?.archivedAt ?? null, r.lastMessageAt);
+    return wantArchived ? archived : !archived;
+  });
 
   res.json(
-    rows.map((r) => ({
-      ...r,
-      otherUser: peopleById.get(r.userAId === meId ? r.userBId : r.userAId) ?? null,
-      isIncomingRequest: r.status === "pending" && r.initiatorId !== meId,
-      unreadCount: unreadByConvo.get(r.id) ?? 0,
-    })),
+    visibleRows.map((r) => {
+      const setting = settingsByConvo.get(r.id);
+      return {
+        ...r,
+        otherUser: peopleById.get(r.userAId === meId ? r.userBId : r.userAId) ?? null,
+        isIncomingRequest: r.status === "pending" && r.initiatorId !== meId,
+        unreadCount: unreadByConvo.get(r.id) ?? 0,
+        muted: isCurrentlyMuted(setting),
+        mutedForever: setting?.mutedForever ?? false,
+        mutedUntil: setting?.mutedForever ? null : (setting?.mutedUntil ?? null),
+        archived: isHiddenAsOf(setting?.archivedAt ?? null, r.lastMessageAt),
+      };
+    }),
   );
+});
+
+// ── Mute / unmute (per-viewer; never affects the other participant) ──────
+router.post("/conversations/:id/mute", async (req, res) => {
+  const meId = req.user!.id;
+  if (!(await assertParticipant(req.params.id, meId))) return res.status(404).json({ message: "Conversation not found" });
+
+  const schema = z.object({ minutes: z.number().positive().optional(), forever: z.boolean().optional(), clear: z.boolean().optional() });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+
+  let patch: { mutedUntil: Date | null; mutedForever: boolean };
+  if (parsed.data.clear) patch = { mutedUntil: null, mutedForever: false };
+  else if (parsed.data.forever) patch = { mutedUntil: null, mutedForever: true };
+  else if (parsed.data.minutes) patch = { mutedUntil: new Date(Date.now() + parsed.data.minutes * 60_000), mutedForever: false };
+  else return res.status(400).json({ message: "Specify minutes, forever, or clear" });
+
+  await db
+    .insert(conversationSettings)
+    .values({ userId: meId, conversationId: req.params.id, ...patch })
+    .onConflictDoUpdate({ target: [conversationSettings.userId, conversationSettings.conversationId], set: { ...patch, updatedAt: new Date() } });
+
+  res.json({ muted: patch.mutedForever || !!patch.mutedUntil, mutedForever: patch.mutedForever, mutedUntil: patch.mutedUntil });
+});
+
+// ── Archive / unarchive / delete-for-me (per-viewer) ──────────────────────
+router.post("/conversations/:id/archive", async (req, res) => {
+  const meId = req.user!.id;
+  if (!(await assertParticipant(req.params.id, meId))) return res.status(404).json({ message: "Conversation not found" });
+  const archivedAt = new Date();
+  await db
+    .insert(conversationSettings)
+    .values({ userId: meId, conversationId: req.params.id, archivedAt })
+    .onConflictDoUpdate({ target: [conversationSettings.userId, conversationSettings.conversationId], set: { archivedAt, updatedAt: new Date() } });
+  res.json({ archived: true });
+});
+
+router.post("/conversations/:id/unarchive", async (req, res) => {
+  const meId = req.user!.id;
+  if (!(await assertParticipant(req.params.id, meId))) return res.status(404).json({ message: "Conversation not found" });
+  await db
+    .insert(conversationSettings)
+    .values({ userId: meId, conversationId: req.params.id, archivedAt: null })
+    .onConflictDoUpdate({ target: [conversationSettings.userId, conversationSettings.conversationId], set: { archivedAt: null, updatedAt: new Date() } });
+  res.json({ archived: false });
+});
+
+router.delete("/conversations/:id", async (req, res) => {
+  const meId = req.user!.id;
+  if (!(await assertParticipant(req.params.id, meId))) return res.status(404).json({ message: "Conversation not found" });
+  const deletedAt = new Date();
+  await db
+    .insert(conversationSettings)
+    .values({ userId: meId, conversationId: req.params.id, deletedAt })
+    .onConflictDoUpdate({ target: [conversationSettings.userId, conversationSettings.conversationId], set: { deletedAt, updatedAt: new Date() } });
+  res.json({ deleted: true });
 });
 
 router.post("/conversations/:id/accept", async (req, res) => {
@@ -255,7 +348,13 @@ async function finalizeOutgoingMessage(convo: typeof conversations.$inferSelect,
     .where(eq(conversations.id, convo.id));
 
   const otherUserId = convo.userAId === meId ? convo.userBId : convo.userAId;
-  await notifyUser(otherUserId, { type: "new_message", title: `@${senderUsername}`, body: preview, data: { conversationId: convo.id } });
+  const [recipientSetting] = await db
+    .select()
+    .from(conversationSettings)
+    .where(and(eq(conversationSettings.userId, otherUserId), eq(conversationSettings.conversationId, convo.id)));
+  if (!isCurrentlyMuted(recipientSetting)) {
+    await notifyUser(otherUserId, { type: "new_message", title: `@${senderUsername}`, body: preview, data: { conversationId: convo.id } });
+  }
   return isRecipientReply;
 }
 

@@ -644,6 +644,42 @@ export const blocksRelations = relations(blocks, ({ one }) => ({
   blocked: one(users, { fields: [blocks.blockedId], references: [users.id], relationName: "blockBlocked" }),
 }));
 
+// ─── Per-user conversation settings (mute / archive / delete) ───────────
+// One row per (userId, conversationId), created lazily on first use (see
+// upsertConversationSetting in routes/chat.ts) — everything here is scoped
+// to the viewer only, so muting/archiving/deleting a chat never affects
+// what the other participant sees.
+//
+// Mute: mutedForever=true means "Always"; otherwise mutedUntil holds the
+// expiry (5m/1h/3h/.../48h from when it was set) — a chat is currently
+// muted iff mutedForever OR (mutedUntil is set and still in the future).
+// "Never" clears both fields back to their unmuted defaults rather than
+// deleting the row, since archivedAt/deletedAt may still need it.
+//
+// Archive / delete: archivedAt/deletedAt just being set means "hidden from
+// the main inbox as of this timestamp" — both auto-clear (the chat
+// reappears) the moment a NEW message arrives after that timestamp,
+// exactly like WhatsApp, rather than requiring an explicit unarchive for
+// every future message.
+export const conversationSettings = pgTable(
+  "conversation_settings",
+  {
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+    mutedUntil: timestamp("muted_until"),
+    mutedForever: boolean("muted_forever").notNull().default(false),
+    archivedAt: timestamp("archived_at"),
+    deletedAt: timestamp("deleted_at"),
+    updatedAt: timestamp("updated_at").defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.userId, table.conversationId] })],
+);
+
+export const conversationSettingsRelations = relations(conversationSettings, ({ one }) => ({
+  user: one(users, { fields: [conversationSettings.userId], references: [users.id] }),
+  conversation: one(conversations, { fields: [conversationSettings.conversationId], references: [conversations.id] }),
+}));
+
 export const MESSAGE_ATTACHMENT_TYPES = ["image", "video"] as const;
 
 export const messageAttachments = pgTable(
@@ -698,6 +734,7 @@ export type Message = typeof messages.$inferSelect;
 export type MessageAttachment = typeof messageAttachments.$inferSelect;
 export type MessageDeletion = typeof messageDeletions.$inferSelect;
 export type Block = typeof blocks.$inferSelect;
+export type ConversationSetting = typeof conversationSettings.$inferSelect;
 export type Condition = (typeof CONDITIONS)[number];
 export type Franchise = (typeof FRANCHISES)[number];
 export type Courier = (typeof COURIERS)[number];
