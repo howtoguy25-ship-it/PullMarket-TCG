@@ -105,9 +105,11 @@ export default function ArchivedChatsScreen() {
           >
             <Pressable style={styles.chatRow} onPress={() => navigation.navigate("ChatThread", { conversationId: item.id, otherUserId: item.otherUser?.id })}>
               <Avatar avatarUrl={item.otherUser?.avatarUrl} seed={item.otherUser?.username ?? item.id} size={50} />
-              <View style={{ flex: 1 }}>
+              <View style={styles.chatTextCol}>
                 <View style={styles.chatNameRow}>
-                  <Text style={styles.chatName}>@{item.otherUser?.username ?? "Unknown"}</Text>
+                  <Text style={styles.chatName} numberOfLines={1}>
+                    @{item.otherUser?.username ?? "Unknown"}
+                  </Text>
                   {item.muted ? <Feather name="bell-off" size={13} color={Colors.textMuted} /> : null}
                 </View>
                 <Text style={styles.chatPreview} numberOfLines={1}>
@@ -136,9 +138,10 @@ export default function ArchivedChatsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  chatRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm, backgroundColor: Colors.background },
+  chatRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: 12, minHeight: 66, backgroundColor: Colors.background, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
+  chatTextCol: { flex: 1, justifyContent: "center", gap: 3 },
   chatNameRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  chatName: { ...Typography.bodyBold, color: Colors.text, fontSize: 15 },
-  chatPreview: { ...Typography.small, color: Colors.textSecondary, marginTop: 2 },
+  chatName: { ...Typography.bodyBold, color: Colors.text, fontSize: 15, flexShrink: 1 },
+  chatPreview: { ...Typography.small, color: Colors.textSecondary },
   chatTime: { ...Typography.small, color: Colors.textMuted, fontSize: 11 },
 });

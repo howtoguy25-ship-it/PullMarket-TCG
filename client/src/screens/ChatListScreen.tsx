@@ -184,9 +184,11 @@ export default function ChatListScreen() {
             >
               <Pressable style={styles.chatRow} onPress={() => openThread(item)}>
                 <Avatar avatarUrl={item.otherUser?.avatarUrl} seed={item.otherUser?.username ?? item.id} size={50} />
-                <View style={{ flex: 1 }}>
+                <View style={styles.chatTextCol}>
                   <View style={styles.chatNameRow}>
-                    <Text style={styles.chatName}>@{item.otherUser?.username ?? "Unknown"}</Text>
+                    <Text style={styles.chatName} numberOfLines={1}>
+                      @{item.otherUser?.username ?? "Unknown"}
+                    </Text>
                     {item.muted ? <Feather name="bell-off" size={13} color={Colors.textMuted} /> : null}
                   </View>
                   <Text style={[styles.chatPreview, item.unreadCount > 0 && styles.chatPreviewUnread]} numberOfLines={1}>
@@ -243,12 +245,13 @@ const styles = StyleSheet.create({
   requestActionButton: { width: 30, height: 30, borderRadius: 15, alignItems: "center", justifyContent: "center" },
   acceptButton: { backgroundColor: Colors.success },
   declineButton: { backgroundColor: Colors.danger },
-  chatRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.sm },
+  chatRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingVertical: 12, minHeight: 66, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: Colors.border },
+  chatTextCol: { flex: 1, justifyContent: "center", gap: 3 },
   chatNameRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  chatName: { ...Typography.bodyBold, color: Colors.text, fontSize: 15 },
-  chatPreview: { ...Typography.small, color: Colors.textSecondary, marginTop: 2 },
+  chatName: { ...Typography.bodyBold, color: Colors.text, fontSize: 15, flexShrink: 1 },
+  chatPreview: { ...Typography.small, color: Colors.textSecondary },
   chatPreviewUnread: { color: Colors.text, fontWeight: "700" },
-  chatMeta: { alignItems: "flex-end", gap: 6 },
+  chatMeta: { alignItems: "flex-end", justifyContent: "center", gap: 6, alignSelf: "stretch" },
   chatTime: { ...Typography.small, color: Colors.textMuted, fontSize: 11 },
   unreadDot: { backgroundColor: Colors.primary, borderRadius: 9, minWidth: 18, height: 18, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   unreadDotText: { color: Colors.white, fontSize: 10, fontWeight: "800" },

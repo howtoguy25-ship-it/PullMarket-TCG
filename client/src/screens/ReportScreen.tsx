@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Text, TextInput, Pressable, Platform, Alert } from "react-native";
+import { View, StyleSheet, Text, TextInput, Pressable, Platform, Alert, Keyboard, KeyboardAvoidingView, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { useRoute, RouteProp, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation } from "@tanstack/react-query";
@@ -27,6 +28,7 @@ export default function ReportScreen() {
   const { listingId, orderId, conversationId, reportedUserId, reportedUsername, messageId } = route.params ?? {};
   const isChatReport = !!conversationId || !!reportedUserId;
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   const [reason, setReason] = useState("scam");
   const [description, setDescription] = useState("");
 
@@ -42,40 +44,50 @@ export default function ReportScreen() {
   });
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom + Spacing.xl }]}>
-      {isChatReport ? (
-        <>
-          <Text style={styles.header}>{`Report ${reportedUsername ? `@${reportedUsername}` : "this user"}`}</Text>
-          <Text style={styles.subtitle}>{messageId ? "Our team will review this message and decide whether action is needed." : "Our team will review this conversation and decide whether action is needed."}</Text>
-        </>
-      ) : null}
-      <Text style={styles.title}>{isChatReport ? "Reason" : "What's wrong?"}</Text>
-      <View style={styles.reasonRow}>
-        {reasons.map(([key, label]) => (
-          <Pressable key={key} onPress={() => setReason(key)} style={[styles.reasonChip, reason === key && styles.reasonChipActive]}>
-            <Text style={[styles.reasonChipText, reason === key && { color: Colors.white }]}>{label}</Text>
-          </Pressable>
-        ))}
-      </View>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={headerHeight}>
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[styles.container, { paddingBottom: insets.bottom + Spacing.xl }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+      >
+        <Pressable style={styles.flex} onPress={Keyboard.dismiss}>
+          {isChatReport ? (
+            <>
+              <Text style={styles.header}>{`Report ${reportedUsername ? `@${reportedUsername}` : "this user"}`}</Text>
+              <Text style={styles.subtitle}>{messageId ? "Our team will review this message and decide whether action is needed." : "Our team will review this conversation and decide whether action is needed."}</Text>
+            </>
+          ) : null}
+          <Text style={styles.title}>{isChatReport ? "Reason" : "What's wrong?"}</Text>
+          <View style={styles.reasonRow}>
+            {reasons.map(([key, label]) => (
+              <Pressable key={key} onPress={() => setReason(key)} style={[styles.reasonChip, reason === key && styles.reasonChipActive]}>
+                <Text style={[styles.reasonChipText, reason === key && { color: Colors.white }]}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
 
-      <Text style={styles.title}>Details</Text>
-      <TextInput
-        style={styles.textArea}
-        placeholder="Tell us what happened…"
-        placeholderTextColor={Colors.textMuted}
-        value={description}
-        onChangeText={setDescription}
-        multiline
-        numberOfLines={6}
-      />
+          <Text style={styles.title}>Details</Text>
+          <TextInput
+            style={styles.textArea}
+            placeholder="Tell us what happened…"
+            placeholderTextColor={Colors.textMuted}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            numberOfLines={6}
+          />
 
-      <Button title="Submit report" onPress={() => submitMutation.mutate()} loading={submitMutation.isPending} disabled={description.trim().length < 5} style={{ marginTop: Spacing.lg }} />
-    </View>
+          <Button title="Submit report" onPress={() => submitMutation.mutate()} loading={submitMutation.isPending} disabled={description.trim().length < 5} style={{ marginTop: Spacing.lg }} />
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, padding: Spacing.lg },
+  flex: { flex: 1, backgroundColor: Colors.background },
+  container: { padding: Spacing.lg },
   header: { ...Typography.h3, color: Colors.text, marginTop: Spacing.sm },
   subtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 4, marginBottom: Spacing.sm },
   title: { ...Typography.bodyBold, color: Colors.text, marginBottom: Spacing.sm, marginTop: Spacing.md },
