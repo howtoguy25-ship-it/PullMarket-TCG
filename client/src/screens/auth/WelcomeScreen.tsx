@@ -194,10 +194,15 @@ export default function WelcomeScreen() {
 
   return (
     <GalaxyBackground>
+      {/* bounces was previously false, which on iOS makes a screen that's
+         close to the viewport height feel rigid/locked rather than like a
+         normal scrollable page — enabling it gives the natural rubber-band
+         give so it's obvious (and pleasant) to scroll when content runs
+         past the fold on smaller phones. */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={[styles.container, { flexGrow: 1, paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl }]}
-        bounces={false}
+        bounces
       >
         <View style={styles.brandRow}>
           <Image source={require("@/assets/icon-mark-only.png")} style={styles.logoMark} resizeMode="contain" />
@@ -234,7 +239,12 @@ const styles = StyleSheet.create({
   brandRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, alignSelf: "center" },
   logoMark: { width: 42, height: 64 },
   title: { ...Typography.h2, color: Colors.white, lineHeight: 24 },
-  titleAccent: { ...Typography.h3, color: Colors.gold, letterSpacing: 3, lineHeight: 18 },
+  // A positive letterSpacing on iOS's native text renderer can clip the
+  // leading edge of the first character — "TCG" was rendering with its
+  // "T" cut down to what read as an "I". A couple of px of left padding
+  // gives that first glyph room without visibly shifting the text (it
+  // rendered fine on web already, so this is a no-op there).
+  titleAccent: { ...Typography.h3, color: Colors.gold, letterSpacing: 3, lineHeight: 18, paddingLeft: 3 },
   hero: { alignItems: "center", justifyContent: "center", gap: Spacing.lg, paddingVertical: Spacing.xl },
   subtitle: { ...Typography.h3, color: "rgba(255,255,255,0.92)", textAlign: "center", lineHeight: 24 },
   panel: {
