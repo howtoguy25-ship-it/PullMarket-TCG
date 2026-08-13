@@ -5,7 +5,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { Colors } from "@/constants/theme";
-import { AD_LIMITS, bannerStorageKey, canShowToday, getBannerUnitId, initAds, loadAds, recordShownToday } from "@/lib/ads";
+import { AD_LIMITS, bannerStorageKey, canShowToday, getBannerUnitId, initAds, isAdsAvailable, loadAds, recordShownToday } from "@/lib/ads";
 
 interface AdsStatus {
   adsRemoved: boolean;
@@ -35,18 +35,22 @@ export function BannerAdBar() {
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (Platform.OS === "web" || !user || adsStatus?.adsRemoved) return;
+    if (Platform.OS === "web" || !user || adsStatus?.adsRemoved || !isAdsAvailable()) return;
     let cancelled = false;
     (async () => {
-      if (!(await canShowToday(bannerStorageKey(), AD_LIMITS.BANNER_PER_DAY))) return;
-      await initAds();
-      const mod = await loadAds();
-      const id = await getBannerUnitId();
-      if (cancelled) return;
-      setBannerAd(() => mod.BannerAd);
-      setBannerAdSize(() => mod.BannerAdSize);
-      setUnitId(id);
-      setEligible(true);
+      try {
+        if (!(await canShowToday(bannerStorageKey(), AD_LIMITS.BANNER_PER_DAY))) return;
+        await initAds();
+        const mod = await loadAds();
+        const id = await getBannerUnitId();
+        if (cancelled) return;
+        setBannerAd(() => mod.BannerAd);
+        setBannerAdSize(() => mod.BannerAdSize);
+        setUnitId(id);
+        setEligible(true);
+      } catch (err) {
+        console.error("Banner ad setup failed:", err);
+      }
     })();
     return () => {
       cancelled = true;

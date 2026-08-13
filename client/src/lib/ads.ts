@@ -1,4 +1,4 @@
-import { Platform } from "react-native";
+import { Platform, TurboModuleRegistry } from "react-native";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -6,8 +6,35 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 // same dynamic-import-on-native-only pattern used elsewhere in this app
 // (react-native-webrtc, react-native-iap, etc.), so importing this file
 // never touches the web bundle.
+//
+// This app ships JS updates over EAS Update (OTA) to every installed build
+// sharing the same runtime version, regardless of which native modules that
+// specific build actually has compiled in — an older build made before
+// this dependency was added has no native AdMob code at all. Actually
+// *rendering* an AdMob view (or calling its native module) on a build that
+// lacks it is a native-side crash, not a catchable JS error, so importing
+// or rendering anything from this package must never be attempted unless
+// the native module is confirmed present first. TurboModuleRegistry.get
+// (unlike .getEnforcing) returns null instead of throwing/crashing when a
+// module isn't linked, which is exactly the safe check needed here.
+let nativeModuleChecked = false;
+let nativeModuleAvailable = false;
+export function isAdsAvailable(): boolean {
+  if (Platform.OS === "web") return false;
+  if (!nativeModuleChecked) {
+    nativeModuleChecked = true;
+    try {
+      nativeModuleAvailable = TurboModuleRegistry.get("RNGoogleMobileAdsModule") != null;
+    } catch {
+      nativeModuleAvailable = false;
+    }
+  }
+  return nativeModuleAvailable;
+}
+
 let adsModule: typeof import("react-native-google-mobile-ads") | null = null;
 export async function loadAds() {
+  if (!isAdsAvailable()) throw new Error("AdMob isn't available in this build.");
   if (!adsModule) adsModule = await import("react-native-google-mobile-ads");
   return adsModule;
 }
@@ -17,7 +44,7 @@ let initialized = false;
 // app startup. Declining the ATT prompt isn't an error; AdMob just serves
 // non-personalized ads instead, which the SDK handles on its own.
 export async function initAds(): Promise<void> {
-  if (Platform.OS === "web" || initialized) return;
+  if (Platform.OS === "web" || initialized || !isAdsAvailable()) return;
   initialized = true;
   try {
     if (Platform.OS === "ios") {

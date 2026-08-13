@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { AppState, Platform } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
-import { AD_LIMITS, appOpenStorageKey, canShowToday, getAppOpenUnitId, initAds, loadAds, recordShownToday } from "@/lib/ads";
+import { AD_LIMITS, appOpenStorageKey, canShowToday, getAppOpenUnitId, initAds, isAdsAvailable, loadAds, recordShownToday } from "@/lib/ads";
 
 interface AdsStatus {
   adsRemoved: boolean;
@@ -20,7 +20,7 @@ export function AppOpenAdManager() {
   const inFlightRef = useRef(false);
 
   const tryShow = useCallback(async () => {
-    if (Platform.OS === "web" || !user || adsStatus?.adsRemoved || inFlightRef.current) return;
+    if (Platform.OS === "web" || !user || adsStatus?.adsRemoved || inFlightRef.current || !isAdsAvailable()) return;
     if (!(await canShowToday(appOpenStorageKey(), AD_LIMITS.APP_OPEN_PER_DAY))) return;
 
     inFlightRef.current = true;
