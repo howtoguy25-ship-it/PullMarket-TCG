@@ -12,7 +12,8 @@ import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
-import { COURIER_LABELS, isValidTrackingNumber } from "@shared/validation";
+import * as Linking from "expo-linking";
+import { COURIER_LABELS, isValidTrackingNumber, buildTrackingUrl } from "@shared/validation";
 import { useShippingInfoScreenCapture } from "@/hooks/useShippingInfoScreenCapture";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "OrderDetail">;
@@ -213,7 +214,22 @@ export default function OrderDetailScreen() {
           <Text style={styles.trackingCourier}>
             {order.courier === "custom" ? `Custom · ${order.customBusinessDeclared ?? "Third-party"}` : COURIER_LABELS[order.courier ?? "other"]}
           </Text>
-          <Text style={styles.trackingNumber}>{order.trackingNumber}</Text>
+          {(() => {
+            const trackingUrl = buildTrackingUrl(order.courier ?? "other", order.trackingNumber ?? "");
+            if (!trackingUrl) return <Text style={styles.trackingNumber}>{order.trackingNumber}</Text>;
+            return (
+              <Pressable
+                onPress={() =>
+                  Linking.openURL(trackingUrl).catch(() => showAlert("Couldn't open tracking", "Please try again, or track this number directly on the courier's website."))
+                }
+                style={styles.trackingLinkRow}
+                hitSlop={6}
+              >
+                <Text style={[styles.trackingNumber, styles.trackingNumberLink]}>{order.trackingNumber}</Text>
+                <Feather name="external-link" size={14} color={Colors.secondary} />
+              </Pressable>
+            );
+          })()}
           {order.boxSizeLabel ? <Text style={styles.trackingMeta}>Box: {order.boxSizeLabel}</Text> : null}
           {order.courier === "custom" && order.customTrackingNote ? (
             <View style={styles.customNoteBox}>
@@ -355,6 +371,8 @@ const styles = StyleSheet.create({
 
   trackingCourier: { ...Typography.small, color: Colors.secondary, fontWeight: "800", textTransform: "uppercase", letterSpacing: 0.3 },
   trackingNumber: { fontFamily: Fonts.displayBold, fontSize: 17, color: Colors.text, marginTop: 2 },
+  trackingLinkRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2, alignSelf: "flex-start" },
+  trackingNumberLink: { color: Colors.secondary, marginTop: 0, textDecorationLine: "underline" },
   trackingMeta: { ...Typography.small, color: Colors.textSecondary, marginTop: 2 },
   customNoteBox: { flexDirection: "row", alignItems: "flex-start", gap: 5, marginTop: Spacing.sm, backgroundColor: Colors.surfaceAlt, borderRadius: BorderRadius.sm, padding: Spacing.sm },
   customNoteText: { fontSize: 11, color: Colors.textMuted, flex: 1, lineHeight: 15 },

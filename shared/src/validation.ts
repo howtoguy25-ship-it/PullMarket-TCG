@@ -87,6 +87,20 @@ export function isValidTrackingNumber(courier: string, trackingNumber: string): 
   return pattern.test(trimmed);
 }
 
+// Real public tracking pages for the fixed couriers — "other"/"custom" have
+// no single fixed courier to link to, so those render as plain text instead.
+const COURIER_TRACKING_URL_BUILDERS: Record<string, (trackingNumber: string) => string> = {
+  australia_post: (n) => `https://auspost.com.au/mypost/track/#/details/${encodeURIComponent(n)}`,
+  dhl: (n) => `https://www.dhl.com/global-en/home/tracking.html?tracking-id=${encodeURIComponent(n)}`,
+  fedex: (n) => `https://www.fedex.com/fedextrack/?trknbr=${encodeURIComponent(n)}`,
+};
+
+export function buildTrackingUrl(courier: string, trackingNumber: string): string | null {
+  const trimmed = trackingNumber.trim();
+  if (!trimmed) return null;
+  return COURIER_TRACKING_URL_BUILDERS[courier]?.(trimmed) ?? null;
+}
+
 /** Adds N business days (Mon-Fri) to `from`. Used for the 5-business-day ship deadline. */
 export function addBusinessDays(from: Date, days: number): Date {
   const result = new Date(from);

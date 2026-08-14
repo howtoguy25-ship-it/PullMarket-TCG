@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -52,6 +53,25 @@ export default function App() {
   useEffect(() => {
     void applyPendingUpdate();
     return watchForUpdatesOnForeground();
+  }, []);
+
+  // Web export's index.html pins html/body/#root to a plain `height: 100%`,
+  // which on mobile Safari/Chrome resolves to the viewport height with the
+  // browser's own address-bar chrome collapsed — the LARGEST it ever gets.
+  // The moment that chrome is showing (the common case), the real visible
+  // area is shorter than that 100%, so anything anchored to the bottom of a
+  // 100%-tall box (the bottom tab bar) ends up partly hidden behind the
+  // browser's own UI. `dvh` tracks the actual current viewport instead of
+  // the maximum one, so this overrides just that one property — everything
+  // else in the generated stylesheet is left alone.
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const style = document.createElement("style");
+    style.textContent = `html, body, #root { height: 100dvh; }`;
+    document.head.appendChild(style);
+    return () => {
+      document.head.removeChild(style);
+    };
   }, []);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { View, StyleSheet, Text, FlatList, Pressable, TextInput, RefreshControl, Platform, Alert } from "react-native";
+import React, { useMemo, useRef, useState } from "react";
+import { View, StyleSheet, Text, FlatList, Pressable, TextInput, RefreshControl, Platform, Alert, Animated } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -37,6 +37,36 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const cartCount = useCartCount();
   const unreadCount = useUnreadNotifications();
+
+  // Collapsing header: scrolling down hides the search bar + franchise
+  // chips together; scrolling back up (without reaching the top) brings
+  // back just the search bar; only landing back at the very top restores
+  // both. headerModeRef mirrors the state to avoid re-triggering the same
+  // animation on every scroll tick.
+  const headerModeRef = useRef<"full" | "searchOnly" | "hidden">("full");
+  const lastScrollY = useRef(0);
+  const searchAnim = useRef(new Animated.Value(1)).current;
+  const chipsAnim = useRef(new Animated.Value(1)).current;
+
+  const setHeaderModeAnimated = (mode: "full" | "searchOnly" | "hidden") => {
+    if (headerModeRef.current === mode) return;
+    headerModeRef.current = mode;
+    Animated.parallel([
+      Animated.timing(searchAnim, { toValue: mode === "hidden" ? 0 : 1, duration: 200, useNativeDriver: false }),
+      Animated.timing(chipsAnim, { toValue: mode === "full" ? 1 : 0, duration: 200, useNativeDriver: false }),
+    ]).start();
+  };
+
+  const SCROLL_DEAD_ZONE = 10;
+  const handleScroll = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const delta = y - lastScrollY.current;
+    lastScrollY.current = y;
+
+    if (y <= 0) setHeaderModeAnimated("full");
+    else if (delta > SCROLL_DEAD_ZONE) setHeaderModeAnimated("hidden");
+    else if (delta < -SCROLL_DEAD_ZONE) setHeaderModeAnimated("searchOnly");
+  };
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
@@ -94,41 +124,47 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.searchBar}>
-          <Feather name="search" size={20} color="rgba(255,255,255,0.85)" />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search cards, sets, characters…"
-            placeholderTextColor="rgba(255,255,255,0.55)"
-            value={query}
-            onChangeText={setQuery}
-          />
-          {query ? (
-            <Pressable onPress={() => setQuery("")} hitSlop={8}>
-              <Feather name="x" size={20} color="rgba(255,255,255,0.85)" />
-            </Pressable>
-          ) : null}
-        </View>
-
-        <View style={styles.chipsRow}>
-          {FRANCHISE_FILTERS.map((f) => {
-            const active = franchises.includes(f.key);
-            return (
-              <Pressable
-                key={f.key}
-                onPress={() => toggleFranchise(f.key)}
-                style={[styles.chip, active ? { backgroundColor: f.color, borderColor: f.color, ...glowShadow(f.color) } : { backgroundColor: `${f.color}22`, borderColor: f.color }]}
-              >
-                <Text style={[styles.chipText, { color: active ? Colors.white : f.color }]}>{f.label}</Text>
+        <Animated.View style={{ maxHeight: searchAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 80] }), opacity: searchAnim, overflow: "hidden" }}>
+          <View style={styles.searchBar}>
+            <Feather name="search" size={20} color="rgba(255,255,255,0.85)" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search cards, sets, characters…"
+              placeholderTextColor="rgba(255,255,255,0.55)"
+              value={query}
+              onChangeText={setQuery}
+            />
+            {query ? (
+              <Pressable onPress={() => setQuery("")} hitSlop={8}>
+                <Feather name="x" size={20} color="rgba(255,255,255,0.85)" />
               </Pressable>
-            );
-          })}
-        </View>
+            ) : null}
+          </View>
+        </Animated.View>
+
+        <Animated.View style={{ maxHeight: chipsAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 90] }), opacity: chipsAnim, overflow: "hidden" }}>
+          <View style={styles.chipsRow}>
+            {FRANCHISE_FILTERS.map((f) => {
+              const active = franchises.includes(f.key);
+              return (
+                <Pressable
+                  key={f.key}
+                  onPress={() => toggleFranchise(f.key)}
+                  style={[styles.chip, active ? { backgroundColor: f.color, borderColor: f.color, ...glowShadow(f.color) } : { backgroundColor: `${f.color}22`, borderColor: f.color }]}
+                >
+                  <Text style={[styles.chipText, { color: active ? Colors.white : f.color }]}>{f.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </Animated.View>
 
         <FlatList
           data={listings ?? []}
           keyExtractor={(item) => item.id}
           numColumns={2}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
           contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
           renderItem={({ item }) => (
