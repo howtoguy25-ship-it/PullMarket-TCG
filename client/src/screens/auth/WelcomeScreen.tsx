@@ -238,13 +238,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, width: "100%", maxWidth: 480, alignSelf: "center", paddingHorizontal: Spacing.xl, justifyContent: "space-between" },
   brandRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, alignSelf: "center" },
   logoMark: { width: 42, height: 64 },
-  title: { ...Typography.h2, color: Colors.white, lineHeight: 24 },
-  // lineHeight equal to fontSize leaves zero vertical room for a bold
+  // lineHeight barely above fontSize leaves zero vertical room for a bold
   // display font's cap-height on iOS, which crops the top of tall glyphs —
-  // "TCG" was rendering with its "T" cropped down to what read as an "I".
-  // Giving the line real breathing room (not just equal to the font size)
-  // fixes the crop; the left padding guards the same glyph's leading edge
-  // from the added letterSpacing.
+  // "TCG" was rendering with its "T" cropped down to what read as an "I",
+  // and "PullMarket" had the exact same problem (its "P"/"M" caps clipped),
+  // just less noticed since the crop was smaller. Both need real breathing
+  // room, not just fontSize + 1.
+  title: { ...Typography.h2, color: Colors.white, lineHeight: 32 },
   titleAccent: { ...Typography.h3, color: Colors.gold, letterSpacing: 3, lineHeight: 26, paddingLeft: 3, paddingTop: 2 },
   hero: { alignItems: "center", justifyContent: "center", gap: Spacing.lg, paddingVertical: Spacing.xl },
   subtitle: { ...Typography.h3, color: "rgba(255,255,255,0.92)", textAlign: "center", lineHeight: 24 },
