@@ -2,7 +2,7 @@ import React from "react";
 import { View, StyleSheet, Text, Platform, Alert, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Spacing, Typography, BorderRadius, Fonts, Shadow } from "@/constants/theme";
@@ -16,6 +16,16 @@ function showAlert(title: string, message: string) {
     return;
   }
   Alert.alert(title, message);
+}
+
+function confirmAsync(title: string, message: string, confirmLabel: string): Promise<boolean> {
+  if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [
+      { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+      { text: confirmLabel, style: "destructive", onPress: () => resolve(true) },
+    ]);
+  });
 }
 
 function formatMoney(cents: number, currency: string | null) {
@@ -34,7 +44,8 @@ interface ConnectStatus {
 export default function SellerPayoutSetupScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
-  useAuth();
+  const { refreshUser } = useAuth();
+  const queryClient = useQueryClient();
 
   const { data: status, refetch, isFetching } = useQuery<ConnectStatus>({ queryKey: ["/api/checkout/connect/status"], refetchInterval: 30_000 });
 
@@ -45,6 +56,36 @@ export default function SellerPayoutSetupScreen() {
     },
     onError: (err) => showAlert("Couldn't start payout setup", err instanceof ApiError ? err.message : "Please try again."),
   });
+
+  const disconnectMutation = useMutation({
+    mutationFn: () => apiJson("POST", "/api/checkout/connect/disconnect"),
+    onSuccess: async () => {
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["/api/checkout/connect/status"] }), refreshUser()]);
+    },
+    onError: (err) => showAlert("Couldn't disconnect", err instanceof ApiError ? err.message : "Please try again."),
+  });
+
+  const handleDisconnect = async () => {
+    const ok = await confirmAsync(
+      "Log out of this payout account?",
+      "This unlinks your connected Stripe account from PullMarket — it doesn't close your Stripe account or affect money already paid out. You won't be able to receive new sale proceeds until you connect a payout account again.",
+      "Log out",
+    );
+    if (ok) disconnectMutation.mutate();
+  };
+
+  const handleAddNewAccount = async () => {
+    const ok = await confirmAsync(
+      "Add a new payout account?",
+      "This logs out of your current payout account first, then opens Stripe so you can connect a different one.",
+      "Continue",
+    );
+    if (!ok) return;
+    await disconnectMutation.mutateAsync();
+    onboardMutation.mutate();
+  };
+
+  const switching = disconnectMutation.isPending || onboardMutation.isPending;
 
   return (
     <View style={[styles.container, { paddingTop: headerHeight + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl }]}>
@@ -81,15 +122,43 @@ export default function SellerPayoutSetupScreen() {
       ) : null}
 
       {!status?.payoutsEnabled ? (
-        <Button title={status?.onboarded ? "Continue setup with Stripe" : "Set up payouts with Stripe"} onPress={() => onboardMutation.mutate()} loading={onboardMutation.isPending} style={{ marginTop: Spacing.lg }} />
-      ) : null}
+        <Button
+          title={status?.onboarded ? "Continue setup with Stripe" : "Add payout account"}
+          icon={<Feather name={status?.onboarded ? "arrow-right-circle" : "plus-circle"} size={16} color={Colors.white} />}
+          onPress={() => onboardMutation.mutate()}
+          loading={onboardMutation.isPending}
+          style={{ marginTop: Spacing.lg, width: "100%" }}
+        />
+      ) : (
+        <View style={styles.connectedActions}>
+          <Button
+            title="Add new payout account"
+            variant="secondary"
+            icon={<Feather name="plus-circle" size={16} color={Colors.white} />}
+            onPress={() => void handleAddNewAccount()}
+            loading={switching}
+            style={{ width: "100%" }}
+          />
+          <Button
+            title="Log out of payout account"
+            variant="outline"
+            icon={<Feather name="log-out" size={16} color={Colors.danger} />}
+            textColor={Colors.danger}
+            onPress={() => void handleDisconnect()}
+            loading={disconnectMutation.isPending}
+            style={styles.logoutButton}
+          />
+        </View>
+      )}
+
       <Button
         title={isFetching ? "Checking…" : "Refresh status"}
-        variant="ghost"
-        icon={<Feather name="refresh-cw" size={15} color={Colors.primary} />}
+        variant="outline"
+        icon={<Feather name="refresh-cw" size={15} color={Colors.secondary} />}
+        textColor={Colors.secondary}
         onPress={() => refetch()}
         disabled={isFetching}
-        style={{ marginTop: Spacing.sm }}
+        style={styles.refreshButton}
       />
     </View>
   );
@@ -117,4 +186,7 @@ const styles = StyleSheet.create({
   balanceLabel: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.5 },
   balanceAmount: { fontFamily: Fonts.display, fontSize: 26, color: Colors.success },
   balanceAmountMuted: { color: Colors.textSecondary },
+  connectedActions: { width: "100%", gap: Spacing.sm, marginTop: Spacing.lg },
+  logoutButton: { width: "100%", borderColor: Colors.danger, backgroundColor: Colors.danger + "0D" },
+  refreshButton: { width: "100%", marginTop: Spacing.md, borderColor: Colors.secondary, backgroundColor: Colors.secondary + "0D" },
 });

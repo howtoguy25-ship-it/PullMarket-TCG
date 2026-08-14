@@ -76,6 +76,19 @@ router.get("/connect/status", async (req, res) => {
   res.json({ onboarded: !!account.details_submitted, payoutsEnabled, availableCents, pendingCents, currency });
 });
 
+// ── Unlink the seller's currently connected Stripe payout account so they
+// can connect a different one — this only removes the reference on our
+// side (the Stripe Express account itself isn't deleted, and any balance
+// already sent there is unaffected). Selling stays blocked until they
+// finish onboarding a new account, exactly like a seller who never set one
+// up — the buy flow already checks stripeConnectAccountId/payoutsEnabled
+// before allowing a purchase. ────────────────────────────────────────────
+router.post("/connect/disconnect", async (req, res) => {
+  if (!req.user!.stripeConnectAccountId) return res.status(400).json({ message: "No payout account is connected." });
+  await db.update(users).set({ stripeConnectAccountId: null, stripeConnectOnboarded: false, stripeConnectPayoutsEnabled: false }).where(eq(users.id, req.user!.id));
+  res.json({ disconnected: true });
+});
+
 // ── Create a PaymentIntent for one seller's items in the cart, for the
 // app's own custom-built checkout screen (CardField + confirmPayment,
 // entirely in-app — no redirect to a Stripe-hosted page). One PaymentIntent
