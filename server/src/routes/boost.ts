@@ -5,23 +5,42 @@ import { listings, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { getStripe, isStripeConfigured } from "../lib/stripeClient";
-import { BOOST_TIERS, boostPriceCentsForUser, formatBoostDuration, isActivePro } from "@shared/validation";
+import { BOOST_TIERS, boostPriceCentsForUser, formatBoostDuration, isActivePro, isBoostDiscountEligible } from "@shared/validation";
 
 const router = Router();
 router.use(authenticateToken);
 
-// ── Tier list, priced for the requesting user (Pro gets 15% off) ─────────
+// Parses the "apply my Pro discount" toggle from a query/body value that
+// may arrive as a real boolean (JSON body) or a string (query param) —
+// defaults to on (true) whenever it's simply absent, since opting IN to a
+// discount you're eligible for is the sane default; only an explicit
+// "false" turns it off.
+function parseApplyDiscount(value: unknown): boolean {
+  return value !== "false" && value !== false;
+}
+
+// ── Tier list, priced for the requesting user. Pro subscribers get 15% off
+// tiers of 2 days ($45) or longer — shorter tiers always stay full price —
+// and can flip that discount off for themselves with a real toggle (see
+// applyDiscount below), not just a cosmetic label. ────────────────────────
 router.get("/tiers", async (req, res) => {
   const isPro = isActivePro(req.user!);
+  const applyDiscountToggle = parseApplyDiscount(req.query.applyDiscount);
   res.json({
     isPro,
-    tiers: BOOST_TIERS.map((t) => ({
-      id: t.id,
-      durationHours: t.durationHours,
-      label: formatBoostDuration(t.durationHours),
-      priceCents: t.priceCents,
-      finalPriceCents: boostPriceCentsForUser(t, isPro),
-    })),
+    applyDiscount: applyDiscountToggle,
+    tiers: BOOST_TIERS.map((t) => {
+      const discountEligible = isBoostDiscountEligible(t);
+      const discountApplied = isPro && discountEligible && applyDiscountToggle;
+      return {
+        id: t.id,
+        durationHours: t.durationHours,
+        label: formatBoostDuration(t.durationHours),
+        priceCents: t.priceCents,
+        discountEligible,
+        finalPriceCents: boostPriceCentsForUser(t, discountApplied),
+      };
+    }),
   });
 });
 
@@ -40,15 +59,19 @@ router.post("/listings/:id/checkout", async (req, res) => {
     return res.status(400).json({ message: "This listing can't be boosted right now." });
   }
 
-  const schema = z.object({ tierId: z.string(), returnUrl: z.string().optional() });
+  const schema = z.object({ tierId: z.string(), returnUrl: z.string().optional(), applyDiscount: z.boolean().optional() });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
 
   const tier = BOOST_TIERS.find((t) => t.id === parsed.data.tierId);
   if (!tier) return res.status(400).json({ message: "Unknown boost tier" });
 
+  // Never trust a client-computed price — recompute the same eligibility +
+  // toggle decision the /tiers endpoint made, server-side, from real state.
   const isPro = isActivePro(req.user!);
-  const finalPriceCents = boostPriceCentsForUser(tier, isPro);
+  const applyDiscountToggle = parseApplyDiscount(parsed.data.applyDiscount ?? true);
+  const discountApplied = isPro && isBoostDiscountEligible(tier) && applyDiscountToggle;
+  const finalPriceCents = boostPriceCentsForUser(tier, discountApplied);
 
   const stripe = getStripe();
   let customerId = req.user!.stripeCustomerId;
@@ -76,8 +99,8 @@ router.post("/listings/:id/checkout", async (req, res) => {
         quantity: 1,
       },
     ],
-    payment_intent_data: { metadata: { userId: req.user!.id, kind: "listing_boost", listingId: listing.id, tierId: tier.id, proDiscountApplied: String(isPro) } },
-    metadata: { userId: req.user!.id, kind: "listing_boost", listingId: listing.id, tierId: tier.id, proDiscountApplied: String(isPro) },
+    payment_intent_data: { metadata: { userId: req.user!.id, kind: "listing_boost", listingId: listing.id, tierId: tier.id, proDiscountApplied: String(discountApplied) } },
+    metadata: { userId: req.user!.id, kind: "listing_boost", listingId: listing.id, tierId: tier.id, proDiscountApplied: String(discountApplied) },
     success_url: `${target}${separator}status=success`,
     cancel_url: `${target}${separator}status=cancelled`,
   });

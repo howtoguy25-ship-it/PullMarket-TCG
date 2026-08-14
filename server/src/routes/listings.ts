@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { listings, listingImages, users, favorites, franchiseSubscriptions, follows } from "@shared/schema";
-import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { listings, listingImages, listingBoosts, users, favorites, franchiseSubscriptions, follows } from "@shared/schema";
+import { and, desc, eq, gt, gte, ilike, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { authenticateToken, optionalAuth } from "../middleware/auth";
 import { upload, saveUploadedFile } from "../lib/upload";
 import { CONDITIONS, FRANCHISES } from "@shared/schema";
 import { detectFranchise, isActivePro, PRO_LISTING_BOOST_HOURS, LISTING_REVISION_LIMIT } from "@shared/validation";
 import { notifyUsers } from "../lib/notify";
+import { rankBoostedListings, interleaveBoostedListings, DEFAULT_BOOST_WEIGHT_PRICE_CENTS } from "../lib/feedRanking";
 
 const router = Router();
 
@@ -91,20 +92,14 @@ router.get("/", async (req, res) => {
   if (minPrice !== undefined) conditions.push(gte(listings.priceCents, Math.round(minPrice * 100)));
   if (maxPrice !== undefined) conditions.push(lte(listings.priceCents, Math.round(maxPrice * 100)));
 
-  // Two independent Pro perks layered into the sort, both live-evaluated
-  // (never baked in at write time so they self-correct as boosts/
-  // memberships expire):
-  //  1. boostedUntil — a fixed 48h freshness window from when a Pro
-  //     member's listing went up (set once at creation, see POST /).
-  //  2. Search recognition — while actively typing a query, a listing
-  //     from a *currently* active Pro member gets a small nudge among
-  //     otherwise-equally-relevant matches. Text relevance (does the
-  //     title actually start with what was typed) always wins first, so
-  //     this never buries a better textual match — it only breaks ties.
+  // Search recognition: while actively typing a query, a listing from a
+  // *currently* active Pro member gets a small nudge among otherwise-
+  // equally-relevant matches. Text relevance (does the title actually
+  // start with what was typed) always wins first, so this never buries a
+  // better textual match — it only breaks ties.
   const qLower = q?.trim().toLowerCase();
-  const orderByClauses = [
+  const organicOrderByClauses = [
     ...(qLower ? [sql`CASE WHEN LOWER(${listings.title}) LIKE ${qLower + "%"} THEN 0 ELSE 1 END`] : []),
-    sql`CASE WHEN ${listings.boostedUntil} IS NOT NULL AND ${listings.boostedUntil} > NOW() THEN 0 ELSE 1 END`,
     ...(qLower
       ? [
           sql`CASE WHEN EXISTS (SELECT 1 FROM ${users} WHERE ${users.id} = ${listings.sellerId} AND ${users.proStatus} = 'active' AND (${users.proCurrentPeriodEnd} IS NULL OR ${users.proCurrentPeriodEnd} > NOW())) THEN 0 ELSE 1 END`,
@@ -113,14 +108,71 @@ router.get("/", async (req, res) => {
     desc(listings.createdAt),
   ];
 
-  const rows = await db
-    .select()
-    .from(listings)
-    .where(and(...conditions))
-    .orderBy(...orderByClauses)
-    .limit(limit)
-    .offset(offset);
+  // A single seller's own shop (profile view) doesn't need cross-seller
+  // fair-rotation logic — a seller isn't competing with themselves, and
+  // repeating their own boosted item through their own catalog would just
+  // look broken. That view keeps the simple "boosted first" order.
+  if (sellerId) {
+    const rows = await db
+      .select()
+      .from(listings)
+      .where(and(...conditions))
+      .orderBy(sql`CASE WHEN ${listings.boostedUntil} IS NOT NULL AND ${listings.boostedUntil} > NOW() THEN 0 ELSE 1 END`, ...organicOrderByClauses)
+      .limit(limit)
+      .offset(offset);
+    return res.json(await attachImagesAndSellers(rows));
+  }
 
+  // Fair weighted rotation for boosted listings — see lib/feedRanking.ts
+  // for the algorithm. Fetched as two separate bounded queries (organic
+  // candidates in their normal order, boosted candidates unordered) and
+  // combined in application code, since the weighted-random ranking and
+  // sponsored-slot interleaving aren't expressible as a single SQL ORDER
+  // BY. The caps below are generous for this marketplace's real scale —
+  // deep pagination beyond the organic cap just degrades to plain organic
+  // order for the tail, which is an acceptable, documented trade-off.
+  const ORGANIC_FETCH_CAP = 400;
+  const BOOSTED_FETCH_CAP = 100;
+  const nowBoostCondition = and(...conditions, isNull(listings.boostedUntil));
+  const isBoostedActive = and(...conditions, sql`${listings.boostedUntil} IS NOT NULL AND ${listings.boostedUntil} > NOW()`);
+  const isBoostExpiredButSet = and(...conditions, sql`${listings.boostedUntil} IS NOT NULL AND ${listings.boostedUntil} <= NOW()`);
+
+  const [organicNullBoost, organicExpiredBoost, boostedRows] = await Promise.all([
+    db.select().from(listings).where(nowBoostCondition).orderBy(...organicOrderByClauses).limit(ORGANIC_FETCH_CAP),
+    db.select().from(listings).where(isBoostExpiredButSet).orderBy(...organicOrderByClauses).limit(ORGANIC_FETCH_CAP),
+    db.select().from(listings).where(isBoostedActive).limit(BOOSTED_FETCH_CAP),
+  ]);
+
+  // Merge the two organic sub-queries back into one correctly-ordered list
+  // (never-boosted and expired-boost listings are ranked identically, so a
+  // single combined sort by the same tie-break rules keeps them correct).
+  const organicRanked = [...organicNullBoost, ...organicExpiredBoost]
+    .sort((a, b) => {
+      if (qLower) {
+        const aStarts = a.title.toLowerCase().startsWith(qLower) ? 0 : 1;
+        const bStarts = b.title.toLowerCase().startsWith(qLower) ? 0 : 1;
+        if (aStarts !== bStarts) return aStarts - bStarts;
+      }
+      return new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime();
+    })
+    .slice(0, ORGANIC_FETCH_CAP);
+
+  let combined: typeof organicRanked = organicRanked;
+  if (boostedRows.length > 0) {
+    const boostedIds = boostedRows.map((r) => r.id);
+    const latestBoostPrices = boostedIds.length
+      ? await db.execute<{ listing_id: string; price_cents_paid: number }>(
+          sql`SELECT DISTINCT ON (listing_id) listing_id, price_cents_paid FROM ${listingBoosts} WHERE listing_id IN (${sql.join(boostedIds.map((id) => sql`${id}`), sql`, `)}) ORDER BY listing_id, created_at DESC`,
+        )
+      : { rows: [] as { listing_id: string; price_cents_paid: number }[] };
+    const priceById = new Map(latestBoostPrices.rows.map((r) => [r.listing_id, r.price_cents_paid]));
+
+    const boostedWithPrice = boostedRows.map((r) => ({ ...r, priceCentsPaid: priceById.get(r.id) ?? DEFAULT_BOOST_WEIGHT_PRICE_CENTS }));
+    const boostedRanked = rankBoostedListings(boostedWithPrice);
+    combined = interleaveBoostedListings(organicRanked, boostedRanked);
+  }
+
+  const rows = combined.slice(offset, offset + limit);
   res.json(await attachImagesAndSellers(rows));
 });
 

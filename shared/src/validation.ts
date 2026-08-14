@@ -46,17 +46,31 @@ export const BOOST_TIERS: BoostTier[] = [
   { id: "336h", durationHours: 336, priceCents: 20000 },
 ];
 
-// Active Pro subscribers get this fraction off every boost tier's price.
+// Active Pro subscribers get this fraction off — but only on tiers long
+// enough to be worth discounting. The shortest tiers (12h/1 day/1 day 12h,
+// under $45) stay full price for everyone; the discount kicks in starting
+// at the 2-day/$45 tier and up.
 export const PRO_BOOST_DISCOUNT = 0.15;
+export const PRO_BOOST_DISCOUNT_MIN_HOURS = 48; // 2 days — the $45 tier
 
 export function getBoostTierById(id: string): BoostTier | undefined {
   return BOOST_TIERS.find((t) => t.id === id);
 }
 
-/** The real price a specific user pays for a tier — full price, or 15% off
- * for an active Pro subscriber. Always rounds to the nearest cent. */
-export function boostPriceCentsForUser(tier: BoostTier, isProSubscriber: boolean): number {
-  if (!isProSubscriber) return tier.priceCents;
+/** Whether a tier is even eligible for the Pro discount at all, independent
+ * of whether the requesting user actually is a Pro subscriber. */
+export function isBoostDiscountEligible(tier: BoostTier): boolean {
+  return tier.durationHours >= PRO_BOOST_DISCOUNT_MIN_HOURS;
+}
+
+/** The real price a specific user pays for a tier. `applyDiscount` is the
+ * fully-resolved decision of whether the 15% Pro cut actually applies to
+ * this purchase — combining Pro status, tier eligibility (2 days/$45+
+ * only), and the user's own on/off toggle for using their discount — so
+ * this function itself stays a pure "given the decision, what's the
+ * price" calculation. Always rounds to the nearest cent. */
+export function boostPriceCentsForUser(tier: BoostTier, applyDiscount: boolean): number {
+  if (!applyDiscount) return tier.priceCents;
   return Math.round(tier.priceCents * (1 - PRO_BOOST_DISCOUNT));
 }
 

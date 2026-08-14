@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert } from "react-native";
+import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Switch } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -31,11 +31,13 @@ interface BoostTierOption {
   durationHours: number;
   label: string;
   priceCents: number;
+  discountEligible: boolean;
   finalPriceCents: number;
 }
 
 interface BoostTiersResponse {
   isPro: boolean;
+  applyDiscount: boolean;
   tiers: BoostTierOption[];
 }
 
@@ -46,14 +48,22 @@ export default function BoostListingScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
+  // Real on/off toggle for Pro subscribers: the 15% cut only ever applies
+  // to 2-day/$45+ tiers, and a Pro user can switch it off for themselves —
+  // the server re-derives the actual price from this flag either way, this
+  // just decides whether they're asking for it.
+  const [applyDiscount, setApplyDiscount] = useState(true);
 
-  const { data, isLoading } = useQuery<BoostTiersResponse>({ queryKey: ["/api/boost/tiers"] });
+  const { data, isLoading } = useQuery<BoostTiersResponse>({
+    queryKey: ["/api/boost/tiers", { applyDiscount }],
+    queryFn: () => apiJson<BoostTiersResponse>("GET", `/api/boost/tiers?applyDiscount=${applyDiscount}`),
+  });
 
   const checkoutMutation = useMutation({
     mutationFn: (tierId: string) => {
       const returnUrl =
         Platform.OS === "web" ? `${window.location.origin}/boost-return?listingId=${listingId}` : Linking.createURL("boost-return", { queryParams: { listingId } });
-      return apiJson<{ url: string }>("POST", `/api/boost/listings/${listingId}/checkout`, { tierId, returnUrl });
+      return apiJson<{ url: string }>("POST", `/api/boost/listings/${listingId}/checkout`, { tierId, returnUrl, applyDiscount });
     },
     onSuccess: async (result) => {
       if (Platform.OS === "web") {
@@ -82,10 +92,20 @@ export default function BoostListingScreen() {
         {isPro ? (
           <View style={styles.proPill}>
             <Feather name="award" size={12} color="#3A2A00" />
-            <Text style={styles.proPillText}>PullMarket Pro — 15% off every tier below</Text>
+            <Text style={styles.proPillText}>PullMarket Pro — 15% off 2-day+ boosts</Text>
           </View>
         ) : null}
       </LinearGradient>
+
+      {isPro ? (
+        <View style={styles.discountToggleRow}>
+          <View style={styles.discountToggleText}>
+            <Text style={styles.discountToggleLabel}>Apply my Pro discount</Text>
+            <Text style={styles.discountToggleHint}>15% off boosts of 2 days ($45) or longer. Shorter boosts are always full price.</Text>
+          </View>
+          <Switch value={applyDiscount} onValueChange={setApplyDiscount} trackColor={{ true: Colors.primary, false: Colors.border }} thumbColor={Colors.white} />
+        </View>
+      ) : null}
 
       <View style={styles.body}>
         <Text style={styles.sectionLabel}>Choose a boost window</Text>
@@ -102,7 +122,9 @@ export default function BoostListingScreen() {
                   <View style={[styles.tierRadio, active && styles.tierRadioActive]}>{active ? <View style={styles.tierRadioDot} /> : null}</View>
                   <View style={styles.tierInfo}>
                     <Text style={[styles.tierLabel, active && styles.tierLabelActive]}>{tier.label}</Text>
-                    <Text style={styles.tierHint}>Top of feed for the full window</Text>
+                    <Text style={styles.tierHint}>
+                      {isPro && tier.discountEligible ? "Top of feed for the full window · Pro discount eligible" : "Top of feed for the full window"}
+                    </Text>
                   </View>
                   <View style={styles.tierPriceWrap}>
                     {discounted ? <Text style={styles.tierPriceOriginal}>${(tier.priceCents / 100).toFixed(2)}</Text> : null}
@@ -142,6 +164,21 @@ const styles = StyleSheet.create({
   heroSubtitle: { ...Typography.small, color: "rgba(255,255,255,0.85)", textAlign: "center", marginTop: 6, maxWidth: 300 },
   proPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.gold, borderRadius: BorderRadius.pill, paddingHorizontal: Spacing.md, paddingVertical: 6, marginTop: Spacing.md },
   proPillText: { color: "#3A2A00", fontSize: 12, fontWeight: "800" },
+  discountToggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+  },
+  discountToggleText: { flex: 1 },
+  discountToggleLabel: { ...Typography.bodyBold, color: Colors.text },
+  discountToggleHint: { ...Typography.small, color: Colors.textMuted, marginTop: 2, lineHeight: 16 },
   body: { padding: Spacing.lg },
   sectionLabel: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", letterSpacing: 0.5, marginBottom: Spacing.sm },
   loadingText: { ...Typography.body, color: Colors.textSecondary, textAlign: "center", marginTop: Spacing.xl },
