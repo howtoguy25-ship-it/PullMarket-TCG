@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Text, FlatList, ScrollView, TextInput, Pressable, Image, Platform, KeyboardAvoidingView, ActivityIndicator, Modal, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -15,6 +15,7 @@ import { RootStackParamList } from "@/navigation/types";
 import { apiJson, apiRequest, ApiError } from "@/lib/api";
 import { appendMediaToFormData } from "@/lib/formDataImage";
 import { resolveImageUrl } from "@/lib/media";
+import { formatSeenStatus } from "@/lib/timeAgo";
 import { useCall } from "@/contexts/CallContext";
 import { isActivePro } from "@shared/validation";
 
@@ -112,25 +113,27 @@ function formatMessageTime(iso: string): string {
 
 // One gray tick = sent, two gray ticks = delivered, two highlighted
 // (primary-colored) ticks = read — same three-state convention as any
-// real chat app.
-function ReceiptTicks({ message }: { message: Message }) {
-  if (message.readAt) {
-    return (
-      <View style={styles.ticksRow}>
-        <Feather name="check" size={12} color={Colors.primary} style={{ marginRight: -6 }} />
-        <Feather name="check" size={12} color={Colors.primary} />
-      </View>
-    );
-  }
-  if (message.deliveredAt) {
-    return (
-      <View style={styles.ticksRow}>
-        <Feather name="check" size={12} color={Colors.textMuted} style={{ marginRight: -6 }} />
-        <Feather name="check" size={12} color={Colors.textMuted} />
-      </View>
-    );
-  }
-  return <Feather name="check" size={12} color={Colors.textMuted} />;
+// real chat app. Tapping the ticks on a message you sent opens a status
+// popup with exactly when it was seen (see SeenStatusModal below).
+function ReceiptTicks({ message, onPress }: { message: Message; onPress: () => void }) {
+  const ticks = message.readAt ? (
+    <View style={styles.ticksRow}>
+      <Feather name="check" size={12} color={Colors.primary} style={{ marginRight: -6 }} />
+      <Feather name="check" size={12} color={Colors.primary} />
+    </View>
+  ) : message.deliveredAt ? (
+    <View style={styles.ticksRow}>
+      <Feather name="check" size={12} color={Colors.textMuted} style={{ marginRight: -6 }} />
+      <Feather name="check" size={12} color={Colors.textMuted} />
+    </View>
+  ) : (
+    <Feather name="check" size={12} color={Colors.textMuted} />
+  );
+  return (
+    <Pressable onPress={onPress} hitSlop={8}>
+      {ticks}
+    </Pressable>
+  );
 }
 
 export default function ChatThreadScreen() {
@@ -147,6 +150,7 @@ export default function ChatThreadScreen() {
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [actionMessage, setActionMessage] = useState<Message | null>(null);
   const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
+  const [seenStatusMessage, setSeenStatusMessage] = useState<Message | null>(null);
 
   const { data: convo } = useQuery<ConversationDetail>({ queryKey: [`/api/chat/conversations/${conversationId}`], refetchInterval: 4000, meta: { silent401: true } });
   const { data: messages, isLoading } = useQuery<Message[]>({ queryKey: [`/api/chat/conversations/${conversationId}/messages`], refetchInterval: 3000, meta: { silent401: true } });
@@ -386,7 +390,7 @@ export default function ChatThreadScreen() {
                 </View>
                 <View style={styles.metaRow}>
                   <Text style={styles.timeText}>{formatMessageTime(item.createdAt)}</Text>
-                  {mine ? <ReceiptTicks message={item} /> : null}
+                  {mine ? <ReceiptTicks message={item} onPress={() => setSeenStatusMessage(item)} /> : null}
                 </View>
               </Pressable>
             );
@@ -541,6 +545,7 @@ export default function ChatThreadScreen() {
       </Modal>
 
       <ForwardPickerModal message={forwardMessage} currentConversationId={conversationId} onClose={() => setForwardMessage(null)} onPick={(toConversationId) => forwardMessage && forwardMutation.mutate({ messageId: forwardMessage.id, toConversationId })} isForwarding={forwardMutation.isPending} />
+      <SeenStatusModal message={seenStatusMessage} onClose={() => setSeenStatusMessage(null)} />
     </KeyboardAvoidingView>
   );
 }
@@ -580,6 +585,33 @@ function ForwardPickerModal({
             )}
           />
         </View>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// Live, not a one-time snapshot: while this is open, the label keeps
+// recomputing every 15s off the same readAt timestamp, so leaving it open
+// across a minute boundary actually advances ("Seen just now" -> "Seen 1
+// minute ago") instead of freezing at whatever it said the moment it opened.
+function SeenStatusModal({ message, onClose }: { message: Message | null; onClose: () => void }) {
+  const [, forceTick] = useState(0);
+
+  useEffect(() => {
+    if (!message) return;
+    const interval = setInterval(() => forceTick((n) => n + 1), 15_000);
+    return () => clearInterval(interval);
+  }, [message]);
+
+  const label = message ? formatSeenStatus(message.readAt) : "";
+
+  return (
+    <Modal visible={!!message} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.seenBackdrop} onPress={onClose}>
+        <Pressable style={styles.seenCard} onPress={() => {}}>
+          <Feather name={message?.readAt ? "check-circle" : "clock"} size={22} color={message?.readAt ? Colors.primary : Colors.textMuted} />
+          <Text style={styles.seenText}>{label}</Text>
+        </Pressable>
       </Pressable>
     </Modal>
   );
@@ -650,4 +682,15 @@ const styles = StyleSheet.create({
   forwardEmpty: { ...Typography.small, color: Colors.textMuted, textAlign: "center", paddingVertical: Spacing.lg },
   forwardRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingVertical: 10, paddingHorizontal: Spacing.xs },
   forwardRowText: { ...Typography.body, color: Colors.text, flex: 1 },
+  seenBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center", padding: Spacing.xl },
+  seenCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    alignItems: "center",
+    gap: Spacing.sm,
+    minWidth: 220,
+  },
+  seenText: { ...Typography.h3, color: Colors.text, textAlign: "center" },
 });

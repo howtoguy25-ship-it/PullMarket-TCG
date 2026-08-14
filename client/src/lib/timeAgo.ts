@@ -20,3 +20,23 @@ export function timeAgoShort(iso: string): string {
   if (days < 7) return `${days}d`;
   return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
+
+// A message's read-receipt status shown on tapping the ticks. Spelled out
+// in full words ("Seen 1 minute ago") rather than the compact "1m" used
+// elsewhere, since this is a standalone status line, not a tight list row.
+// Once it's been more than a day + an hour since it was seen, the exact
+// age stops being useful information — it just permanently reads "Seen".
+const SEEN_AGE_CUTOFF_MS = (24 + 1) * 60 * 60 * 1000;
+
+export function formatSeenStatus(readAtIso: string | null): string {
+  if (!readAtIso) return "Not seen yet";
+  const diffMs = Date.now() - new Date(readAtIso).getTime();
+  if (diffMs >= SEEN_AGE_CUTOFF_MS) return "Seen";
+
+  const seconds = Math.max(0, Math.floor(diffMs / 1000));
+  if (seconds < 60) return "Seen just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `Seen ${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  return `Seen ${hours} hour${hours === 1 ? "" : "s"} ago`;
+}
