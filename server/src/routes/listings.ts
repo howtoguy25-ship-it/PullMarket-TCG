@@ -45,10 +45,15 @@ export async function attachImagesAndSellers(rows: (typeof listings.$inferSelect
     imagesByListing.set(img.listingId, arr);
   }
   const sellerById = new Map(sellers.map((s) => [s.id, s]));
+  const now = Date.now();
   return rows.map((r) => ({
     ...r,
     images: (imagesByListing.get(r.id) ?? []).map((i) => i.url),
     seller: sellerById.get(r.sellerId) ?? null,
+    // Computed server-side (not just exposing the raw boostedUntil) so
+    // clients never need their own clock-comparison logic to know whether
+    // a listing is currently boosted.
+    isBoosted: !!r.boostedUntil && new Date(r.boostedUntil).getTime() > now,
   }));
 }
 

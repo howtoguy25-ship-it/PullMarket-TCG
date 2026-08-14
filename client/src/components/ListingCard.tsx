@@ -23,6 +23,7 @@ export interface ListingSummary {
   favoriteCount?: number;
   seller: { id: string; username: string } | null;
   isFavorited?: boolean;
+  isBoosted?: boolean;
 }
 
 export function ListingCard({
@@ -103,6 +104,13 @@ export function ListingCard({
 
         {listing.quantityAvailable > 1 ? <Badge label={`Qty ${listing.quantityAvailable}`} color={Colors.overlay} style={styles.qtyBadge} /> : null}
 
+        {listing.isBoosted ? (
+          <View style={styles.boostBadge}>
+            <Feather name="zap" size={10} color={Colors.white} />
+            <Text style={styles.boostBadgeText}>BOOSTED</Text>
+          </View>
+        ) : null}
+
         {listing.status === "sold_out" ? (
           <View style={styles.soldOutOverlay}>
             <Text style={styles.soldOutText}>SOLD OUT</Text>
@@ -175,6 +183,19 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   qtyBadge: { position: "absolute", left: Spacing.xs, bottom: Spacing.xs },
+  boostBadge: {
+    position: "absolute",
+    top: Spacing.xs,
+    left: Spacing.xs,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    backgroundColor: Colors.gold,
+    borderRadius: BorderRadius.pill,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+  },
+  boostBadgeText: { color: "#3A2A00", fontSize: 9, fontWeight: "800", letterSpacing: 0.3 },
   soldOutOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.55)",

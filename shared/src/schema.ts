@@ -162,12 +162,15 @@ export const listings = pgTable(
     // sitting out of stock this long with no seller action comes off the
     // marketplace on its own.
     soldOutAt: timestamp("sold_out_at"),
-    // Pro-membership perk: set to createdAt + 48h at creation time, only if
-    // the seller was an active Pro member at that moment (see POST / in
-    // routes/listings.ts) — the homepage feed sorts anything still inside
-    // this window first. Never extended/renewed after creation, so a
-    // listing's boost is a fixed one-time 48h window from when it went up,
-    // not tied to the seller's subscription status later changing.
+    // Whenever this is set and in the future, the homepage feed sorts the
+    // listing first. Two independent things can set it: (1) the free
+    // Pro-membership perk — a fixed one-time 48h window from creation, only
+    // granted if the seller was an active Pro member at that moment (see
+    // POST / in routes/listings.ts), never extended/renewed after; and (2)
+    // a real paid boost purchase (see routes/boost.ts + webhook.ts), which
+    // EXTENDS this from whichever is later — now or the current
+    // boostedUntil — so stacking multiple paid boosts (or buying one while
+    // the free Pro perk is still active) adds up rather than overwriting.
     boostedUntil: timestamp("boosted_until"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
@@ -200,6 +203,35 @@ export const listingImages = pgTable(
 
 export const listingImagesRelations = relations(listingImages, ({ one }) => ({
   listing: one(listings, { fields: [listingImages.listingId], references: [listings.id] }),
+}));
+
+// ─── Listing boosts ──────────────────────────────────────────────────────
+// A real-money purchase record for pushing a listing to the top of the
+// marketplace feed for a fixed window — every purchase (Stripe-confirmed)
+// gets a row here, purely for history/receipts; the actual live effect is
+// applying listings.boostedUntil (see routes/webhook.ts), which is what the
+// feed's sort actually reads. Multiple boosts on the same listing stack —
+// each purchase extends boostedUntil from whichever is later, now or the
+// current boostedUntil, rather than overwriting an still-active boost.
+export const listingBoosts = pgTable(
+  "listing_boosts",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    listingId: varchar("listing_id").notNull().references(() => listings.id, { onDelete: "cascade" }),
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    tierId: text("tier_id").notNull(), // one of BOOST_TIERS ids, see shared/validation.ts
+    durationHours: integer("duration_hours").notNull(),
+    priceCentsPaid: integer("price_cents_paid").notNull(), // after any Pro discount — the real amount charged
+    proDiscountApplied: boolean("pro_discount_applied").notNull().default(false),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [index("idx_listing_boosts_listing").on(table.listingId), index("idx_listing_boosts_user").on(table.userId)],
+);
+
+export const listingBoostsRelations = relations(listingBoosts, ({ one }) => ({
+  listing: one(listings, { fields: [listingBoosts.listingId], references: [listings.id] }),
+  user: one(users, { fields: [listingBoosts.userId], references: [users.id] }),
 }));
 
 // ─── Favorites ───────────────────────────────────────────────────────────

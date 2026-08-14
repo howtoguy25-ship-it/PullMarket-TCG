@@ -18,6 +18,8 @@ export type RootStackParamList = {
   MainTabs: undefined;
   ListingDetail: { listingId: string };
   EditListing: { listingId: string };
+  BoostListing: { listingId: string };
+  BoostReturn: { status?: string; listingId?: string };
   ImageViewer: { images: string[]; startIndex: number };
   Cart: undefined;
   Checkout: { sellerId: string };

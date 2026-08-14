@@ -103,6 +103,21 @@ const STATEMENTS = [
      updated_at timestamp DEFAULT now(),
      PRIMARY KEY (user_id, conversation_id)
    );`,
+
+  // listing_boosts: paid time-tiered "top of feed" purchases
+  `CREATE TABLE IF NOT EXISTS listing_boosts (
+     id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+     listing_id varchar NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
+     user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     tier_id text NOT NULL,
+     duration_hours integer NOT NULL,
+     price_cents_paid integer NOT NULL,
+     pro_discount_applied boolean NOT NULL DEFAULT false,
+     stripe_payment_intent_id text,
+     created_at timestamp DEFAULT now()
+   );`,
+  `CREATE INDEX IF NOT EXISTS idx_listing_boosts_listing ON listing_boosts (listing_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_listing_boosts_user ON listing_boosts (user_id);`,
 ];
 
 async function main() {

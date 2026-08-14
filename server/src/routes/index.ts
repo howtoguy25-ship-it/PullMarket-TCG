@@ -21,6 +21,7 @@ import adsRoutes from "./ads";
 import chatRoutes from "./chat";
 import pricesRoutes from "./prices";
 import helpRoutes from "./help";
+import boostRoutes from "./boost";
 import { UPLOAD_DIR_PATH } from "../lib/upload";
 import { BACKGROUNDS_DIR } from "../lib/cardBackgrounds";
 import { COURIER_LABELS, CONDITION_LABELS, REPORT_REASON_LABELS } from "@shared/validation";
@@ -53,6 +54,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/chat", chatRoutes);
   app.use("/api/prices", pricesRoutes);
   app.use("/api/help", helpRoutes);
+  app.use("/api/boost", boostRoutes);
 
   return createServer(app);
 }

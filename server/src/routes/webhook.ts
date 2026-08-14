@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { db } from "../db";
-import { orders, listings, orderItems, users } from "@shared/schema";
+import { orders, listings, orderItems, users, listingBoosts } from "@shared/schema";
 import { eq, inArray, sql } from "drizzle-orm";
 import { getStripe } from "../lib/stripeClient";
-import { addBusinessDays } from "@shared/validation";
+import { addBusinessDays, getBoostTierById, boostPriceCentsForUser, formatBoostDuration } from "@shared/validation";
 import { SHIPPING_DEADLINE_BUSINESS_DAYS } from "@shared/validation";
 import Stripe from "stripe";
 import { notifyUser } from "../lib/notify";
@@ -37,6 +37,8 @@ router.post("/", async (req, res) => {
         await markOrderPaid(orderId);
       } else if (session.metadata?.kind === "remove_ads" && session.metadata.userId) {
         await markAdsRemoved(session.metadata.userId, session.payment_intent as string | null);
+      } else if (session.metadata?.kind === "listing_boost" && session.metadata.listingId) {
+        await markListingBoosted(session.metadata, session.payment_intent as string | null);
       }
     } else if (event.type === "payment_intent.succeeded") {
       // The custom in-app checkout (native) creates and confirms a
@@ -54,6 +56,8 @@ router.post("/", async (req, res) => {
         await markOrderPaid(orderId);
       } else if (paymentIntent.metadata?.kind === "remove_ads" && paymentIntent.metadata.userId) {
         await markAdsRemoved(paymentIntent.metadata.userId, paymentIntent.id);
+      } else if (paymentIntent.metadata?.kind === "listing_boost" && paymentIntent.metadata.listingId) {
+        await markListingBoosted(paymentIntent.metadata, paymentIntent.id);
       }
     } else if (event.type.startsWith("identity.verification_session.")) {
       const session = event.data.object as Stripe.Identity.VerificationSession;
@@ -191,6 +195,50 @@ async function markAdsRemoved(userId: string, stripePaymentIntentId: string | nu
     .update(users)
     .set({ adsRemoved: true, adsRemovedSource: "stripe", adsRemovedStripePaymentIntentId: stripePaymentIntentId })
     .where(eq(users.id, userId));
+}
+
+// checkout.session.completed and payment_intent.succeeded both fire for the
+// same purchase — unlike markAdsRemoved (idempotent by nature, it just sets
+// a flag), applying a boost twice would double the duration, so this is
+// guarded explicitly by payment intent id before doing anything stateful.
+async function markListingBoosted(metadata: Stripe.Metadata, stripePaymentIntentId: string | null) {
+  const { userId, listingId, tierId, proDiscountApplied } = metadata;
+  if (!userId || !listingId || !tierId) return;
+
+  const tier = getBoostTierById(tierId);
+  if (!tier) return;
+
+  if (stripePaymentIntentId) {
+    const [existing] = await db.select({ id: listingBoosts.id }).from(listingBoosts).where(eq(listingBoosts.stripePaymentIntentId, stripePaymentIntentId));
+    if (existing) return;
+  }
+
+  const [listing] = await db.select({ boostedUntil: listings.boostedUntil }).from(listings).where(eq(listings.id, listingId));
+  if (!listing) return;
+
+  const now = new Date();
+  const base = listing.boostedUntil && listing.boostedUntil.getTime() > now.getTime() ? listing.boostedUntil : now;
+  const newBoostedUntil = new Date(base.getTime() + tier.durationHours * 60 * 60 * 1000);
+
+  await db.update(listings).set({ boostedUntil: newBoostedUntil, updatedAt: now }).where(eq(listings.id, listingId));
+
+  const wasProDiscount = proDiscountApplied === "true";
+  await db.insert(listingBoosts).values({
+    listingId,
+    userId,
+    tierId,
+    durationHours: tier.durationHours,
+    priceCentsPaid: boostPriceCentsForUser(tier, wasProDiscount),
+    proDiscountApplied: wasProDiscount,
+    stripePaymentIntentId,
+  });
+
+  await notifyUser(userId, {
+    type: "listing_boosted",
+    title: "Your listing is boosted!",
+    body: `Your listing is now pinned to the top of the marketplace for ${formatBoostDuration(tier.durationHours)}.`,
+    data: { listingId },
+  });
 }
 
 // Maps Stripe's subscription lifecycle onto the three states the rest of

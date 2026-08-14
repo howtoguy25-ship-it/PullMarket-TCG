@@ -1,5 +1,6 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, StyleSheet, Text, FlatList, Pressable, TextInput, RefreshControl, Platform, Alert, Animated } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -23,6 +24,8 @@ const FRANCHISE_FILTERS: { key: string; label: string; color: string }[] = [
   { key: "one_piece", label: "One Piece", color: Colors.onePiece },
 ];
 
+const HIDE_BOOSTED_STORAGE_KEY = "pullmarket_hide_boosted_listings";
+
 function glowShadow(color: string) {
   return { shadowColor: color, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6 };
 }
@@ -35,8 +38,25 @@ export default function HomeScreen() {
   const [query, setQuery] = useState("");
   const [franchises, setFranchises] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [hideBoosted, setHideBoosted] = useState(false);
   const cartCount = useCartCount();
   const unreadCount = useUnreadNotifications();
+
+  useEffect(() => {
+    AsyncStorage.getItem(HIDE_BOOSTED_STORAGE_KEY)
+      .then((raw) => {
+        if (raw === "1") setHideBoosted(true);
+      })
+      .catch(() => {});
+  }, []);
+
+  const toggleHideBoosted = () => {
+    setHideBoosted((prev) => {
+      const next = !prev;
+      AsyncStorage.setItem(HIDE_BOOSTED_STORAGE_KEY, next ? "1" : "0").catch(() => {});
+      return next;
+    });
+  };
 
   // Collapsing header: scrolling down hides the search bar + franchise
   // chips together; scrolling back up (without reaching the top) brings
@@ -109,6 +129,8 @@ export default function HomeScreen() {
   const { data: favorites } = useQuery<ListingSummary[]>({ queryKey: ["/api/favorites"], enabled: !!user });
   const favoritedIds = useMemo(() => new Set((favorites ?? []).map((f) => f.id)), [favorites]);
 
+  const visibleListings = useMemo(() => (hideBoosted ? (listings ?? []).filter((l) => !l.isBoosted) : (listings ?? [])), [listings, hideBoosted]);
+
   const toggleFranchise = (key: string) => {
     setFranchises((prev) => (prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]));
   };
@@ -135,6 +157,9 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>PullMarket TCG</Text>
           <View style={styles.headerIcons}>
+            <Pressable onPress={toggleHideBoosted} style={[styles.iconButton, hideBoosted && styles.iconButtonActive]} hitSlop={8}>
+              <Feather name={hideBoosted ? "zap-off" : "zap"} size={20} color={hideBoosted ? Colors.gold : Colors.white} />
+            </Pressable>
             <Pressable onPress={() => navigation.navigate("Notifications")} style={styles.iconButton} hitSlop={8}>
               <Feather name="bell" size={22} color={Colors.white} />
               {unreadCount > 0 ? <View style={styles.dot} /> : null}
@@ -193,7 +218,7 @@ export default function HomeScreen() {
         </Animated.View>
 
         <FlatList
-          data={listings ?? []}
+          data={visibleListings}
           keyExtractor={(item) => item.id}
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
@@ -229,6 +254,7 @@ const styles = StyleSheet.create({
   headerTitle: { ...Typography.h2, color: Colors.gold },
   headerIcons: { flexDirection: "row", gap: Spacing.md },
   iconButton: { position: "relative" },
+  iconButtonActive: { opacity: 0.9 },
   dot: { position: "absolute", top: -2, right: -2, width: 9, height: 9, borderRadius: 5, backgroundColor: Colors.danger },
   cartBadge: { position: "absolute", top: -6, right: -8, backgroundColor: Colors.primary, borderRadius: 10, minWidth: 16, height: 16, alignItems: "center", justifyContent: "center", paddingHorizontal: 3 },
   cartBadgeText: { color: Colors.white, fontSize: 10, fontWeight: "800" },

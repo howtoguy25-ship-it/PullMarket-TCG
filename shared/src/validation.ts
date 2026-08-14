@@ -18,6 +18,59 @@ export const AUTO_UNLIST_OUT_OF_STOCK_DAYS = 3;
 export const REMOVE_ADS_PRICE_CENTS = 3999; // $39.99 one-time
 export const REMOVE_ADS_LOOKUP_KEY = "pullmarket_remove_ads";
 
+// ─── Listing boosts ──────────────────────────────────────────────────────
+// A real paid purchase that pushes a listing to the top of the marketplace
+// feed for a fixed window (see listings.boostedUntil in schema.ts, and
+// routes/boost.ts). Every tier's price strictly increases with its
+// duration, so there's never a case where a shorter boost costs more than
+// a longer one.
+export interface BoostTier {
+  id: string;
+  durationHours: number;
+  priceCents: number;
+}
+
+export const BOOST_TIERS: BoostTier[] = [
+  { id: "12h", durationHours: 12, priceCents: 1500 },
+  { id: "24h", durationHours: 24, priceCents: 1999 },
+  { id: "36h", durationHours: 36, priceCents: 3000 },
+  { id: "48h", durationHours: 48, priceCents: 4500 },
+  { id: "60h", durationHours: 60, priceCents: 5000 },
+  { id: "72h", durationHours: 72, priceCents: 5499 },
+  { id: "96h", durationHours: 96, priceCents: 7500 },
+  { id: "108h", durationHours: 108, priceCents: 8500 },
+  { id: "120h", durationHours: 120, priceCents: 9000 },
+  { id: "132h", durationHours: 132, priceCents: 9500 },
+  { id: "144h", durationHours: 144, priceCents: 10000 },
+  { id: "168h", durationHours: 168, priceCents: 10999 },
+  { id: "336h", durationHours: 336, priceCents: 20000 },
+];
+
+// Active Pro subscribers get this fraction off every boost tier's price.
+export const PRO_BOOST_DISCOUNT = 0.15;
+
+export function getBoostTierById(id: string): BoostTier | undefined {
+  return BOOST_TIERS.find((t) => t.id === id);
+}
+
+/** The real price a specific user pays for a tier — full price, or 15% off
+ * for an active Pro subscriber. Always rounds to the nearest cent. */
+export function boostPriceCentsForUser(tier: BoostTier, isProSubscriber: boolean): number {
+  if (!isProSubscriber) return tier.priceCents;
+  return Math.round(tier.priceCents * (1 - PRO_BOOST_DISCOUNT));
+}
+
+/** "12 hours" / "1 day" / "1 day 12 hours" / "14 days" — always the plainest
+ * exact phrasing for a given hour count, never a rounded approximation. */
+export function formatBoostDuration(durationHours: number): string {
+  if (durationHours < 24) return `${durationHours} hour${durationHours === 1 ? "" : "s"}`;
+  const days = Math.floor(durationHours / 24);
+  const hours = durationHours % 24;
+  const daysLabel = `${days} day${days === 1 ? "" : "s"}`;
+  if (hours === 0) return daysLabel;
+  return `${daysLabel} ${hours} hour${hours === 1 ? "" : "s"}`;
+}
+
 /**
  * Single source of truth for "is this user's Pro membership currently
  * active" — used both server-side (gating follow/boost/search-ranking) and

@@ -122,6 +122,11 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
     navigation.navigate("EditListing", { listingId: listing.id });
   };
 
+  const handleBoost = () => {
+    onClose();
+    navigation.navigate("BoostListing", { listingId: listing.id });
+  };
+
   const handleShare = async () => {
     const url = Linking.createURL(`listing/${listing.id}`);
     try {
@@ -157,6 +162,7 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
           {!isLocked ? (
             <>
               <Row testID="options-row-edit" icon="edit-2" label="Re-edit listing" onPress={handleEdit} disabled={revisionsLeft <= 0 || isUnlisted} />
+              {!isUnlisted ? <Row testID="options-row-boost" icon="zap" label="Boost listing" onPress={handleBoost} /> : null}
               {isUnlisted ? (
                 <Row testID="options-row-relist" icon="upload" label="Relist" onPress={handleRelist} loading={busy === "relist"} />
               ) : (

@@ -16,6 +16,8 @@ import UsernameSetupScreen from "@/screens/auth/UsernameSetupScreen";
 
 import ListingDetailScreen from "@/screens/ListingDetailScreen";
 import EditListingScreen from "@/screens/EditListingScreen";
+import BoostListingScreen from "@/screens/BoostListingScreen";
+import BoostReturnScreen from "@/screens/BoostReturnScreen";
 import ImageViewerScreen from "@/screens/ImageViewerScreen";
 import CartScreen from "@/screens/CartScreen";
 import CheckoutScreen from "@/screens/CheckoutScreen";
@@ -83,6 +85,8 @@ function MainNavigator() {
       <RootStack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
       <RootStack.Screen name="ListingDetail" component={ListingDetailScreen} options={{ title: "", headerTransparent: false, headerStyle: { backgroundColor: Colors.background } }} />
       <RootStack.Screen name="EditListing" component={EditListingScreen} options={{ title: "Edit Listing" }} />
+      <RootStack.Screen name="BoostListing" component={BoostListingScreen} options={{ title: "Boost Listing" }} />
+      <RootStack.Screen name="BoostReturn" component={BoostReturnScreen} options={{ title: "", headerBackVisible: false }} />
       <RootStack.Screen name="ImageViewer" component={ImageViewerScreen} options={{ headerShown: false, presentation: "fullScreenModal" }} />
       <RootStack.Screen name="Cart" component={CartScreen} options={{ title: "Your Cart" }} />
       <RootStack.Screen name="Checkout" component={CheckoutScreen} options={{ title: "Checkout" }} />
@@ -130,6 +134,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       IdentityVerification: "identity-verification",
       SubscriptionReturn: "subscription-return",
       RemoveAdsReturn: "remove-ads-return",
+      BoostReturn: "boost-return",
     },
   },
 };
