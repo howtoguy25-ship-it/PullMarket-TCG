@@ -188,7 +188,10 @@ const styles = StyleSheet.create({
   bubbleRowMine: { alignSelf: "flex-end", alignItems: "flex-end" },
   bubbleRowTheirs: { alignSelf: "flex-start", alignItems: "flex-start" },
   bubble: { borderRadius: BorderRadius.lg, paddingHorizontal: Spacing.md, paddingVertical: 10, gap: 6 },
-  bubbleMine: { backgroundColor: Colors.primary, borderBottomRightRadius: 4 },
+  // A calmer navy instead of the app's high-energy brand red — this is a
+  // support/help context, not a marketplace listing, so the tone here
+  // reads as professional and reassuring rather than "buy now" loud.
+  bubbleMine: { backgroundColor: Colors.secondary, borderBottomRightRadius: 4 },
   bubbleTheirs: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 4 },
   bubbleText: { ...Typography.body, color: Colors.text },
   bubbleTextMine: { color: Colors.white },
@@ -203,6 +206,6 @@ const styles = StyleSheet.create({
   attachButton: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", marginBottom: 2 },
   attachButtonDisabled: { opacity: 0.4 },
   input: { flex: 1, maxHeight: 120, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.lg, paddingHorizontal: Spacing.md, paddingVertical: 10, color: Colors.text, ...Typography.body },
-  sendButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.primary, alignItems: "center", justifyContent: "center", marginBottom: 2 },
+  sendButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.secondary, alignItems: "center", justifyContent: "center", marginBottom: 2 },
   sendButtonDisabled: { backgroundColor: Colors.border },
 });

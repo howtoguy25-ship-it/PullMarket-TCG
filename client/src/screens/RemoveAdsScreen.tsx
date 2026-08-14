@@ -91,11 +91,11 @@ export default function RemoveAdsScreen() {
           <Text style={styles.statusBody}>You won't see app-open or banner ads anymore.</Text>
         </View>
       ) : Platform.OS === "web" ? (
-        <Button title={`Buy — ${priceLabel}`} onPress={() => checkoutMutation.mutate()} loading={checkoutMutation.isPending} style={{ marginTop: Spacing.lg }} />
+        <Button title={`Buy — ${priceLabel}`} variant="secondary" onPress={() => checkoutMutation.mutate()} loading={checkoutMutation.isPending} style={{ marginTop: Spacing.lg }} />
       ) : Platform.OS === "ios" ? (
         apple.available ? (
           <>
-            <Button title={`Buy — ${apple.priceLabel ?? priceLabel}`} onPress={() => void handleApplePurchase()} loading={apple.purchasing} style={{ marginTop: Spacing.lg }} />
+            <Button title={`Buy — ${apple.priceLabel ?? priceLabel}`} variant="secondary" onPress={() => void handleApplePurchase()} loading={apple.purchasing} style={{ marginTop: Spacing.lg }} />
             <Pressable onPress={() => void handleAppleRestore()} style={styles.restoreLink} disabled={apple.restoring}>
               <Text style={styles.restoreLinkText}>{apple.restoring ? "Restoring…" : "Restore purchase"}</Text>
             </Pressable>

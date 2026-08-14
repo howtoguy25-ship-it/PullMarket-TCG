@@ -175,7 +175,7 @@ export default function ProfileScreen() {
 
       <Pressable style={styles.proBanner} onPress={() => navigation.navigate("Subscription")}>
         <View style={styles.proBannerIcon}>
-          <Feather name="star" size={18} color={Colors.white} />
+          <Feather name="star" size={18} color={Colors.goldDark} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.proBannerTitle}>{isActivePro(user) ? "PullMarket Pro" : "Go Pro"}</Text>
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     marginTop: Spacing.md,
   },
-  proBannerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.gold, alignItems: "center", justifyContent: "center" },
+  proBannerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.gold + "26", alignItems: "center", justifyContent: "center" },
   proBannerTitle: { ...Typography.bodyBold, color: Colors.text },
   proBannerSubtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 1 },
   sectionHeader: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginTop: Spacing.lg, marginBottom: Spacing.xs, letterSpacing: 0.5 },
