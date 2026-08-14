@@ -33,11 +33,31 @@ Guidelines:
 - Be concise — a few sentences, not an essay, unless the user asks for detail.
 - If asked about something you don't have specifics on (a specific order, a payment dispute, a bug, account access issues), tell them to use the in-app Report feature (on the relevant listing/order/user) for anything needing a human, or contact support at Sales@pullmarkettcg.com.
 - Never invent policies, prices, or refund terms you're not told here. Never ask for or handle passwords, card numbers, or verification codes — the app never needs those in chat.
-- You cannot take actions in the app yourself (you can't cancel an order, issue a refund, or change a setting) — only explain how the user can do it themselves.`;
+- You cannot take actions in the app yourself (you can't cancel an order, issue a refund, or change a setting) — only explain how the user can do it themselves.
+- Users can attach up to 2 screenshots or photos to a message (e.g. an error they're seeing, a card they're trying to list, a confusing screen). Look at them directly and answer based on what's actually shown — don't guess at what a screenshot might contain.`;
+
+const IMAGE_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+
+interface ChatImage {
+  mediaType: (typeof IMAGE_MEDIA_TYPES)[number];
+  data: string;
+}
 
 interface ChatTurn {
   role: "user" | "assistant";
   content: string;
+  images?: ChatImage[];
+}
+
+type AnthropicContentBlock = { type: "text"; text: string } | { type: "image"; source: { type: "base64"; media_type: string; data: string } };
+
+function toAnthropicMessage(turn: ChatTurn): { role: "user" | "assistant"; content: string | AnthropicContentBlock[] } {
+  if (!turn.images?.length) return { role: turn.role, content: turn.content };
+  // The API rejects an empty text block outright, so an image sent with no
+  // caption needs to skip it rather than send `{ type: "text", text: "" }`.
+  const blocks: AnthropicContentBlock[] = turn.images.map((img) => ({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } }));
+  if (turn.content.trim()) blocks.push({ type: "text", text: turn.content });
+  return { role: turn.role, content: blocks };
 }
 
 // Simple per-user in-memory limiter — good enough for a single Render
@@ -65,7 +85,18 @@ router.post("/chat", async (req, res) => {
 
   const schema = z.object({
     messages: z
-      .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(4000) }))
+      .array(
+        z
+          .object({
+            role: z.enum(["user", "assistant"]),
+            content: z.string().max(4000),
+            // ~6MB decoded per image, ~8M base64 chars — comfortably above
+            // what the client's resize-before-send actually produces, just
+            // guarding against a request that skipped that step.
+            images: z.array(z.object({ mediaType: z.enum(IMAGE_MEDIA_TYPES), data: z.string().min(1).max(8_000_000) })).max(2).optional(),
+          })
+          .refine((m) => m.content.trim().length > 0 || (m.images?.length ?? 0) > 0, { message: "Message needs text or an image" }),
+      )
       .min(1)
       .max(40),
   });
@@ -88,7 +119,7 @@ router.post("/chat", async (req, res) => {
         model: MODEL,
         max_tokens: 600,
         system: SYSTEM_PROMPT,
-        messages: turns.map((t) => ({ role: t.role, content: t.content })),
+        messages: turns.map(toAnthropicMessage),
       }),
       signal: controller.signal,
     });

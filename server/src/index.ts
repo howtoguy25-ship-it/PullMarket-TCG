@@ -78,7 +78,11 @@ function setupErrorHandler(app: express.Application) {
   // mounted BEFORE express.json() strips/parses the body.
   app.use("/api/stripe/webhook", express.raw({ type: "application/json" }), webhookRoutes);
 
-  app.use(express.json());
+  // Default 100kb is fine for ordinary JSON bodies but too small for the
+  // help assistant's image attachments (base64-encoded photos in the JSON
+  // body, not multipart) — raised enough for two resized images with room
+  // to spare.
+  app.use(express.json({ limit: "15mb" }));
   app.use(express.urlencoded({ extended: false }));
 
   setupRequestLogging(app);
