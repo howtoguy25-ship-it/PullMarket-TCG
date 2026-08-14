@@ -3,6 +3,7 @@ import { Platform, PermissionsAndroid, Alert } from "react-native";
 import * as Haptics from "expo-haptics";
 import { getToken, getApiUrl } from "@/lib/api";
 import { useAuth } from "./AuthContext";
+import { useRingtone } from "./RingtoneContext";
 
 // react-native-webrtc's native getUserMedia does NOT request Android's
 // runtime RECORD_AUDIO/CAMERA permissions itself — it just fails if they
@@ -84,6 +85,8 @@ function wsUrlFor(token: string): string {
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { startIncomingRingtone } = useRingtone();
+  const stopIncomingRingtoneRef = useRef<(() => void) | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<InstanceType<typeof import("react-native-webrtc").RTCPeerConnection> | null>(null);
@@ -120,8 +123,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       clearInterval(ringHapticIntervalRef.current);
       ringHapticIntervalRef.current = null;
     }
+    if (stopIncomingRingtoneRef.current) {
+      stopIncomingRingtoneRef.current();
+      stopIncomingRingtoneRef.current = null;
+    }
     const InCallManager = await loadInCallManager();
-    InCallManager.stopRingtone();
     InCallManager.stopRingback();
   }, []);
 
@@ -348,15 +354,14 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       setPhase("incoming");
       setEndReason(null);
 
-      // Real ring: the device's own system ringtone via InCallManager, plus
-      // a repeating haptic pulse so an incoming call is felt, not just seen
-      // — both stop the moment the call is answered/declined/ends/missed
-      // (stopRingingEffects, called from every one of those paths).
-      // vibrate_pattern is a plain number (not an array) so InCallManager's
-      // own Vibration.vibrate call is skipped — vibration is handled
-      // separately below via expo-haptics, so the two don't double up.
-      const InCallManager = await loadInCallManager();
-      InCallManager.startRingtone("_DEFAULT_", 0, "default", -1);
+      // Real ring: the user's chosen PullMarket ringtone (an original,
+      // in-house-synthesized loop — not the OS system ringtone, see
+      // RingtoneContext) plus a repeating haptic pulse so an incoming call
+      // is felt, not just seen — both stop the moment the call is
+      // answered/declined/ends/missed (stopRingingEffects, called from
+      // every one of those paths).
+      if (stopIncomingRingtoneRef.current) stopIncomingRingtoneRef.current();
+      stopIncomingRingtoneRef.current = await startIncomingRingtone();
       if (ringHapticIntervalRef.current) clearInterval(ringHapticIntervalRef.current);
       ringHapticIntervalRef.current = setInterval(() => {
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);

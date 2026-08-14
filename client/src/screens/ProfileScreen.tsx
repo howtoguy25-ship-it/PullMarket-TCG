@@ -17,7 +17,9 @@ import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAmbientSound } from "@/contexts/AmbientSoundContext";
+import { useRingtone } from "@/contexts/RingtoneContext";
 import { AMBIENT_SOUNDS } from "@/lib/ambientSounds";
+import { RINGTONES } from "@/lib/ringtones";
 import { apiJson, apiRequest, ApiError, getApiUrl } from "@/lib/api";
 import { appendImageField } from "@/lib/formDataImage";
 import { isActivePro } from "@shared/validation";
@@ -80,6 +82,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { user, signOut, refreshUser } = useAuth();
   const { enabled, selectedId, volume, previewingId, setEnabled, selectSound, setVolume, preview } = useAmbientSound();
+  const { selectedId: ringtoneSelectedId, previewingId: ringtonePreviewingId, selectRingtone, preview: previewRingtone } = useRingtone();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<string | null>(null);
 
@@ -262,6 +265,25 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      <Text style={styles.sectionHeader}>Call Ringtone</Text>
+      <View style={styles.section}>
+        <Text style={styles.ringtoneHint}>Plays on your phone when someone calls you</Text>
+        <View style={styles.soundList}>
+          {RINGTONES.map((r) => (
+            <SoundRow
+              key={r.id}
+              id={r.id}
+              label={r.label}
+              description={r.description}
+              active={ringtoneSelectedId === r.id}
+              previewing={ringtonePreviewingId === r.id}
+              onSelect={() => selectRingtone(r.id)}
+              onPreview={() => previewRingtone(r.id)}
+            />
+          ))}
+        </View>
+      </View>
+
       <Text style={styles.sectionHeader}>Account</Text>
       <View style={styles.accountActions}>
         <Button title="Sign out" variant="outline" icon={<Feather name="log-out" size={17} color={Colors.primary} />} onPress={handleSignOut} style={styles.accountButton} />
@@ -322,6 +344,7 @@ const styles = StyleSheet.create({
   rowSubtitle: { ...Typography.small, color: Colors.textSecondary },
   soundToggleRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md },
   soundList: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
+  ringtoneHint: { ...Typography.small, color: Colors.textSecondary, padding: Spacing.md, paddingBottom: 0 },
   soundRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
   soundRowActive: { backgroundColor: Colors.surfaceAlt },
   soundRadio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
