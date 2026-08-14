@@ -10,7 +10,13 @@ import { Colors, Spacing, Typography, BorderRadius, Fonts, NoWebFocusOutline } f
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
 import { EmptyState } from "@/components/ui";
 import { GalaxyBackground } from "@/components/GalaxyBackground";
+import { OceanBackground } from "@/components/OceanBackground";
+import { AuroraBackground } from "@/components/AuroraBackground";
+import { EmberBackground } from "@/components/EmberBackground";
+import { ForestBackground } from "@/components/ForestBackground";
+import { HomeBackgroundPickerModal } from "@/components/HomeBackgroundPickerModal";
 import { FloatingHoloCards } from "@/components/FloatingHoloCards";
+import { useHomeBackground } from "@/contexts/HomeBackgroundContext";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
@@ -30,11 +36,22 @@ function glowShadow(color: string) {
   return { shadowColor: color, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6 };
 }
 
+const HOME_BACKGROUND_COMPONENTS: Record<string, React.ComponentType<{ children?: React.ReactNode }>> = {
+  galaxy: GalaxyBackground,
+  ocean: OceanBackground,
+  aurora: AuroraBackground,
+  ember: EmberBackground,
+  forest: ForestBackground,
+};
+
 export default function HomeScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { backgroundId } = useHomeBackground();
+  const [backgroundPickerVisible, setBackgroundPickerVisible] = useState(false);
+  const HomeBackground = HOME_BACKGROUND_COMPONENTS[backgroundId] ?? GalaxyBackground;
   const [query, setQuery] = useState("");
   const [franchises, setFranchises] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -151,12 +168,16 @@ export default function HomeScreen() {
   };
 
   return (
-    <GalaxyBackground>
+    <HomeBackground>
       <FloatingHoloCards />
+      <HomeBackgroundPickerModal visible={backgroundPickerVisible} onClose={() => setBackgroundPickerVisible(false)} />
       <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>PullMarket TCG</Text>
           <View style={styles.headerIcons}>
+            <Pressable onPress={() => setBackgroundPickerVisible(true)} style={styles.iconButton} hitSlop={8} testID="home-background-button">
+              <Feather name="image" size={20} color={Colors.white} />
+            </Pressable>
             <Pressable onPress={toggleHideBoosted} style={[styles.iconButton, hideBoosted && styles.iconButtonActive]} hitSlop={8}>
               <Feather name={hideBoosted ? "zap-off" : "zap"} size={20} color={hideBoosted ? Colors.gold : Colors.white} />
             </Pressable>
@@ -243,7 +264,7 @@ export default function HomeScreen() {
           }
         />
       </View>
-    </GalaxyBackground>
+    </HomeBackground>
   );
 }
 

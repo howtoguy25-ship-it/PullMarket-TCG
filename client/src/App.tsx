@@ -21,6 +21,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { AmbientSoundProvider } from "@/contexts/AmbientSoundContext";
 import { RingtoneProvider } from "@/contexts/RingtoneContext";
 import { AppThemeProvider } from "@/contexts/AppThemeContext";
+import { HomeBackgroundProvider } from "@/contexts/HomeBackgroundContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { CallOverlay } from "@/components/CallOverlay";
 import { AppOpenAdManager } from "@/components/AppOpenAdManager";
@@ -97,16 +98,18 @@ export default function App() {
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
             <AppThemeProvider>
-              <AmbientSoundProvider>
-                <RingtoneProvider>
-                  <CallProvider>
-                    <StatusBar style="dark" />
-                    <RootNavigator />
-                    <CallOverlay />
-                    <AppOpenAdManager />
-                  </CallProvider>
-                </RingtoneProvider>
-              </AmbientSoundProvider>
+              <HomeBackgroundProvider>
+                <AmbientSoundProvider>
+                  <RingtoneProvider>
+                    <CallProvider>
+                      <StatusBar style="dark" />
+                      <RootNavigator />
+                      <CallOverlay />
+                      <AppOpenAdManager />
+                    </CallProvider>
+                  </RingtoneProvider>
+                </AmbientSoundProvider>
+              </HomeBackgroundProvider>
             </AppThemeProvider>
           </AuthProvider>
         </QueryClientProvider>
