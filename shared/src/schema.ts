@@ -224,6 +224,12 @@ export const listingBoosts = pgTable(
     priceCentsPaid: integer("price_cents_paid").notNull(), // after any Pro discount — the real amount charged
     proDiscountApplied: boolean("pro_discount_applied").notNull().default(false),
     stripePaymentIntentId: text("stripe_payment_intent_id"),
+    // Apple's transaction id for an in-app-purchased boost (iOS) — same
+    // idempotency role as stripePaymentIntentId above, just for the other
+    // payment rail. A unique constraint lets Postgres itself reject a
+    // double-credit if the client ever retries a verify call, on top of the
+    // explicit pre-check the route already does.
+    appleTransactionId: text("apple_transaction_id").unique(),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [index("idx_listing_boosts_listing").on(table.listingId), index("idx_listing_boosts_user").on(table.userId)],

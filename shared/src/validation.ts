@@ -30,31 +30,47 @@ export interface BoostTier {
   priceCents: number;
 }
 
+// Collapsed from an earlier 13-tier lineup to these 4: iOS purchases each
+// tier as its own Apple in-app-purchase product (see appleBoostProductId
+// below), and 13 separate products in App Store Connect was real ongoing
+// setup/maintenance for very little pricing granularity a seller actually
+// cares about. These 4 keep the same price points as their old equivalents.
 export const BOOST_TIERS: BoostTier[] = [
-  { id: "12h", durationHours: 12, priceCents: 1500 },
   { id: "24h", durationHours: 24, priceCents: 1999 },
-  { id: "36h", durationHours: 36, priceCents: 3000 },
-  { id: "48h", durationHours: 48, priceCents: 4500 },
-  { id: "60h", durationHours: 60, priceCents: 5000 },
   { id: "72h", durationHours: 72, priceCents: 5499 },
-  { id: "96h", durationHours: 96, priceCents: 7500 },
-  { id: "108h", durationHours: 108, priceCents: 8500 },
-  { id: "120h", durationHours: 120, priceCents: 9000 },
-  { id: "132h", durationHours: 132, priceCents: 9500 },
-  { id: "144h", durationHours: 144, priceCents: 10000 },
   { id: "168h", durationHours: 168, priceCents: 10999 },
   { id: "336h", durationHours: 336, priceCents: 20000 },
 ];
 
+// Each tier is also a separate Apple in-app-purchase (consumable) product,
+// named by this fixed convention rather than an injected env var — unlike
+// the single-product Pro/Remove Ads IDs (EXPO_PUBLIC_APPLE_IAP_*), there's
+// no per-tier config to keep in sync across eas.json/the OTA script/app
+// config, since both client and server derive the same id from BOOST_TIERS.
+// The purchase button still only appears once each product genuinely
+// exists in App Store Connect — see useApplePurchaseCatalog, which asks
+// StoreKit to confirm every id before treating it as available.
+export function appleBoostProductId(tierId: string): string {
+  return `com.pullmarket.tcg.boost_${tierId}`;
+}
+
 // Active Pro subscribers get this fraction off — but only on tiers long
-// enough to be worth discounting. The shortest tiers (12h/1 day/1 day 12h,
-// under $45) stay full price for everyone; the discount kicks in starting
-// at the 2-day/$45 tier and up.
+// enough to be worth discounting. The shortest tier (24h, under $45) stays
+// full price for everyone; the discount kicks in starting at the 3-day
+// tier and up. Apple purchases never get this discount (see
+// BoostListingScreen) — StoreKit prices are fixed per product, not
+// per-user, so the iOS buy flow is always full price.
 export const PRO_BOOST_DISCOUNT = 0.15;
-export const PRO_BOOST_DISCOUNT_MIN_HOURS = 48; // 2 days — the $45 tier
+export const PRO_BOOST_DISCOUNT_MIN_HOURS = 48; // 2 days+
 
 export function getBoostTierById(id: string): BoostTier | undefined {
   return BOOST_TIERS.find((t) => t.id === id);
+}
+
+/** Reverse lookup for an Apple-verified transaction — turns the productId
+ * StoreKit reports back into the tier it corresponds to. */
+export function getBoostTierByAppleProductId(productId: string): BoostTier | undefined {
+  return BOOST_TIERS.find((t) => appleBoostProductId(t.id) === productId);
 }
 
 /** Whether a tier is even eligible for the Pro discount at all, independent

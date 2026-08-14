@@ -136,3 +136,103 @@ export function useApplePurchase({ productId, type, verifyEndpoint }: UseApplePu
 
   return { available, priceLabel, purchasing, restoring, purchase, restore };
 }
+
+interface CatalogItem {
+  available: boolean;
+  priceLabel: string | null;
+}
+
+interface ApplePurchaseCatalogState {
+  catalog: Record<string, CatalogItem>;
+  purchasingId: string | null;
+  // Server verify endpoint is supplied per-call rather than fixed at hook
+  // setup, since one catalog hook covers several products (Boost's tiers)
+  // that all verify against the same route but need to name themselves.
+  purchase: (productId: string, verifyEndpoint: string) => Promise<void>;
+}
+
+/** Same idea as useApplePurchase above, but for a set of interchangeable
+ * consumable products bought one at a time — Boost's tiers, where a seller
+ * might buy several different-length boosts over time on the same account,
+ * so (unlike Remove Ads/Pro) nothing here is ever "already owned" or
+ * restorable. */
+export function useApplePurchaseCatalog(productIds: string[]): ApplePurchaseCatalogState {
+  const [catalog, setCatalog] = useState<Record<string, CatalogItem>>({});
+  const [purchasingId, setPurchasingId] = useState<string | null>(null);
+  const connectedRef = useRef(false);
+  const idsKey = productIds.join(",");
+
+  useEffect(() => {
+    if (Platform.OS !== "ios" || productIds.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const iap = await loadIap();
+        await iap.initConnection();
+        connectedRef.current = true;
+        const products = await iap.fetchProducts({ skus: productIds, type: "in-app" });
+        if (cancelled) return;
+        const next: Record<string, CatalogItem> = {};
+        for (const id of productIds) {
+          const match = (products ?? []).find((p) => p.id === id);
+          next[id] = { available: !!match, priceLabel: match?.displayPrice ?? null };
+        }
+        setCatalog(next);
+      } catch (err) {
+        console.error("Apple IAP catalog init failed:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (connectedRef.current) {
+        connectedRef.current = false;
+        void loadIap().then((iap) => iap.endConnection());
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [idsKey]);
+
+  const purchase = useCallback(async (productId: string, verifyEndpoint: string) => {
+    const iap = await loadIap();
+    setPurchasingId(productId);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const successSub = iap.purchaseUpdatedListener((p) => {
+          if (p.productId !== productId) return;
+          void (async () => {
+            try {
+              if (!p.purchaseToken) throw new Error("No purchase token returned by the App Store.");
+              await apiJson("POST", verifyEndpoint, { jws: p.purchaseToken });
+              // Consumable — unlike Remove Ads' finishTransaction, this one
+              // tells Apple the product is used up so it can be bought
+              // again (another boost, another listing, another day).
+              await iap.finishTransaction({ purchase: p, isConsumable: true });
+              successSub.remove();
+              errorSub.remove();
+              resolve();
+            } catch (err) {
+              successSub.remove();
+              errorSub.remove();
+              reject(err instanceof Error ? err : new Error("Purchase verification failed."));
+            }
+          })();
+        });
+        const errorSub = iap.purchaseErrorListener((err) => {
+          successSub.remove();
+          errorSub.remove();
+          if (iap.isUserCancelledError(err)) resolve();
+          else reject(new Error(err.message || "Purchase failed."));
+        });
+        iap.requestPurchase({ request: { apple: { sku: productId } }, type: "in-app" }).catch((err: unknown) => {
+          successSub.remove();
+          errorSub.remove();
+          reject(err instanceof Error ? err : new Error("Couldn't start the purchase."));
+        });
+      });
+    } finally {
+      setPurchasingId(null);
+    }
+  }, []);
+
+  return { catalog, purchasingId, purchase };
+}
