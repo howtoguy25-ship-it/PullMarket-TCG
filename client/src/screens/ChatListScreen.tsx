@@ -123,7 +123,12 @@ export default function ChatListScreen() {
     <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
       <AppThemeBackground />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
+        <View style={styles.headerTitleRow}>
+          <View style={styles.headerTitleIcon}>
+            <Feather name="message-circle" size={16} color={Colors.secondary} />
+          </View>
+          <Text style={styles.headerTitle}>Messages</Text>
+        </View>
         <View style={styles.headerActions}>
           <Pressable onPress={() => navigation.navigate("ArchivedChats")} style={styles.headerButton} hitSlop={8}>
             <Feather name="archive" size={20} color={Colors.text} />
@@ -233,6 +238,8 @@ export default function ChatListScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, overflow: "hidden" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm },
+  headerTitleRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
+  headerTitleIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.secondary + "1F", alignItems: "center", justifyContent: "center" },
   headerTitle: { ...Typography.h2, color: Colors.text },
   headerActions: { flexDirection: "row", gap: Spacing.md },
   headerButton: { width: 36, height: 36, alignItems: "center", justifyContent: "center" },

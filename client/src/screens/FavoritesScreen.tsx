@@ -34,7 +34,12 @@ export default function FavoritesScreen() {
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <AppThemeBackground />
-      <Text style={styles.title}>Favorites</Text>
+      <View style={styles.titleRow}>
+        <View style={styles.titleIcon}>
+          <Feather name="star" size={16} color={Colors.goldDark} />
+        </View>
+        <Text style={styles.title}>Favorites</Text>
+      </View>
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -53,5 +58,7 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, overflow: "hidden" },
   columnWrapper: { justifyContent: "flex-start", gap: 0 },
-  title: { ...Typography.h2, color: Colors.text, paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
+  titleIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: Colors.gold + "26", alignItems: "center", justifyContent: "center" },
+  title: { ...Typography.h2, color: Colors.text },
 });

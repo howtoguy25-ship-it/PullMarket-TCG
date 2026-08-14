@@ -16,20 +16,25 @@ import { useAuth } from "@/contexts/AuthContext";
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const FRANCHISE_OPTIONS = [
-  { key: "pokemon", label: "Pokémon" },
-  { key: "one_piece", label: "One Piece" },
+  { key: "pokemon", label: "Pokémon", color: Colors.pokemon },
+  { key: "one_piece", label: "One Piece", color: Colors.onePiece },
 ];
-const CONDITION_OPTIONS = Object.entries(CONDITION_LABELS).map(([key, label]) => ({ key, label }));
+const CONDITION_OPTIONS = Object.entries(CONDITION_LABELS).map(([key, label]) => ({ key, label, color: Colors.secondary }));
 
-function MultiSelectRow({ options, selected, onToggle }: { options: { key: string; label: string }[]; selected: string[]; onToggle: (key: string) => void }) {
+// Franchise chips pick up each franchise's real brand color (matching the
+// same blue/red used on Home's filter chips and every listing's franchise
+// pill), rather than a single flat accent for every chip regardless of
+// what it means — condition chips get their own distinct navy accent so
+// the two filter groups read as clearly different categories.
+function MultiSelectRow({ options, selected, onToggle }: { options: { key: string; label: string; color: string }[]; selected: string[]; onToggle: (key: string) => void }) {
   return (
     <View style={styles.multiRow}>
       {options.map((opt) => {
         const active = selected.includes(opt.key);
         return (
-          <Pressable key={opt.key} onPress={() => onToggle(opt.key)} style={[styles.optionChip, active && styles.optionChipActive]}>
+          <Pressable key={opt.key} onPress={() => onToggle(opt.key)} style={[styles.optionChip, active ? { backgroundColor: opt.color, borderColor: opt.color } : { borderColor: opt.color + "55" }]}>
             {active ? <Feather name="check" size={13} color={Colors.white} /> : null}
-            <Text style={[styles.optionChipText, active && { color: Colors.white }]}>{opt.label}</Text>
+            <Text style={[styles.optionChipText, active ? { color: Colors.white } : { color: opt.color }]}>{opt.label}</Text>
           </Pressable>
         );
       })}
@@ -146,7 +151,6 @@ const styles = StyleSheet.create({
   filtersPanel: { backgroundColor: Colors.surface, margin: Spacing.lg, marginBottom: 0, padding: Spacing.md, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, gap: Spacing.sm },
   filterLabel: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginTop: Spacing.xs },
   multiRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
-  optionChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: BorderRadius.pill, borderWidth: 1, borderColor: Colors.border },
-  optionChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  optionChipText: { ...Typography.small, color: Colors.text },
+  optionChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: BorderRadius.pill, borderWidth: 1.5 },
+  optionChipText: { ...Typography.small, fontWeight: "600" },
 });

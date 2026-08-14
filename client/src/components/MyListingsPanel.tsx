@@ -104,7 +104,7 @@ function ListingRow({ listing, onManage }: { listing: MyListing; onManage: () =>
   const canEditStock = listing.status === "active" || listing.status === "sold_out";
 
   return (
-    <Pressable style={styles.row} onPress={() => navigation.navigate("ListingDetail", { listingId: listing.id })}>
+    <Pressable style={[styles.row, { borderLeftWidth: 4, borderLeftColor: meta.color }]} onPress={() => navigation.navigate("ListingDetail", { listingId: listing.id })}>
       {listing.images[0] ? (
         <Image source={{ uri: resolveImageUrl(listing.images[0]) }} style={styles.thumb} />
       ) : (
