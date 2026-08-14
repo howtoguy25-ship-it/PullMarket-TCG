@@ -51,11 +51,35 @@ function confirmAsync(title: string, message: string, confirmLabel: string): Pro
   });
 }
 
-function MenuRow({ icon, label, subtitle, onPress }: { icon: keyof typeof Feather.glyphMap; label: string; subtitle?: string; onPress: () => void }) {
+// Every section gets its own color from the app's real brand palette —
+// rows within a section share it (icon tint + a left-edge "barrier" stripe
+// on the section card), so the whole screen reads as clearly grouped color
+// zones instead of one long list of identical pink icons.
+const SECTION_COLORS = {
+  selling: Colors.goldDark,
+  shopping: Colors.primary,
+  privacy: Colors.secondary,
+  support: Colors.success,
+  owner: Colors.danger,
+  appBackground: "#7C3AED",
+  ambientSound: Colors.pokemon,
+  ringtone: Colors.onePiece,
+} as const;
+
+function SectionHeader({ label, color }: { label: string; color: string }) {
+  return (
+    <View style={styles.sectionHeaderRow}>
+      <View style={[styles.sectionDot, { backgroundColor: color }]} />
+      <Text style={styles.sectionHeader}>{label}</Text>
+    </View>
+  );
+}
+
+function MenuRow({ icon, label, subtitle, onPress, color = Colors.primary }: { icon: keyof typeof Feather.glyphMap; label: string; subtitle?: string; onPress: () => void; color?: string }) {
   return (
     <Pressable style={styles.row} onPress={onPress}>
-      <View style={styles.rowIcon}>
-        <Feather name={icon} size={16} color={Colors.primary} />
+      <View style={[styles.rowIcon, { backgroundColor: color + "1F" }]}>
+        <Feather name={icon} size={16} color={color} />
       </View>
       <View style={{ flex: 1 }}>
         <Text style={styles.rowLabel}>{label}</Text>
@@ -79,16 +103,34 @@ function ThemeSwatchRow({ label, description, colors, active, onSelect }: { labe
   );
 }
 
-function SoundRow({ id, label, description, active, previewing, onSelect, onPreview }: { id: string; label: string; description: string; active: boolean; previewing: boolean; onSelect: () => void; onPreview: () => void }) {
+function SoundRow({
+  id,
+  label,
+  description,
+  active,
+  previewing,
+  onSelect,
+  onPreview,
+  color = Colors.primary,
+}: {
+  id: string;
+  label: string;
+  description: string;
+  active: boolean;
+  previewing: boolean;
+  onSelect: () => void;
+  onPreview: () => void;
+  color?: string;
+}) {
   return (
-    <Pressable style={[styles.soundRow, active && styles.soundRowActive]} onPress={onSelect}>
-      <View style={[styles.soundRadio, active && styles.soundRadioActive]}>{active ? <View style={styles.soundRadioDot} /> : null}</View>
+    <Pressable style={[styles.soundRow, active && { backgroundColor: color + "14" }]} onPress={onSelect}>
+      <View style={[styles.soundRadio, active && { borderColor: color }]}>{active ? <View style={[styles.soundRadioDot, { backgroundColor: color }]} /> : null}</View>
       <View style={{ flex: 1 }}>
-        <Text style={[styles.soundLabel, active && styles.soundLabelActive]}>{label}</Text>
+        <Text style={[styles.soundLabel, active && { color }]}>{label}</Text>
         <Text style={styles.soundDescription}>{description}</Text>
       </View>
-      <Pressable style={[styles.previewButton, previewing && styles.previewButtonActive]} onPress={onPreview} hitSlop={8}>
-        <Feather name={previewing ? "square" : "play"} size={previewing ? 13 : 15} color={previewing ? Colors.white : Colors.primary} />
+      <Pressable style={[styles.previewButton, { backgroundColor: color + "1F" }, previewing && { backgroundColor: color }]} onPress={onPreview} hitSlop={8}>
+        <Feather name={previewing ? "square" : "play"} size={previewing ? 13 : 15} color={previewing ? Colors.white : color} />
       </Pressable>
     </Pressable>
   );
@@ -207,45 +249,45 @@ export default function ProfileScreen() {
         <Feather name="chevron-right" size={18} color={Colors.textMuted} />
       </Pressable>
 
-      <Text style={styles.sectionHeader}>Selling</Text>
-      <View style={styles.section}>
-        <MenuRow icon="credit-card" label="Payout setup" subtitle={user.stripeConnectPayoutsEnabled ? "Connected — ready to receive payouts" : "Set up Stripe to get paid"} onPress={() => navigation.navigate("SellerPayoutSetup")} />
-        <MenuRow icon="shield" label="Identity verification" subtitle={user.identityVerificationStatus === "verified" ? "Verified" : "Required before selling"} onPress={() => navigation.navigate("IdentityVerification")} />
-        <MenuRow icon="bell" label="New card alerts" subtitle="Choose which franchises to get notified about" onPress={() => navigation.navigate("NotificationFilters")} />
+      <SectionHeader label="Selling" color={SECTION_COLORS.selling} />
+      <View style={[styles.section, styles.sectionBarrier, { borderLeftColor: SECTION_COLORS.selling }]}>
+        <MenuRow icon="credit-card" color={SECTION_COLORS.selling} label="Payout setup" subtitle={user.stripeConnectPayoutsEnabled ? "Connected — ready to receive payouts" : "Set up Stripe to get paid"} onPress={() => navigation.navigate("SellerPayoutSetup")} />
+        <MenuRow icon="shield" color={SECTION_COLORS.selling} label="Identity verification" subtitle={user.identityVerificationStatus === "verified" ? "Verified" : "Required before selling"} onPress={() => navigation.navigate("IdentityVerification")} />
+        <MenuRow icon="bell" color={SECTION_COLORS.selling} label="New card alerts" subtitle="Choose which franchises to get notified about" onPress={() => navigation.navigate("NotificationFilters")} />
       </View>
 
-      <Text style={styles.sectionHeader}>Shopping</Text>
-      <View style={styles.section}>
-        <MenuRow icon="package" label="My orders" onPress={() => navigation.navigate("Orders", {})} />
-        <MenuRow icon="shopping-cart" label="Cart" onPress={() => navigation.navigate("Cart")} />
-        <MenuRow icon="bell" label="Notifications" onPress={() => navigation.navigate("Notifications")} />
-        <MenuRow icon="slash" label="Remove Ads" subtitle="$39.99 one-time — removes all ads" onPress={() => navigation.navigate("RemoveAds")} />
+      <SectionHeader label="Shopping" color={SECTION_COLORS.shopping} />
+      <View style={[styles.section, styles.sectionBarrier, { borderLeftColor: SECTION_COLORS.shopping }]}>
+        <MenuRow icon="package" color={SECTION_COLORS.shopping} label="My orders" onPress={() => navigation.navigate("Orders", {})} />
+        <MenuRow icon="shopping-cart" color={SECTION_COLORS.shopping} label="Cart" onPress={() => navigation.navigate("Cart")} />
+        <MenuRow icon="bell" color={SECTION_COLORS.shopping} label="Notifications" onPress={() => navigation.navigate("Notifications")} />
+        <MenuRow icon="slash" color={SECTION_COLORS.shopping} label="Remove Ads" subtitle="$39.99 one-time — removes all ads" onPress={() => navigation.navigate("RemoveAds")} />
       </View>
 
-      <Text style={styles.sectionHeader}>Privacy</Text>
-      <View style={styles.section}>
-        <MenuRow icon="eye-off" label="Read receipts" subtitle="Control who sees when you've read their messages" onPress={() => navigation.navigate("ReadReceiptSettings")} />
-        <MenuRow icon="user-x" label="Blocked users" subtitle="People you've blocked from messaging or friend-requesting you" onPress={() => navigation.navigate("BlockedUsers")} />
+      <SectionHeader label="Privacy" color={SECTION_COLORS.privacy} />
+      <View style={[styles.section, styles.sectionBarrier, { borderLeftColor: SECTION_COLORS.privacy }]}>
+        <MenuRow icon="eye-off" color={SECTION_COLORS.privacy} label="Read receipts" subtitle="Control who sees when you've read their messages" onPress={() => navigation.navigate("ReadReceiptSettings")} />
+        <MenuRow icon="user-x" color={SECTION_COLORS.privacy} label="Blocked users" subtitle="People you've blocked from messaging or friend-requesting you" onPress={() => navigation.navigate("BlockedUsers")} />
       </View>
 
-      <Text style={styles.sectionHeader}>Support</Text>
-      <View style={styles.section}>
-        <MenuRow icon="message-circle" label="AI Help Assistant" subtitle="Ask how to do anything in the app" onPress={() => navigation.navigate("HelpChat")} />
-        <MenuRow icon="shield" label="Privacy Policy" onPress={() => Linking.openURL(`${getApiUrl()}/privacy`)} />
-        <MenuRow icon="life-buoy" label="Support" onPress={() => Linking.openURL(`${getApiUrl()}/support`)} />
+      <SectionHeader label="Support" color={SECTION_COLORS.support} />
+      <View style={[styles.section, styles.sectionBarrier, { borderLeftColor: SECTION_COLORS.support }]}>
+        <MenuRow icon="message-circle" color={SECTION_COLORS.support} label="AI Help Assistant" subtitle="Ask how to do anything in the app" onPress={() => navigation.navigate("HelpChat")} />
+        <MenuRow icon="shield" color={SECTION_COLORS.support} label="Privacy Policy" onPress={() => Linking.openURL(`${getApiUrl()}/privacy`)} />
+        <MenuRow icon="life-buoy" color={SECTION_COLORS.support} label="Support" onPress={() => Linking.openURL(`${getApiUrl()}/support`)} />
       </View>
 
       {user.isOwner ? (
         <>
-          <Text style={styles.sectionHeader}>Owner</Text>
-          <View style={styles.section}>
-            <MenuRow icon="alert-octagon" label="Owner panel" subtitle="Review incident reports & users" onPress={() => navigation.navigate("OwnerPanel")} />
+          <SectionHeader label="Owner" color={SECTION_COLORS.owner} />
+          <View style={[styles.section, styles.sectionBarrier, { borderLeftColor: SECTION_COLORS.owner }]}>
+            <MenuRow icon="alert-octagon" color={SECTION_COLORS.owner} label="Owner panel" subtitle="Review incident reports & users" onPress={() => navigation.navigate("OwnerPanel")} />
           </View>
         </>
       ) : null}
 
-      <Text style={styles.sectionHeader}>App Background</Text>
-      <View style={styles.section}>
+      <SectionHeader label="App Background" color={SECTION_COLORS.appBackground} />
+      <View style={[styles.section, styles.sectionBarrier, { borderLeftColor: SECTION_COLORS.appBackground }]}>
         <Text style={styles.ringtoneHint}>Applies across Search, Chat, Favorites, Profile, and listing pages</Text>
         <View style={styles.soundList}>
           {APP_THEMES.map((t) => (
@@ -254,14 +296,14 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <Text style={styles.sectionHeader}>Ambient Sound</Text>
-      <View style={styles.section}>
+      <SectionHeader label="Ambient Sound" color={SECTION_COLORS.ambientSound} />
+      <View style={[styles.section, styles.sectionBarrier, { borderLeftColor: SECTION_COLORS.ambientSound }]}>
         <View style={styles.soundToggleRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.rowLabel}>Play while browsing</Text>
             <Text style={styles.rowSubtitle}>Original instrumental music, looped softly while you browse</Text>
           </View>
-          <Switch value={enabled} onValueChange={setEnabled} trackColor={{ false: Colors.border, true: Colors.primary }} thumbColor={Colors.white} />
+          <Switch value={enabled} onValueChange={setEnabled} trackColor={{ false: Colors.border, true: SECTION_COLORS.ambientSound }} thumbColor={Colors.white} />
         </View>
 
         <View style={styles.soundList}>
@@ -275,6 +317,7 @@ export default function ProfileScreen() {
               previewing={previewingId === s.id}
               onSelect={() => selectSound(s.id)}
               onPreview={() => preview(s.id)}
+              color={SECTION_COLORS.ambientSound}
             />
           ))}
         </View>
@@ -287,16 +330,16 @@ export default function ProfileScreen() {
             maximumValue={1}
             value={volume}
             onValueChange={setVolume}
-            minimumTrackTintColor={Colors.primary}
+            minimumTrackTintColor={SECTION_COLORS.ambientSound}
             maximumTrackTintColor={Colors.border}
-            thumbTintColor={Colors.primary}
+            thumbTintColor={SECTION_COLORS.ambientSound}
           />
           <Feather name="volume-2" size={16} color={Colors.textSecondary} />
         </View>
       </View>
 
-      <Text style={styles.sectionHeader}>Call Ringtone</Text>
-      <View style={styles.section}>
+      <SectionHeader label="Call Ringtone" color={SECTION_COLORS.ringtone} />
+      <View style={[styles.section, styles.sectionBarrier, { borderLeftColor: SECTION_COLORS.ringtone }]}>
         <Text style={styles.ringtoneHint}>Plays on your phone when someone calls you</Text>
         <View style={styles.soundList}>
           {RINGTONES.map((r) => (
@@ -309,12 +352,13 @@ export default function ProfileScreen() {
               previewing={ringtonePreviewingId === r.id}
               onSelect={() => selectRingtone(r.id)}
               onPreview={() => previewRingtone(r.id)}
+              color={SECTION_COLORS.ringtone}
             />
           ))}
         </View>
       </View>
 
-      <Text style={styles.sectionHeader}>Account</Text>
+      <SectionHeader label="Account" color={Colors.textSecondary} />
       <View style={styles.accountActions}>
         <Button title="Sign out" variant="outline" icon={<Feather name="log-out" size={17} color={Colors.primary} />} onPress={handleSignOut} style={styles.accountButton} />
         <Button title="Delete account" variant="danger" icon={<Feather name="trash-2" size={17} color={Colors.white} />} onPress={handleDeleteAccount} loading={deleteMutation.isPending} style={styles.accountButton} />
@@ -368,8 +412,11 @@ const styles = StyleSheet.create({
   proBannerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.gold + "26", alignItems: "center", justifyContent: "center" },
   proBannerTitle: { ...Typography.bodyBold, color: Colors.text },
   proBannerSubtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 1 },
-  sectionHeader: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginTop: Spacing.lg, marginBottom: Spacing.xs, letterSpacing: 0.5 },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: Spacing.lg, marginBottom: Spacing.xs },
+  sectionDot: { width: 7, height: 7, borderRadius: 4 },
+  sectionHeader: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", letterSpacing: 0.5 },
   section: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, overflow: "hidden" },
+  sectionBarrier: { borderLeftWidth: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, padding: Spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
   rowIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: "#FCE9E4", alignItems: "center", justifyContent: "center" },
   rowLabel: { ...Typography.bodyBold, color: Colors.text, fontSize: 14 },
