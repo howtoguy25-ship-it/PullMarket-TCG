@@ -19,6 +19,7 @@ const Nunito_700Bold = require("@expo-google-fonts/nunito/700Bold/Nunito_700Bold
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AmbientSoundProvider } from "@/contexts/AmbientSoundContext";
 import { RingtoneProvider } from "@/contexts/RingtoneContext";
+import { AppThemeProvider } from "@/contexts/AppThemeContext";
 import { CallProvider } from "@/contexts/CallContext";
 import { CallOverlay } from "@/components/CallOverlay";
 import { AppOpenAdManager } from "@/components/AppOpenAdManager";
@@ -75,16 +76,18 @@ export default function App() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <AmbientSoundProvider>
-              <RingtoneProvider>
-                <CallProvider>
-                  <StatusBar style="dark" />
-                  <RootNavigator />
-                  <CallOverlay />
-                  <AppOpenAdManager />
-                </CallProvider>
-              </RingtoneProvider>
-            </AmbientSoundProvider>
+            <AppThemeProvider>
+              <AmbientSoundProvider>
+                <RingtoneProvider>
+                  <CallProvider>
+                    <StatusBar style="dark" />
+                    <RootNavigator />
+                    <CallOverlay />
+                    <AppOpenAdManager />
+                  </CallProvider>
+                </RingtoneProvider>
+              </AmbientSoundProvider>
+            </AppThemeProvider>
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

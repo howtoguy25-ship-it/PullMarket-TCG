@@ -7,6 +7,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Colors, Spacing, Typography } from "@/constants/theme";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
+import { AppThemeBackground } from "@/components/AppThemeBackground";
 import { EmptyState } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,6 +25,7 @@ export default function FavoritesScreen() {
   if (!user) {
     return (
       <View style={[styles.container, { paddingTop: insets.top + Spacing.xxl }]}>
+        <AppThemeBackground />
         <EmptyState icon={<Feather name="star" size={40} color={Colors.textMuted} />} title="Sign in to save favorites" />
       </View>
     );
@@ -31,6 +33,7 @@ export default function FavoritesScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
+      <AppThemeBackground />
       <Text style={styles.title}>Favorites</Text>
       <FlatList
         data={items}
@@ -47,6 +50,6 @@ export default function FavoritesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: Colors.background, overflow: "hidden" },
   title: { ...Typography.h2, color: Colors.text, paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
 });

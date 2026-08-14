@@ -1,0 +1,216 @@
+import React, { useState } from "react";
+import { View, StyleSheet, Text, Modal, Pressable, Platform, Alert, Share } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { Feather } from "@expo/vector-icons";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import * as Linking from "expo-linking";
+import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
+import { apiJson, describeApiError } from "@/lib/api";
+import { RootStackParamList } from "@/navigation/types";
+import { LISTING_REVISION_LIMIT } from "@shared/validation";
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+function showAlert(title: string, message: string) {
+  if (Platform.OS === "web") {
+    window.alert(`${title}\n\n${message}`);
+    return;
+  }
+  Alert.alert(title, message);
+}
+
+function confirmAsync(title: string, message: string, confirmLabel: string): Promise<boolean> {
+  if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [
+      { text: "Cancel", style: "cancel", onPress: () => resolve(false) },
+      { text: confirmLabel, style: "destructive", onPress: () => resolve(true) },
+    ]);
+  });
+}
+
+export interface ManagedListing {
+  id: string;
+  title: string;
+  status: string;
+  revisionCount: number;
+}
+
+/** A real bottom-sheet options menu for a seller's own listing: re-edit,
+ * unlist/relist, delete, and share — each wired to the real listings API,
+ * with a working X close button. Re-edit and unlist share one combined
+ * revision budget (LISTING_REVISION_LIMIT total) enforced server-side; this
+ * sheet just reflects that state so sellers aren't surprised by a 403. */
+export function ListingOptionsSheet({ visible, listing, onClose }: { visible: boolean; listing: ManagedListing | null; onClose: () => void }) {
+  const navigation = useNavigation<Nav>();
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState<"unlist" | "relist" | "delete" | null>(null);
+
+  if (!listing) return null;
+
+  const revisionsLeft = Math.max(0, LISTING_REVISION_LIMIT - listing.revisionCount);
+  const isUnlisted = listing.status === "unlisted";
+  const isLocked = listing.status === "removed" || listing.status === "deleted";
+
+  const invalidateAll = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/listings/mine"] });
+    queryClient.invalidateQueries({ queryKey: [`/api/listings/${listing.id}`] });
+    queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+  };
+
+  const unlistMutation = useMutation({
+    mutationFn: () => apiJson("POST", `/api/listings/${listing.id}/unlist`),
+    onSuccess: () => {
+      invalidateAll();
+      onClose();
+    },
+    onError: (err) => showAlert("Couldn't unlist", describeApiError(err)),
+  });
+
+  const relistMutation = useMutation({
+    mutationFn: () => apiJson("POST", `/api/listings/${listing.id}/relist`),
+    onSuccess: () => {
+      invalidateAll();
+      onClose();
+    },
+    onError: (err) => showAlert("Couldn't relist", describeApiError(err)),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => apiJson("DELETE", `/api/listings/${listing.id}`),
+    onSuccess: () => {
+      invalidateAll();
+      onClose();
+    },
+    onError: (err) => showAlert("Couldn't delete", describeApiError(err)),
+  });
+
+  const handleUnlist = async () => {
+    const ok = await confirmAsync("Unlist this card?", "It'll come off the marketplace until you relist it. This uses 1 of your remaining edits/unlists.", "Unlist");
+    if (ok) {
+      setBusy("unlist");
+      await unlistMutation.mutateAsync().finally(() => setBusy(null));
+    }
+  };
+
+  const handleRelist = async () => {
+    setBusy("relist");
+    await relistMutation.mutateAsync().finally(() => setBusy(null));
+  };
+
+  const handleDelete = async () => {
+    const ok = await confirmAsync("Delete this listing?", "This can't be undone — it'll be gone for good.", "Delete");
+    if (ok) {
+      setBusy("delete");
+      await deleteMutation.mutateAsync().finally(() => setBusy(null));
+    }
+  };
+
+  const handleEdit = () => {
+    if (revisionsLeft <= 0) {
+      showAlert("Edit limit reached", `You've used your ${LISTING_REVISION_LIMIT} edits/unlists for this listing. Create a new listing instead.`);
+      return;
+    }
+    onClose();
+    navigation.navigate("EditListing", { listingId: listing.id });
+  };
+
+  const handleShare = async () => {
+    const url = Linking.createURL(`listing/${listing.id}`);
+    try {
+      await Share.share(Platform.OS === "ios" ? { title: listing.title, url } : { title: listing.title, message: `Check out "${listing.title}" on PullMarket TCG\n${url}` });
+    } catch {
+      // User cancelled the share sheet — not an error.
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.backdrop} onPress={onClose}>
+        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation?.()}>
+          <View style={styles.header}>
+            <Text style={styles.title} numberOfLines={1}>
+              {listing.title}
+            </Text>
+            <Pressable onPress={onClose} hitSlop={10} style={styles.closeButton}>
+              <Feather name="x" size={20} color={Colors.text} />
+            </Pressable>
+          </View>
+
+          {!isLocked ? (
+            <Text style={styles.revisionNote}>
+              {revisionsLeft > 0
+                ? `${revisionsLeft} of ${LISTING_REVISION_LIMIT} edits/unlists remaining`
+                : "No edits/unlists remaining — create a new listing to make changes"}
+            </Text>
+          ) : (
+            <Text style={styles.revisionNote}>{listing.status === "removed" ? "This listing was removed by moderation." : "This listing was deleted."}</Text>
+          )}
+
+          {!isLocked ? (
+            <>
+              <Row icon="edit-2" label="Re-edit listing" onPress={handleEdit} disabled={revisionsLeft <= 0 || isUnlisted} />
+              {isUnlisted ? (
+                <Row icon="upload" label="Relist" onPress={handleRelist} loading={busy === "relist"} />
+              ) : (
+                <Row icon="eye-off" label="Unlist" onPress={handleUnlist} disabled={revisionsLeft <= 0} loading={busy === "unlist"} />
+              )}
+            </>
+          ) : null}
+          <Row icon="share-2" label="Share" onPress={handleShare} />
+          {!isLocked ? <Row icon="trash-2" label="Delete" onPress={handleDelete} loading={busy === "delete"} danger /> : null}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function Row({
+  icon,
+  label,
+  onPress,
+  disabled,
+  loading,
+  danger,
+}: {
+  icon: React.ComponentProps<typeof Feather>["name"];
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  loading?: boolean;
+  danger?: boolean;
+}) {
+  return (
+    <Pressable onPress={onPress} disabled={disabled || loading} style={[styles.row, (disabled || loading) && styles.rowDisabled]}>
+      <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
+        <Feather name={icon} size={16} color={danger ? Colors.danger : Colors.primary} />
+      </View>
+      <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{loading ? "Working…" : label}</Text>
+      <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  sheet: { backgroundColor: Colors.surface, borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl, paddingBottom: Spacing.xl, paddingTop: Spacing.md },
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm },
+  title: { ...Typography.bodyBold, color: Colors.text, flex: 1, marginRight: Spacing.md },
+  closeButton: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", backgroundColor: Colors.surfaceAlt },
+  revisionNote: { ...Typography.small, color: Colors.textSecondary, paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border,
+  },
+  rowDisabled: { opacity: 0.4 },
+  rowIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FCE9E4", alignItems: "center", justifyContent: "center" },
+  rowIconDanger: { backgroundColor: "#FDE8E8" },
+  rowLabel: { ...Typography.body, color: Colors.text, flex: 1, fontWeight: "600" },
+  rowLabelDanger: { color: Colors.danger },
+});

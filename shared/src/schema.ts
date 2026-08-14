@@ -14,6 +14,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { LISTING_REVISION_LIMIT } from "./validation";
 
 // ─── Users ───────────────────────────────────────────────────────────────
 // Passwordless: sign-in is phone OTP, email OTP, or Google. No password
@@ -128,7 +129,11 @@ export const otpCodes = pgTable(
 // ─── Listings ────────────────────────────────────────────────────────────
 export const CONDITIONS = ["brand_new", "great_condition", "used"] as const;
 export const FRANCHISES = ["pokemon", "one_piece"] as const;
-export const LISTING_STATUSES = ["active", "sold_out", "removed"] as const;
+// "removed" is an owner/moderation takedown (see routes/owner.ts) — distinct
+// from a seller's own "unlisted" (paused, can relist) or "deleted" (seller
+// took it down for good). Keeping these separate means a moderation action
+// never gets accidentally undone by a seller's own relist/edit flow.
+export const LISTING_STATUSES = ["active", "sold_out", "removed", "unlisted", "deleted"] as const;
 
 export const listings = pgTable(
   "listings",
@@ -147,6 +152,16 @@ export const listings = pgTable(
     status: text("status").notNull().default("active"), // one of LISTING_STATUSES
     viewCount: integer("view_count").notNull().default(0),
     favoriteCount: integer("favorite_count").notNull().default(0),
+    // Counts unlist actions + real field edits (price/desc/title/condition/
+    // qty) combined, capped at LISTING_REVISION_LIMIT — see PATCH/:id and
+    // POST /:id/unlist in routes/listings.ts. Relisting itself is free.
+    revisionCount: integer("revision_count").notNull().default(0),
+    // Set the moment quantityAvailable first hits 0 (a real sale or the
+    // seller zeroing their own stock), cleared the moment it's restocked.
+    // Drives the 3-day auto-unlist sweep in lib/autoUnlist.ts — a listing
+    // sitting out of stock this long with no seller action comes off the
+    // marketplace on its own.
+    soldOutAt: timestamp("sold_out_at"),
     // Pro-membership perk: set to createdAt + 48h at creation time, only if
     // the seller was an active Pro member at that moment (see POST / in
     // routes/listings.ts) — the homepage feed sorts anything still inside

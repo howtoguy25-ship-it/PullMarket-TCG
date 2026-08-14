@@ -7,6 +7,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Shadow, NoWebFocusOutline } from "@/constants/theme";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
+import { AppThemeBackground } from "@/components/AppThemeBackground";
 import { EmptyState } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { CONDITION_LABELS } from "@shared/validation";
@@ -72,6 +73,7 @@ export default function SearchScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
+      <AppThemeBackground />
       <View style={styles.searchRow}>
         <View style={styles.searchBar}>
           <Feather name="search" size={18} color={Colors.textMuted} />
@@ -118,7 +120,7 @@ export default function SearchScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: Colors.background, overflow: "hidden" },
   searchRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg },
   searchBar: {
     flex: 1,

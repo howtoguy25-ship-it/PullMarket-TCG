@@ -17,6 +17,7 @@ export type AuthStackParamList = {
 export type RootStackParamList = {
   MainTabs: undefined;
   ListingDetail: { listingId: string };
+  EditListing: { listingId: string };
   ImageViewer: { images: string[]; startIndex: number };
   Cart: undefined;
   Checkout: { sellerId: string };

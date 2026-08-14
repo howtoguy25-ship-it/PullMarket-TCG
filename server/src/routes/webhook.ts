@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db";
 import { orders, listings, orderItems, users } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import { getStripe } from "../lib/stripeClient";
 import { addBusinessDays } from "@shared/validation";
 import { SHIPPING_DEADLINE_BUSINESS_DAYS } from "@shared/validation";
@@ -116,17 +116,23 @@ async function markOrderPaid(orderId: string) {
     .where(eq(orders.id, orderId));
 
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+  const affectedListingIds = new Set<string>();
   for (const item of items) {
     if (item.listingId) {
       await db
         .update(listings)
         .set({ quantityAvailable: sql`GREATEST(${listings.quantityAvailable} - ${item.quantity}, 0)` })
         .where(eq(listings.id, item.listingId));
+      affectedListingIds.add(item.listingId);
     }
   }
-  const stillInStock = await db.select().from(listings).where(eq(listings.id, items[0]?.listingId ?? ""));
-  for (const l of stillInStock) {
-    if (l.quantityAvailable <= 0) await db.update(listings).set({ status: "sold_out" }).where(eq(listings.id, l.id));
+  if (affectedListingIds.size > 0) {
+    const updatedListings = await db.select().from(listings).where(inArray(listings.id, Array.from(affectedListingIds)));
+    for (const l of updatedListings) {
+      if (l.quantityAvailable <= 0 && l.status !== "sold_out") {
+        await db.update(listings).set({ status: "sold_out", soldOutAt: new Date() }).where(eq(listings.id, l.id));
+      }
+    }
   }
 
   await Promise.all([

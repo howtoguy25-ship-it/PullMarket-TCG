@@ -1,12 +1,12 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { listings, listingImages, users, favorites, franchiseSubscriptions } from "@shared/schema";
+import { listings, listingImages, users, favorites, franchiseSubscriptions, follows } from "@shared/schema";
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
-import { authenticateToken } from "../middleware/auth";
+import { authenticateToken, optionalAuth } from "../middleware/auth";
 import { upload, saveUploadedFile } from "../lib/upload";
 import { CONDITIONS, FRANCHISES } from "@shared/schema";
-import { detectFranchise, isActivePro, PRO_LISTING_BOOST_HOURS } from "@shared/validation";
+import { detectFranchise, isActivePro, PRO_LISTING_BOOST_HOURS, LISTING_REVISION_LIMIT } from "@shared/validation";
 import { notifyUsers } from "../lib/notify";
 
 const router = Router();
@@ -122,11 +122,31 @@ router.get("/", async (req, res) => {
 router.get("/conditions", (_req, res) => res.json(CONDITIONS));
 router.get("/franchises", (_req, res) => res.json(FRANCHISES));
 
-router.get("/:id", async (req, res) => {
+// ── A seller's own listings, every status included (used by the "My
+// Listings" tab) ──────────────────────────────────────────────────────────
+router.get("/mine", authenticateToken, async (req, res) => {
+  const rows = await db
+    .select()
+    .from(listings)
+    .where(and(eq(listings.sellerId, req.user!.id), sql`${listings.status} != 'deleted'`))
+    .orderBy(desc(listings.createdAt));
+  res.json(await attachImagesAndSellers(rows));
+});
+
+router.get("/:id", optionalAuth, async (req, res) => {
   const [listing] = await db.select().from(listings).where(eq(listings.id, req.params.id));
   if (!listing) return res.status(404).json({ message: "Listing not found" });
 
-  await db.update(listings).set({ viewCount: sql`${listings.viewCount} + 1` }).where(eq(listings.id, listing.id));
+  // Unlisted/deleted listings are only visible to their own seller — hidden
+  // from everyone else, not just the marketplace feed.
+  const isOwner = req.user?.id === listing.sellerId;
+  if ((listing.status === "unlisted" || listing.status === "deleted") && !isOwner) {
+    return res.status(404).json({ message: "Listing not found" });
+  }
+
+  if (listing.status === "active") {
+    await db.update(listings).set({ viewCount: sql`${listings.viewCount} + 1` }).where(eq(listings.id, listing.id));
+  }
 
   const [withDetails] = await attachImagesAndSellers([listing]);
   res.json(withDetails);
@@ -201,25 +221,144 @@ router.post("/", authenticateToken, upload.array("images", 6), async (req, res) 
     );
   }
 
+  // Notify this seller's followers too — a distinct notification from the
+  // franchise-alert one above, so someone following a specific seller hears
+  // about their new listing even if they're not subscribed to that franchise.
+  const followerRows = await db.select({ userId: follows.followerId }).from(follows).where(eq(follows.followingId, req.user!.id));
+  const notifiedAlready = new Set(subscribers.map((s) => s.userId));
+  const followerIds = followerRows.map((f) => f.userId).filter((id) => !notifiedAlready.has(id));
+  if (followerIds.length > 0) {
+    await notifyUsers(followerIds, {
+      type: "seller_new_listing",
+      title: `@${req.user!.username} listed an item`,
+      body: `You might wanna check this out: "${title}" for $${(priceCents / 100).toFixed(2)}`,
+      data: { listingId: listing.id },
+    });
+  }
+
   const [withDetails] = await attachImagesAndSellers([listing]);
   res.status(201).json(withDetails);
 });
+
+// Fields that constitute a genuine "re-edit" of the listing's details, as
+// opposed to bookkeeping (status flips handled by their own routes below).
+const EDITABLE_FIELDS = ["title", "description", "priceCents", "condition", "quantityTotal"] as const;
 
 router.patch("/:id", authenticateToken, async (req, res) => {
   const [listing] = await db.select().from(listings).where(eq(listings.id, req.params.id));
   if (!listing) return res.status(404).json({ message: "Listing not found" });
   if (listing.sellerId !== req.user!.id) return res.status(403).json({ message: "Not your listing" });
+  if (listing.status === "removed" || listing.status === "deleted") {
+    return res.status(400).json({ message: "This listing can no longer be changed." });
+  }
 
   const bodySchema = z.object({
+    title: z.string().min(3).max(120).optional(),
     priceCents: z.coerce.number().int().min(50).optional(),
     description: z.string().max(2000).optional(),
+    condition: z.enum(CONDITIONS).optional(),
+    quantityTotal: z.coerce.number().int().min(1).max(999).optional(),
     quantityAvailable: z.coerce.number().int().min(0).optional(),
-    status: z.enum(["active", "sold_out", "removed"]).optional(),
+    status: z.enum(["active", "sold_out"]).optional(),
   });
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Invalid update" });
 
-  const [updated] = await db.update(listings).set({ ...parsed.data, updatedAt: new Date() }).where(eq(listings.id, listing.id)).returning();
+  const isRealEdit = EDITABLE_FIELDS.some((f) => parsed.data[f] !== undefined && parsed.data[f] !== (listing as any)[f]);
+  if (isRealEdit) {
+    if (listing.revisionCount >= LISTING_REVISION_LIMIT) {
+      return res.status(403).json({ message: `You've used your ${LISTING_REVISION_LIMIT} edits for this listing. Create a new listing instead.` });
+    }
+    if (parsed.data.title) {
+      const franchise = detectFranchise(parsed.data.title, parsed.data.description ?? listing.description);
+      if (!franchise) return res.status(400).json({ message: 'The title or description must mention "Pokémon" or "One Piece" so buyers can find it.' });
+    }
+  }
+
+  const updates: Record<string, unknown> = { ...parsed.data, updatedAt: new Date() };
+  if (parsed.data.quantityTotal !== undefined && parsed.data.quantityAvailable === undefined) {
+    // Bumping the total without an explicit available count keeps the same
+    // available count, capped so it can never exceed the new total.
+    updates.quantityAvailable = Math.min(listing.quantityAvailable, parsed.data.quantityTotal);
+  }
+  if (isRealEdit) updates.revisionCount = listing.revisionCount + 1;
+
+  const [updated] = await db.update(listings).set(updates).where(eq(listings.id, listing.id)).returning();
+  const [withDetails] = await attachImagesAndSellers([updated]);
+  res.json(withDetails);
+});
+
+// ── Unlist: pull an active listing off the marketplace without deleting it,
+// so the seller can relist it later. Counts against the revision limit. ───
+router.post("/:id/unlist", authenticateToken, async (req, res) => {
+  const [listing] = await db.select().from(listings).where(eq(listings.id, req.params.id));
+  if (!listing) return res.status(404).json({ message: "Listing not found" });
+  if (listing.sellerId !== req.user!.id) return res.status(403).json({ message: "Not your listing" });
+  if (listing.status !== "active" && listing.status !== "sold_out") {
+    return res.status(400).json({ message: "This listing isn't active." });
+  }
+  if (listing.revisionCount >= LISTING_REVISION_LIMIT) {
+    return res.status(403).json({ message: `You've used your ${LISTING_REVISION_LIMIT} unlists/edits for this listing. Create a new listing instead.` });
+  }
+
+  const [updated] = await db
+    .update(listings)
+    .set({ status: "unlisted", revisionCount: listing.revisionCount + 1, updatedAt: new Date() })
+    .where(eq(listings.id, listing.id))
+    .returning();
+  const [withDetails] = await attachImagesAndSellers([updated]);
+  res.json(withDetails);
+});
+
+// ── Relist: bring an unlisted listing back to the marketplace. Free — it's
+// undoing an unlist, not spending a new revision. ─────────────────────────
+router.post("/:id/relist", authenticateToken, async (req, res) => {
+  const [listing] = await db.select().from(listings).where(eq(listings.id, req.params.id));
+  if (!listing) return res.status(404).json({ message: "Listing not found" });
+  if (listing.sellerId !== req.user!.id) return res.status(403).json({ message: "Not your listing" });
+  if (listing.status !== "unlisted") return res.status(400).json({ message: "This listing isn't unlisted." });
+
+  const stillSoldOut = listing.quantityAvailable <= 0;
+  const [updated] = await db
+    .update(listings)
+    .set({ status: stillSoldOut ? "sold_out" : "active", soldOutAt: stillSoldOut ? new Date() : null, updatedAt: new Date() })
+    .where(eq(listings.id, listing.id))
+    .returning();
+  const [withDetails] = await attachImagesAndSellers([updated]);
+  res.json(withDetails);
+});
+
+// ── Live stock update: the one thing a seller can change any number of
+// times, no revision cap. Keeps buyers seeing accurate availability without
+// forcing a seller to "spend" one of their limited edits just to restock or
+// correct a count. ──────────────────────────────────────────────────────
+router.patch("/:id/stock", authenticateToken, async (req, res) => {
+  const [listing] = await db.select().from(listings).where(eq(listings.id, req.params.id));
+  if (!listing) return res.status(404).json({ message: "Listing not found" });
+  if (listing.sellerId !== req.user!.id) return res.status(403).json({ message: "Not your listing" });
+  if (listing.status !== "active" && listing.status !== "sold_out") {
+    return res.status(400).json({ message: "This listing isn't active." });
+  }
+
+  const schema = z.object({ quantityAvailable: z.coerce.number().int().min(0).max(999) });
+  const parsed = schema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Invalid quantity" });
+  const { quantityAvailable } = parsed.data;
+
+  const wasSoldOut = listing.status === "sold_out";
+  const isNowSoldOut = quantityAvailable <= 0;
+
+  const [updated] = await db
+    .update(listings)
+    .set({
+      quantityAvailable,
+      quantityTotal: Math.max(listing.quantityTotal, quantityAvailable),
+      status: isNowSoldOut ? "sold_out" : "active",
+      soldOutAt: isNowSoldOut ? (wasSoldOut ? listing.soldOutAt : new Date()) : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(listings.id, listing.id))
+    .returning();
   const [withDetails] = await attachImagesAndSellers([updated]);
   res.json(withDetails);
 });
@@ -228,8 +367,8 @@ router.delete("/:id", authenticateToken, async (req, res) => {
   const [listing] = await db.select().from(listings).where(eq(listings.id, req.params.id));
   if (!listing) return res.status(404).json({ message: "Listing not found" });
   if (listing.sellerId !== req.user!.id) return res.status(403).json({ message: "Not your listing" });
-  await db.update(listings).set({ status: "removed", updatedAt: new Date() }).where(eq(listings.id, listing.id));
-  res.json({ status: "removed" });
+  await db.update(listings).set({ status: "deleted", updatedAt: new Date() }).where(eq(listings.id, listing.id));
+  res.json({ status: "deleted" });
 });
 
 // ── "New cards" alert subscriptions (multi-select franchise filters) ─────

@@ -13,13 +13,17 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
 import { GalaxyHeader } from "@/components/GalaxyHeader";
+import { AppThemeBackground } from "@/components/AppThemeBackground";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAmbientSound } from "@/contexts/AmbientSoundContext";
 import { useRingtone } from "@/contexts/RingtoneContext";
+import { useAppTheme } from "@/contexts/AppThemeContext";
 import { AMBIENT_SOUNDS } from "@/lib/ambientSounds";
 import { RINGTONES } from "@/lib/ringtones";
+import { APP_THEMES } from "@/lib/appThemes";
+import { LinearGradient } from "expo-linear-gradient";
 import { apiJson, apiRequest, ApiError, getApiUrl } from "@/lib/api";
 import { appendImageField } from "@/lib/formDataImage";
 import { isActivePro } from "@shared/validation";
@@ -62,6 +66,19 @@ function MenuRow({ icon, label, subtitle, onPress }: { icon: keyof typeof Feathe
   );
 }
 
+function ThemeSwatchRow({ label, description, colors, active, onSelect }: { label: string; description: string; colors: [string, string]; active: boolean; onSelect: () => void }) {
+  return (
+    <Pressable style={[styles.soundRow, active && styles.soundRowActive]} onPress={onSelect}>
+      <View style={[styles.soundRadio, active && styles.soundRadioActive]}>{active ? <View style={styles.soundRadioDot} /> : null}</View>
+      <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 0, y: 1 }} style={styles.themeSwatch} />
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.soundLabel, active && styles.soundLabelActive]}>{label}</Text>
+        <Text style={styles.soundDescription}>{description}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function SoundRow({ id, label, description, active, previewing, onSelect, onPreview }: { id: string; label: string; description: string; active: boolean; previewing: boolean; onSelect: () => void; onPreview: () => void }) {
   return (
     <Pressable style={[styles.soundRow, active && styles.soundRowActive]} onPress={onSelect}>
@@ -83,6 +100,7 @@ export default function ProfileScreen() {
   const { user, signOut, refreshUser } = useAuth();
   const { enabled, selectedId, volume, previewingId, setEnabled, selectSound, setVolume, preview } = useAmbientSound();
   const { selectedId: ringtoneSelectedId, previewingId: ringtonePreviewingId, selectRingtone, preview: previewRingtone } = useRingtone();
+  const { selectedId: appThemeId, selectTheme } = useAppTheme();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<string | null>(null);
 
@@ -160,7 +178,9 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl, paddingHorizontal: Spacing.lg }}>
+    <View style={styles.container}>
+      <AppThemeBackground />
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl, paddingHorizontal: Spacing.lg }}>
       <GalaxyHeader variant="card" style={styles.header} starCount={16}>
         <Pressable onPress={changeAvatar} disabled={uploadingAvatar} style={styles.avatarWrap}>
           <Avatar avatarUrl={user.avatarUrl} seed={user.username} size={56} />
@@ -223,6 +243,16 @@ export default function ProfileScreen() {
           </View>
         </>
       ) : null}
+
+      <Text style={styles.sectionHeader}>App Background</Text>
+      <View style={styles.section}>
+        <Text style={styles.ringtoneHint}>Applies across Search, Chat, Favorites, Profile, and listing pages</Text>
+        <View style={styles.soundList}>
+          {APP_THEMES.map((t) => (
+            <ThemeSwatchRow key={t.id} label={t.label} description={t.description} colors={t.colors} active={appThemeId === t.id} onSelect={() => selectTheme(t.id)} />
+          ))}
+        </View>
+      </View>
 
       <Text style={styles.sectionHeader}>Ambient Sound</Text>
       <View style={styles.section}>
@@ -295,12 +325,14 @@ export default function ProfileScreen() {
           v{Constants.expoConfig?.version ?? "?"} ({Constants.expoConfig?.ios?.buildNumber ?? Constants.expoConfig?.android?.versionCode ?? "?"}) · {updateInfo}
         </Text>
       ) : null}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: Colors.background, overflow: "hidden" },
+  themeSwatch: { width: 34, height: 34, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: Colors.border },
   center: { alignItems: "center", justifyContent: "center" },
   notSignedIn: { ...Typography.body, color: Colors.textSecondary },
   header: { flexDirection: "row", alignItems: "center", gap: Spacing.md, marginBottom: Spacing.lg, padding: Spacing.lg },

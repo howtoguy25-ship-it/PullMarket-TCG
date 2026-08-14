@@ -23,6 +23,8 @@ const TYPE_ICONS: Record<string, keyof typeof Feather.glyphMap> = {
   shipped: "truck",
   delivered: "check-circle",
   new_listing_match: "star",
+  seller_new_listing: "user-plus",
+  listing_auto_unlisted: "eye-off",
   refund: "rotate-ccw",
   report_update: "flag",
 };

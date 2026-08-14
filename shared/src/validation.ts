@@ -4,6 +4,17 @@ export const PRO_SUBSCRIPTION_PRICE_CENTS = 1999; // $19.99/mo
 export const PRO_SUBSCRIPTION_LOOKUP_KEY = "pullmarket_pro_monthly";
 export const PRO_LISTING_BOOST_HOURS = 48;
 
+// A seller can unlist-and-relist or edit a listing's details up to this many
+// times combined before it's locked — after that they must create a fresh
+// listing instead. See LISTING_STATUSES/revisionCount in schema.ts and the
+// PATCH/unlist/relist routes in routes/listings.ts.
+export const LISTING_REVISION_LIMIT = 2;
+
+// A listing that's been out of stock this many days with no restock gets
+// auto-unlisted (see lib/autoUnlist.ts) so the marketplace doesn't stay
+// cluttered with cards nobody can buy.
+export const AUTO_UNLIST_OUT_OF_STOCK_DAYS = 3;
+
 export const REMOVE_ADS_PRICE_CENTS = 3999; // $39.99 one-time
 export const REMOVE_ADS_LOOKUP_KEY = "pullmarket_remove_ads";
 

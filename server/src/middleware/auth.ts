@@ -66,6 +66,27 @@ export async function authenticateToken(req: Request, res: Response, next: NextF
   next();
 }
 
+// Like authenticateToken, but for routes that are publicly readable and only
+// need to know "is this specific user the owner of this resource" (e.g. a
+// listing detail page) — a missing/invalid token just leaves req.user unset
+// instead of rejecting the request.
+export async function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
+  if (!token) return next();
+
+  try {
+    const payload = verifyAuthToken(token);
+    const [user] = await db.select().from(users).where(eq(users.id, payload.userId));
+    if (user && (user.tokenVersion ?? 0) === payload.tokenVersion && !user.isSuspended && !user.deletedAt) {
+      req.user = user;
+    }
+  } catch {
+    // Invalid/expired token on an optional-auth route — just proceed as a guest.
+  }
+  next();
+}
+
 export function requireOwner(req: Request, res: Response, next: NextFunction) {
   if (!req.user?.isOwner) return res.status(403).json({ message: "Owner access only" });
   next();

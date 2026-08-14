@@ -12,6 +12,7 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { CardScannerModal } from "@/components/CardScannerModal";
 import { BackgroundPickerModal } from "@/components/BackgroundPickerModal";
+import { MyListingsPanel } from "@/components/MyListingsPanel";
 import { StarField } from "@/components/StarField";
 import { RootStackParamList } from "@/navigation/types";
 import { apiRequest, ApiError } from "@/lib/api";
@@ -141,6 +142,7 @@ export default function SellScreen() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
+  const [mode, setMode] = useState<"new" | "mine">("new");
   const [images, setImages] = useState<string[]>([]);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [pendingScanUri, setPendingScanUri] = useState<string | null>(null);
@@ -256,9 +258,21 @@ export default function SellScreen() {
       <LinearGradient colors={["#1C1040", "#3B1E6B", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.header, { paddingTop: insets.top + Spacing.md }]}>
         <StarField count={18} />
         <Text style={styles.screenTitle}>Sell a Card</Text>
-        <Text style={styles.headerSubtitle}>List a Pokémon or One Piece card in minutes</Text>
+        <Text style={styles.headerSubtitle}>{mode === "new" ? "List a Pokémon or One Piece card in minutes" : "Manage the cards you've listed"}</Text>
+
+        <View style={styles.segmentRow}>
+          <Pressable onPress={() => setMode("new")} style={[styles.segment, mode === "new" && styles.segmentActive]}>
+            <Text style={[styles.segmentText, mode === "new" && styles.segmentTextActive]}>New Listing</Text>
+          </Pressable>
+          <Pressable onPress={() => setMode("mine")} style={[styles.segment, mode === "mine" && styles.segmentActive]}>
+            <Text style={[styles.segmentText, mode === "mine" && styles.segmentTextActive]}>My Listings</Text>
+          </Pressable>
+        </View>
       </LinearGradient>
 
+      {mode === "mine" ? (
+        <MyListingsPanel />
+      ) : (
       <View style={styles.body}>
         <Section icon="tag" title="What are you selling?" helper="Pick the franchise this card belongs to.">
           <View style={styles.franchiseRow}>
@@ -375,6 +389,7 @@ export default function SellScreen() {
 
         <Button title="List this card" onPress={() => submitMutation.mutate()} loading={submitMutation.isPending} disabled={!canSubmit} style={{ marginTop: Spacing.lg }} />
       </View>
+      )}
 
       <CardScannerModal visible={scannerOpen} onClose={() => setScannerOpen(false)} onCapture={handleScanCapture} />
       <BackgroundPickerModal visible={!!pendingScanUri} photoUri={pendingScanUri} onDone={handleBackgroundDone} onCancel={() => setPendingScanUri(null)} />
@@ -390,6 +405,11 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.lg },
   screenTitle: { ...Typography.h2, color: Colors.white, marginBottom: Spacing.xs, letterSpacing: 0.2 },
   headerSubtitle: { ...Typography.small, color: "rgba(255,255,255,0.85)" },
+  segmentRow: { flexDirection: "row", backgroundColor: "rgba(255,255,255,0.14)", borderRadius: BorderRadius.pill, padding: 4, marginTop: Spacing.md },
+  segment: { flex: 1, paddingVertical: 9, borderRadius: BorderRadius.pill, alignItems: "center" },
+  segmentActive: { backgroundColor: Colors.white },
+  segmentText: { ...Typography.small, fontWeight: "700", color: "rgba(255,255,255,0.85)" },
+  segmentTextActive: { color: "#1C1040" },
   body: { padding: Spacing.lg, gap: Spacing.lg },
   section: {
     backgroundColor: Colors.surface,

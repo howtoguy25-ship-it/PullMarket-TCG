@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useLayoutEffect, useState } from "react";
 import { View, StyleSheet, Text, ScrollView, Image, Pressable, Dimensions, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
@@ -9,11 +9,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
 import { Button, PriceTag } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
+import { ListingOptionsSheet } from "@/components/ListingOptionsSheet";
+import { AppThemeBackground } from "@/components/AppThemeBackground";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
-import { CONDITION_LABELS, SHIPPING_DEADLINE_BUSINESS_DAYS } from "@shared/validation";
+import { CONDITION_LABELS, SHIPPING_DEADLINE_BUSINESS_DAYS, LISTING_REVISION_LIMIT } from "@shared/validation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ListingDetail">;
 type Rt = RouteProp<RootStackParamList, "ListingDetail">;
@@ -37,6 +39,7 @@ interface ListingDetail {
   condition: string;
   quantityAvailable: number;
   status: string;
+  revisionCount: number;
   images: string[];
   seller: { id: string; username: string; avatarUrl: string | null } | null;
 }
@@ -50,6 +53,7 @@ export default function ListingDetailScreen() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeImage, setActiveImage] = useState(0);
+  const [optionsOpen, setOptionsOpen] = useState(false);
 
   const { data: listing, isLoading } = useQuery<ListingDetail>({ queryKey: [`/api/listings/${listingId}`] });
   const { data: favorites } = useQuery<{ id: string }[]>({ queryKey: ["/api/favorites"], enabled: !!user });
@@ -77,6 +81,20 @@ export default function ListingDetailScreen() {
     action();
   };
 
+  const isOwnListing = !!listing && user?.id === listing.seller?.id;
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: isOwnListing
+        ? () => (
+            <Pressable onPress={() => setOptionsOpen(true)} hitSlop={10} style={{ paddingHorizontal: Spacing.xs }}>
+              <Feather name="more-vertical" size={22} color={Colors.text} />
+            </Pressable>
+          )
+        : undefined,
+    });
+  }, [navigation, isOwnListing]);
+
   if (isLoading || !listing) {
     return (
       <View style={[styles.container, { paddingTop: headerHeight }]}>
@@ -86,10 +104,11 @@ export default function ListingDetailScreen() {
   }
 
   const franchiseLabel = listing.franchise === "pokemon" ? "Pokémon" : listing.franchise === "one_piece" ? "One Piece" : "Pokémon + One Piece";
-  const isOwnListing = user?.id === listing.seller?.id;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}>
+    <View style={styles.container}>
+      <AppThemeBackground />
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}>
       <View>
         <ScrollView
           horizontal
@@ -141,15 +160,12 @@ export default function ListingDetailScreen() {
             <Feather name="tag" size={13} color={Colors.textSecondary} />
             <Text style={styles.metaText}>{CONDITION_LABELS[listing.condition] ?? listing.condition}</Text>
           </View>
-          <View style={styles.metaPill}>
-            <Feather name="box" size={13} color={Colors.textSecondary} />
-            <Text style={styles.metaText}>{listing.quantityAvailable} available</Text>
+          <View style={[styles.metaPill, { backgroundColor: listing.quantityAvailable > 0 ? "#E4F6EB" : "#FDE8E8" }]}>
+            <Feather name="box" size={13} color={listing.quantityAvailable > 0 ? "#0F7A3D" : Colors.danger} />
+            <Text style={[styles.metaText, { color: listing.quantityAvailable > 0 ? "#0F7A3D" : Colors.danger, fontWeight: "800" }]}>
+              {listing.quantityAvailable > 0 ? `${listing.quantityAvailable} in stock` : "Out of stock"}
+            </Text>
           </View>
-          {listing.status === "sold_out" ? (
-            <View style={[styles.metaPill, { backgroundColor: Colors.danger }]}>
-              <Text style={[styles.metaText, { color: Colors.white }]}>Sold out</Text>
-            </View>
-          ) : null}
         </View>
 
         <View style={styles.separatorInline} />
@@ -191,13 +207,30 @@ export default function ListingDetailScreen() {
             }
           />
         </View>
-      ) : null}
-    </ScrollView>
+      ) : (
+        <View style={[styles.footer, Shadow.card]}>
+          <View style={styles.ownerNote}>
+            <Feather name="user-check" size={16} color={Colors.textSecondary} />
+            <Text style={styles.ownerNoteText}>
+              {listing.status === "unlisted" ? "This listing is unlisted — buyers can't see it." : "This is your listing — buyers can't buy from themselves."}
+            </Text>
+          </View>
+          <Button title="Manage listing" variant="outline" icon={<Feather name="more-horizontal" size={18} color={Colors.primary} />} onPress={() => setOptionsOpen(true)} style={{ marginTop: Spacing.sm }} />
+        </View>
+      )}
+
+      <ListingOptionsSheet
+        visible={optionsOpen}
+        listing={{ id: listing.id, title: listing.title, status: listing.status, revisionCount: listing.revisionCount }}
+        onClose={() => setOptionsOpen(false)}
+      />
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: Colors.background, overflow: "hidden" },
   loadingText: { textAlign: "center", marginTop: Spacing.xl, color: Colors.textSecondary },
   heroImage: { width, aspectRatio: 1 },
   heroPlaceholder: { alignItems: "center", justifyContent: "center", backgroundColor: Colors.surfaceAlt },
@@ -224,4 +257,6 @@ const styles = StyleSheet.create({
   reportRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: Spacing.lg },
   reportText: { ...Typography.small, color: Colors.textSecondary, textDecorationLine: "underline" },
   footer: { flexDirection: "row", gap: Spacing.md, padding: Spacing.lg, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.border },
+  ownerNote: { flex: 1, flexDirection: "row", alignItems: "center", gap: Spacing.sm },
+  ownerNoteText: { flex: 1, ...Typography.small, color: Colors.textSecondary },
 });

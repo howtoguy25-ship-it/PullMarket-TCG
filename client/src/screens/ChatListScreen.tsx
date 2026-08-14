@@ -9,6 +9,7 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
 import { ChatSwipeRow } from "@/components/ChatSwipeRow";
+import { AppThemeBackground } from "@/components/AppThemeBackground";
 import { MuteDurationSheet, MuteChoice } from "@/components/MuteDurationSheet";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, apiRequest, describeApiError } from "@/lib/api";
@@ -120,6 +121,7 @@ export default function ChatListScreen() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
+      <AppThemeBackground />
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Messages</Text>
         <View style={styles.headerActions}>
@@ -229,7 +231,7 @@ export default function ChatListScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1, backgroundColor: Colors.background, overflow: "hidden" },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.lg, paddingBottom: Spacing.sm },
   headerTitle: { ...Typography.h2, color: Colors.text },
   headerActions: { flexDirection: "row", gap: Spacing.md },

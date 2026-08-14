@@ -1,10 +1,10 @@
-import React from "react";
-import { Pressable, StyleSheet, Text, View, Image } from "react-native";
+import React, { useState } from "react";
+import { Pressable, StyleSheet, Text, View, Image, Platform, Alert } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, BorderRadius, Typography, Shadow } from "@/constants/theme";
-import { apiJson, ApiError } from "@/lib/api";
+import { apiJson, describeApiError } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/media";
 import { PriceTag, Badge } from "./ui";
 import { StarField } from "./StarField";
@@ -42,6 +42,12 @@ export function ListingCard({
   dark?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const [justAdded, setJustAdded] = useState(false);
+
+  const showError = (message: string) => {
+    if (Platform.OS === "web") window.alert(message);
+    else Alert.alert("Couldn't add to cart", message);
+  };
 
   const favoriteMutation = useMutation({
     mutationFn: () => apiJson<{ favorited: boolean }>("POST", `/api/favorites/${listing.id}`),
@@ -49,11 +55,17 @@ export function ListingCard({
       queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
       queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
     },
+    onError: (err) => showError(describeApiError(err)),
   });
 
   const cartMutation = useMutation({
     mutationFn: () => apiJson("POST", "/api/cart", { listingId: listing.id, quantity: 1 }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/cart"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
+      setJustAdded(true);
+      setTimeout(() => setJustAdded(false), 1400);
+    },
+    onError: (err) => showError(describeApiError(err)),
   });
 
   const franchiseColor = listing.franchise === "pokemon" ? Colors.pokemon : listing.franchise === "one_piece" ? Colors.onePiece : Colors.gold;
@@ -119,11 +131,11 @@ export function ListingCard({
               e.stopPropagation?.();
               handleGuarded(() => cartMutation.mutate());
             }}
-            style={styles.addButton}
+            style={[styles.addButton, justAdded && styles.addButtonSuccess]}
             hitSlop={8}
-            disabled={listing.status === "sold_out"}
+            disabled={listing.status === "sold_out" || cartMutation.isPending}
           >
-            <Feather name="plus" size={18} color={Colors.white} />
+            <Feather name={justAdded ? "check" : "plus"} size={18} color={Colors.white} />
           </Pressable>
         </View>
       </View>
@@ -171,4 +183,5 @@ const styles = StyleSheet.create({
   priceDark: { color: Colors.gold },
   bottomRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
   addButton: { backgroundColor: Colors.primary, borderRadius: BorderRadius.pill, width: 30, height: 30, alignItems: "center", justifyContent: "center" },
+  addButtonSuccess: { backgroundColor: Colors.success },
 });
