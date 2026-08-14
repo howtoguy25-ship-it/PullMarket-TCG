@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Audio } from "expo-av";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { DEFAULT_RINGTONE_ID, getRingtoneById } from "@/lib/ringtones";
+import { DEFAULT_RINGTONE_ID, getRingtoneById, OUTGOING_RINGBACK_SOURCE } from "@/lib/ringtones";
 
 const STORAGE_KEY = "pullmarket_ringtone_pref";
 
@@ -13,6 +13,10 @@ interface RingtoneContextValue {
   /** Starts the selected ringtone looping — used by CallContext when an
    * incoming call arrives. Returns a stop function. */
   startIncomingRingtone: () => Promise<() => void>;
+  /** Starts the fixed outgoing ringback looping — used by CallContext while
+   * a call the user placed is ringing on the other end. Returns a stop
+   * function. */
+  startOutgoingRingback: () => Promise<() => void>;
 }
 
 const RingtoneContext = createContext<RingtoneContextValue | null>(null);
@@ -25,6 +29,7 @@ export function RingtoneProvider({ children }: { children: React.ReactNode }) {
 
   const previewSoundRef = useRef<Audio.Sound | null>(null);
   const incomingSoundRef = useRef<Audio.Sound | null>(null);
+  const outgoingSoundRef = useRef<Audio.Sound | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -35,6 +40,30 @@ export function RingtoneProvider({ children }: { children: React.ReactNode }) {
     return () => {
       previewSoundRef.current?.unloadAsync().catch(() => {});
       incomingSoundRef.current?.unloadAsync().catch(() => {});
+      outgoingSoundRef.current?.unloadAsync().catch(() => {});
+    };
+  }, []);
+
+  // Shared by startIncomingRingtone and startOutgoingRingback — loads a
+  // source, loops it, and hands back an idempotent stop function (safe to
+  // call more than once, since answered/declined/missed/ended can all race
+  // to stop the same sound).
+  const startLoopingSound = useCallback(async (source: number, holderRef: React.MutableRefObject<Audio.Sound | null>) => {
+    let sound: Audio.Sound | null = null;
+    try {
+      const result = await Audio.Sound.createAsync(source, { shouldPlay: true, isLooping: true, volume: 1 });
+      sound = result.sound;
+      holderRef.current = sound;
+    } catch {
+      sound = null;
+    }
+    let stopped = false;
+    return () => {
+      if (stopped || !sound) return;
+      stopped = true;
+      sound.stopAsync().catch(() => {});
+      sound.unloadAsync().catch(() => {});
+      if (holderRef.current === sound) holderRef.current = null;
     };
   }, []);
 
@@ -66,29 +95,20 @@ export function RingtoneProvider({ children }: { children: React.ReactNode }) {
 
   // Called from CallContext the moment an incoming call arrives — loads and
   // loops the user's chosen ringtone in place of the OS system ringtone.
-  // The returned stop function is idempotent and safe to call more than
-  // once (answered/declined/missed/ended can all race to stop it).
-  const startIncomingRingtone = useCallback(async () => {
-    const source = getRingtoneById(selectedIdRef.current).source;
-    let sound: Audio.Sound | null = null;
-    try {
-      const result = await Audio.Sound.createAsync(source, { shouldPlay: true, isLooping: true, volume: 1 });
-      sound = result.sound;
-      incomingSoundRef.current = sound;
-    } catch {
-      sound = null;
-    }
-    let stopped = false;
-    return () => {
-      if (stopped || !sound) return;
-      stopped = true;
-      sound.stopAsync().catch(() => {});
-      sound.unloadAsync().catch(() => {});
-      if (incomingSoundRef.current === sound) incomingSoundRef.current = null;
-    };
-  }, []);
+  const startIncomingRingtone = useCallback(() => {
+    return startLoopingSound(getRingtoneById(selectedIdRef.current).source, incomingSoundRef);
+  }, [startLoopingSound]);
 
-  return <RingtoneContext.Provider value={{ selectedId, previewingId, selectRingtone, preview, startIncomingRingtone }}>{children}</RingtoneContext.Provider>;
+  // Called from CallContext the moment an outgoing call starts ringing on
+  // the other end — loops the fixed ringback tone in place of
+  // InCallManager's "_DEFAULT_" ringback.
+  const startOutgoingRingback = useCallback(() => {
+    return startLoopingSound(OUTGOING_RINGBACK_SOURCE, outgoingSoundRef);
+  }, [startLoopingSound]);
+
+  return (
+    <RingtoneContext.Provider value={{ selectedId, previewingId, selectRingtone, preview, startIncomingRingtone, startOutgoingRingback }}>{children}</RingtoneContext.Provider>
+  );
 }
 
 export function useRingtone() {

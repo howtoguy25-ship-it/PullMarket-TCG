@@ -85,8 +85,9 @@ function wsUrlFor(token: string): string {
 
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const { startIncomingRingtone } = useRingtone();
+  const { startIncomingRingtone, startOutgoingRingback } = useRingtone();
   const stopIncomingRingtoneRef = useRef<(() => void) | null>(null);
+  const stopOutgoingRingbackRef = useRef<(() => void) | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<InstanceType<typeof import("react-native-webrtc").RTCPeerConnection> | null>(null);
@@ -127,8 +128,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       stopIncomingRingtoneRef.current();
       stopIncomingRingtoneRef.current = null;
     }
-    const InCallManager = await loadInCallManager();
-    InCallManager.stopRingback();
+    if (stopOutgoingRingbackRef.current) {
+      stopOutgoingRingbackRef.current();
+      stopOutgoingRingbackRef.current = null;
+    }
   }, []);
 
   const resetCallState = useCallback(
@@ -258,7 +261,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       try {
         const InCallManager = await loadInCallManager();
         InCallManager.start({ media: video ? "video" : "audio", auto: true });
-        InCallManager.startRingback("_DEFAULT_");
+        if (stopOutgoingRingbackRef.current) stopOutgoingRingbackRef.current();
+        stopOutgoingRingbackRef.current = await startOutgoingRingback();
 
         const { RTCSessionDescription } = await loadWebRTC();
         const pc = await createPeerConnection();
@@ -271,7 +275,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         resetCallState("Couldn't start the call — check your microphone/camera access and try again.");
       }
     },
-    [attachLocalMedia, createPeerConnection, resetCallState, send],
+    [attachLocalMedia, createPeerConnection, resetCallState, send, startOutgoingRingback],
   );
 
   const answerCall = useCallback(async () => {

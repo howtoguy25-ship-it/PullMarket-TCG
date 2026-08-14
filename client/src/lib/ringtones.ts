@@ -20,3 +20,9 @@ export const DEFAULT_RINGTONE_ID = RINGTONES[0].id;
 export function getRingtoneById(id: string): RingtoneOption {
   return RINGTONES.find((r) => r.id === id) ?? RINGTONES[0];
 }
+
+// Fixed (not user-selectable) — plays on the CALLER's device while an
+// outgoing call is ringing on the other end, replacing InCallManager's
+// "_DEFAULT_" ringback. Distinct timbre from every incoming ringtone above
+// so caller and callee never hear the identical sound.
+export const OUTGOING_RINGBACK_SOURCE = require("@/assets/sounds/ringtones/outgoing_ringback.mp3");
