@@ -2,12 +2,17 @@ import React, { useRef, useState } from "react";
 import { View, StyleSheet, Text, ScrollView, TextInput, Pressable, Platform, KeyboardAvoidingView, ActivityIndicator, Alert, Image } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useMutation } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
+import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 function showAlert(title: string, message: string) {
   if (Platform.OS === "web") {
@@ -42,6 +47,7 @@ const GREETING: Turn = {
 };
 
 export default function HelpChatScreen() {
+  const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -125,8 +131,10 @@ export default function HelpChatScreen() {
             <View style={[styles.bubble, t.role === "user" ? styles.bubbleMine : styles.bubbleTheirs]}>
               {t.images?.length ? (
                 <View style={styles.bubbleImages}>
-                  {t.images.map((img) => (
-                    <Image key={img.uri} source={{ uri: img.uri }} style={styles.bubbleImage} resizeMode="cover" />
+                  {t.images.map((img, imgIndex) => (
+                    <Pressable key={img.uri} onPress={() => navigation.navigate("ImageViewer", { images: t.images!.map((i) => i.uri), startIndex: imgIndex })}>
+                      <Image source={{ uri: img.uri }} style={styles.bubbleImage} resizeMode="cover" />
+                    </Pressable>
                   ))}
                 </View>
               ) : null}

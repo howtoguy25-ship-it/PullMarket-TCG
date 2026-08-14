@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Text, FlatList, Image, Pressable, Platform, Alert } from "react-native";
+import { View, StyleSheet, Text, ScrollView, Image, Pressable, Platform, Alert } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -47,38 +47,44 @@ export default function BlockedUsersScreen() {
     if (ok) unblockMutation.mutate(user.id);
   };
 
+  const blockedUsers = blocked ?? [];
+
   return (
-    <View style={[styles.container, { paddingTop: headerHeight, paddingBottom: insets.bottom }]}>
-      <FlatList
-        data={blocked ?? []}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingTop: Spacing.md, paddingBottom: Spacing.xxl, flexGrow: 1 }}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            {item.avatarUrl ? (
-              <Image source={{ uri: resolveImageUrl(item.avatarUrl) }} style={styles.avatar} />
-            ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                <Feather name="user" size={18} color={Colors.textMuted} />
+    <ScrollView style={[styles.container, { paddingTop: headerHeight }]} contentContainerStyle={{ paddingHorizontal: Spacing.lg, paddingTop: Spacing.md, paddingBottom: insets.bottom + Spacing.xxl, flexGrow: 1 }}>
+      {blockedUsers.length > 0 ? (
+        <>
+          <Text style={styles.sectionHeader}>Blocked</Text>
+          <View style={styles.section}>
+            {blockedUsers.map((item, i) => (
+              <View key={item.id} style={[styles.row, i > 0 && styles.rowDivider]}>
+                {item.avatarUrl ? (
+                  <Image source={{ uri: resolveImageUrl(item.avatarUrl) }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                    <Feather name="user" size={18} color={Colors.textMuted} />
+                  </View>
+                )}
+                <Text style={styles.username}>@{item.username}</Text>
+                <Pressable onPress={() => void handleUnblock(item)} style={styles.unblockButton} disabled={unblockMutation.isPending}>
+                  <Text style={styles.unblockButtonText}>Unblock</Text>
+                </Pressable>
               </View>
-            )}
-            <Text style={styles.username}>@{item.username}</Text>
-            <Pressable onPress={() => void handleUnblock(item)} style={styles.unblockButton} disabled={unblockMutation.isPending}>
-              <Text style={styles.unblockButtonText}>Unblock</Text>
-            </Pressable>
+            ))}
           </View>
-        )}
-        ListEmptyComponent={
-          !isLoading ? <EmptyState icon={<Feather name="user-x" size={36} color={Colors.textMuted} />} title="No blocked users" subtitle="People you block won't be able to message or friend-request you." /> : null
-        }
-      />
-    </View>
+        </>
+      ) : !isLoading ? (
+        <EmptyState icon={<Feather name="user-x" size={36} color={Colors.textMuted} />} title="No blocked users" subtitle="People you block won't be able to message or friend-request you." />
+      ) : null}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  row: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.xl, paddingVertical: Spacing.sm },
+  sectionHeader: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginBottom: Spacing.xs, letterSpacing: 0.5 },
+  section: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, overflow: "hidden" },
+  row: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm },
+  rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Colors.border },
   avatar: { width: 40, height: 40, borderRadius: 20, backgroundColor: Colors.surfaceAlt },
   avatarPlaceholder: { alignItems: "center", justifyContent: "center" },
   username: { ...Typography.body, color: Colors.text, flex: 1 },
