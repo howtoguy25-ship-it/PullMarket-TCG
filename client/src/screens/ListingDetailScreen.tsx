@@ -87,7 +87,7 @@ export default function ListingDetailScreen() {
     navigation.setOptions({
       headerRight: isOwnListing
         ? () => (
-            <Pressable onPress={() => setOptionsOpen(true)} hitSlop={10} style={{ paddingHorizontal: Spacing.xs }}>
+            <Pressable onPress={() => setOptionsOpen(true)} hitSlop={10} style={{ paddingHorizontal: Spacing.xs }} testID="listing-header-more">
               <Feather name="more-vertical" size={22} color={Colors.text} />
             </Pressable>
           )
@@ -119,7 +119,9 @@ export default function ListingDetailScreen() {
           {(listing.images.length ? listing.images : [null]).map((img, i) => (
             <Pressable key={i} onPress={() => img && navigation.navigate("ImageViewer", { images: listing.images, startIndex: i })} style={{ width }}>
               {img ? (
-                <Image source={{ uri: resolveImageUrl(img) }} style={styles.heroImage} resizeMode="cover" />
+                <View style={styles.heroImageWrap}>
+                  <Image source={{ uri: resolveImageUrl(img) }} style={styles.heroImage} resizeMode="contain" />
+                </View>
               ) : (
                 <View style={[styles.heroImage, styles.heroPlaceholder]}>
                   <Feather name="image" size={48} color={Colors.textMuted} />
@@ -232,7 +234,8 @@ export default function ListingDetailScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, overflow: "hidden" },
   loadingText: { textAlign: "center", marginTop: Spacing.xl, color: Colors.textSecondary },
-  heroImage: { width, aspectRatio: 1 },
+  heroImageWrap: { width, aspectRatio: 1, backgroundColor: "#000" },
+  heroImage: { width: "100%", height: "100%" },
   heroPlaceholder: { alignItems: "center", justifyContent: "center", backgroundColor: Colors.surfaceAlt },
   dots: { flexDirection: "row", justifyContent: "center", gap: 6, position: "absolute", bottom: Spacing.sm, alignSelf: "center" },
   dotIndicator: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.6)" },

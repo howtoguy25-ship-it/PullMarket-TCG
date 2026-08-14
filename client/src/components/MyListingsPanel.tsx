@@ -140,6 +140,7 @@ function ListingRow({ listing, onManage }: { listing: MyListing; onManage: () =>
         }}
         hitSlop={10}
         style={styles.moreButton}
+        testID={`listing-more-${listing.id}`}
       >
         <Feather name="more-vertical" size={20} color={Colors.textSecondary} />
       </Pressable>
@@ -183,7 +184,7 @@ export function MyListingsPanel() {
 const styles = StyleSheet.create({
   center: { paddingVertical: Spacing.xxl, alignItems: "center" },
   emptyWrap: { paddingTop: Spacing.xxl, paddingHorizontal: Spacing.lg },
-  list: { padding: Spacing.lg, gap: Spacing.sm },
+  list: { padding: Spacing.lg, paddingBottom: Spacing.xl, gap: Spacing.sm },
   row: {
     flexDirection: "row",
     alignItems: "center",

@@ -47,20 +47,20 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState<"unlist" | "relist" | "delete" | null>(null);
 
-  if (!listing) return null;
-
-  const revisionsLeft = Math.max(0, LISTING_REVISION_LIMIT - listing.revisionCount);
-  const isUnlisted = listing.status === "unlisted";
-  const isLocked = listing.status === "removed" || listing.status === "deleted";
+  // listing can be null (nothing selected yet) — every hook below must still
+  // run on every render regardless, so a fallback id keeps mutationFn/effects
+  // stable instead of branching hook calls on listing's presence (that would
+  // change the number of hooks called between renders, which React forbids).
+  const listingId = listing?.id ?? "";
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ["/api/listings/mine"] });
-    queryClient.invalidateQueries({ queryKey: [`/api/listings/${listing.id}`] });
+    queryClient.invalidateQueries({ queryKey: [`/api/listings/${listingId}`] });
     queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
   };
 
   const unlistMutation = useMutation({
-    mutationFn: () => apiJson("POST", `/api/listings/${listing.id}/unlist`),
+    mutationFn: () => apiJson("POST", `/api/listings/${listingId}/unlist`),
     onSuccess: () => {
       invalidateAll();
       onClose();
@@ -69,7 +69,7 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
   });
 
   const relistMutation = useMutation({
-    mutationFn: () => apiJson("POST", `/api/listings/${listing.id}/relist`),
+    mutationFn: () => apiJson("POST", `/api/listings/${listingId}/relist`),
     onSuccess: () => {
       invalidateAll();
       onClose();
@@ -78,13 +78,19 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => apiJson("DELETE", `/api/listings/${listing.id}`),
+    mutationFn: () => apiJson("DELETE", `/api/listings/${listingId}`),
     onSuccess: () => {
       invalidateAll();
       onClose();
     },
     onError: (err) => showAlert("Couldn't delete", describeApiError(err)),
   });
+
+  if (!listing) return null;
+
+  const revisionsLeft = Math.max(0, LISTING_REVISION_LIMIT - listing.revisionCount);
+  const isUnlisted = listing.status === "unlisted";
+  const isLocked = listing.status === "removed" || listing.status === "deleted";
 
   const handleUnlist = async () => {
     const ok = await confirmAsync("Unlist this card?", "It'll come off the marketplace until you relist it. This uses 1 of your remaining edits/unlists.", "Unlist");
@@ -133,7 +139,7 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
             <Text style={styles.title} numberOfLines={1}>
               {listing.title}
             </Text>
-            <Pressable onPress={onClose} hitSlop={10} style={styles.closeButton}>
+            <Pressable onPress={onClose} hitSlop={10} style={styles.closeButton} testID="options-sheet-close">
               <Feather name="x" size={20} color={Colors.text} />
             </Pressable>
           </View>
@@ -150,16 +156,16 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
 
           {!isLocked ? (
             <>
-              <Row icon="edit-2" label="Re-edit listing" onPress={handleEdit} disabled={revisionsLeft <= 0 || isUnlisted} />
+              <Row testID="options-row-edit" icon="edit-2" label="Re-edit listing" onPress={handleEdit} disabled={revisionsLeft <= 0 || isUnlisted} />
               {isUnlisted ? (
-                <Row icon="upload" label="Relist" onPress={handleRelist} loading={busy === "relist"} />
+                <Row testID="options-row-relist" icon="upload" label="Relist" onPress={handleRelist} loading={busy === "relist"} />
               ) : (
-                <Row icon="eye-off" label="Unlist" onPress={handleUnlist} disabled={revisionsLeft <= 0} loading={busy === "unlist"} />
+                <Row testID="options-row-unlist" icon="eye-off" label="Unlist" onPress={handleUnlist} disabled={revisionsLeft <= 0} loading={busy === "unlist"} />
               )}
             </>
           ) : null}
-          <Row icon="share-2" label="Share" onPress={handleShare} />
-          {!isLocked ? <Row icon="trash-2" label="Delete" onPress={handleDelete} loading={busy === "delete"} danger /> : null}
+          <Row testID="options-row-share" icon="share-2" label="Share" onPress={handleShare} />
+          {!isLocked ? <Row testID="options-row-delete" icon="trash-2" label="Delete" onPress={handleDelete} loading={busy === "delete"} danger /> : null}
         </Pressable>
       </Pressable>
     </Modal>
@@ -173,6 +179,7 @@ function Row({
   disabled,
   loading,
   danger,
+  testID,
 }: {
   icon: React.ComponentProps<typeof Feather>["name"];
   label: string;
@@ -180,9 +187,10 @@ function Row({
   disabled?: boolean;
   loading?: boolean;
   danger?: boolean;
+  testID?: string;
 }) {
   return (
-    <Pressable onPress={onPress} disabled={disabled || loading} style={[styles.row, (disabled || loading) && styles.rowDisabled]}>
+    <Pressable testID={testID} onPress={onPress} disabled={disabled || loading} style={[styles.row, (disabled || loading) && styles.rowDisabled]}>
       <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
         <Feather name={icon} size={16} color={danger ? Colors.danger : Colors.primary} />
       </View>
