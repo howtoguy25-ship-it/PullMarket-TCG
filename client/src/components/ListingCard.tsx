@@ -6,6 +6,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, BorderRadius, Typography, Shadow } from "@/constants/theme";
 import { apiJson, describeApiError } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/media";
+import { useAuth } from "@/contexts/AuthContext";
 import { PriceTag, Badge } from "./ui";
 import { StarField } from "./StarField";
 import { CONDITION_LABELS } from "@shared/validation";
@@ -42,6 +43,8 @@ export function ListingCard({
   dark?: boolean;
 }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const isOwnListing = !!user && user.id === listing.seller?.id;
   const [justAdded, setJustAdded] = useState(false);
 
   const showError = (message: string) => {
@@ -126,17 +129,19 @@ export function ListingCard({
 
         <View style={styles.bottomRow}>
           <PriceTag cents={listing.priceCents} style={dark ? styles.priceDark : undefined} />
-          <Pressable
-            onPress={(e) => {
-              e.stopPropagation?.();
-              handleGuarded(() => cartMutation.mutate());
-            }}
-            style={[styles.addButton, justAdded && styles.addButtonSuccess]}
-            hitSlop={8}
-            disabled={listing.status === "sold_out" || cartMutation.isPending}
-          >
-            <Feather name={justAdded ? "check" : "plus"} size={18} color={Colors.white} />
-          </Pressable>
+          {!isOwnListing ? (
+            <Pressable
+              onPress={(e) => {
+                e.stopPropagation?.();
+                handleGuarded(() => cartMutation.mutate());
+              }}
+              style={[styles.addButton, justAdded && styles.addButtonSuccess]}
+              hitSlop={8}
+              disabled={listing.status === "sold_out" || cartMutation.isPending}
+            >
+              <Feather name={justAdded ? "check" : "plus"} size={18} color={Colors.white} />
+            </Pressable>
+          ) : null}
         </View>
       </View>
     </Pressable>
@@ -145,7 +150,11 @@ export function ListingCard({
 
 const styles = StyleSheet.create({
   card: {
-    flex: 1,
+    // A fixed percentage (not flex:1) so the last item in an odd-count row —
+    // including the common case of just ONE listing total — keeps the same
+    // half-row width as every other card instead of stretching to fill the
+    // whole row. flex:1 only behaves correctly when a row is completely full.
+    width: "47%",
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     overflow: "hidden",

@@ -40,11 +40,21 @@ export default function HomeScreen() {
 
   // Collapsing header: scrolling down hides the search bar + franchise
   // chips together; scrolling back up (without reaching the top) brings
-  // back just the search bar; only landing back at the very top restores
-  // both. headerModeRef mirrors the state to avoid re-triggering the same
-  // animation on every scroll tick.
+  // back a compact search bar only; landing back at the very top restores
+  // both at full size. searchAnim runs 0 (hidden) -> 0.5 (compact) -> 1
+  // (full) so the search bar can be a distinct smaller size mid-scroll,
+  // not just shown/hidden.
   const headerModeRef = useRef<"full" | "searchOnly" | "hidden">("full");
   const lastScrollY = useRef(0);
+  // Accumulates movement in the CURRENT scroll direction, resetting on any
+  // direction reversal — a real finger-driven scroll gesture on a phone is
+  // full of tiny sub-pixel direction reversals (deceleration curves, bounce
+  // near the top), and reacting to every single raw onScroll delta made the
+  // header flicker/pop back open mid-gesture. Only committing to a new mode
+  // once movement has been consistently one-way for SCROLL_TRIGGER px
+  // filters that jitter out.
+  const scrollAccum = useRef(0);
+  const scrollDir = useRef<1 | -1 | 0>(0);
   const searchAnim = useRef(new Animated.Value(1)).current;
   const chipsAnim = useRef(new Animated.Value(1)).current;
 
@@ -52,20 +62,36 @@ export default function HomeScreen() {
     if (headerModeRef.current === mode) return;
     headerModeRef.current = mode;
     Animated.parallel([
-      Animated.timing(searchAnim, { toValue: mode === "hidden" ? 0 : 1, duration: 200, useNativeDriver: false }),
+      Animated.timing(searchAnim, { toValue: mode === "hidden" ? 0 : mode === "searchOnly" ? 0.5 : 1, duration: 200, useNativeDriver: false }),
       Animated.timing(chipsAnim, { toValue: mode === "full" ? 1 : 0, duration: 200, useNativeDriver: false }),
     ]).start();
   };
 
-  const SCROLL_DEAD_ZONE = 10;
+  const SCROLL_TRIGGER = 30;
   const handleScroll = (e: { nativeEvent: { contentOffset: { y: number } } }) => {
-    const y = e.nativeEvent.contentOffset.y;
+    const y = Math.max(0, e.nativeEvent.contentOffset.y); // ignore iOS's negative overscroll-bounce values
     const delta = y - lastScrollY.current;
     lastScrollY.current = y;
 
-    if (y <= 0) setHeaderModeAnimated("full");
-    else if (delta > SCROLL_DEAD_ZONE) setHeaderModeAnimated("hidden");
-    else if (delta < -SCROLL_DEAD_ZONE) setHeaderModeAnimated("searchOnly");
+    if (y <= 0) {
+      scrollAccum.current = 0;
+      scrollDir.current = 0;
+      setHeaderModeAnimated("full");
+      return;
+    }
+    if (Math.abs(delta) < 0.5) return;
+
+    const dir = delta > 0 ? 1 : -1;
+    if (dir !== scrollDir.current) {
+      scrollDir.current = dir;
+      scrollAccum.current = 0;
+    }
+    scrollAccum.current += Math.abs(delta);
+
+    if (scrollAccum.current >= SCROLL_TRIGGER) {
+      setHeaderModeAnimated(dir === 1 ? "hidden" : "searchOnly");
+      scrollAccum.current = 0;
+    }
   };
 
   const queryString = useMemo(() => {
@@ -124,7 +150,14 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <Animated.View style={{ maxHeight: searchAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 80] }), opacity: searchAnim, overflow: "hidden" }}>
+        <Animated.View
+          style={{
+            maxHeight: searchAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 52, 80] }),
+            opacity: searchAnim.interpolate({ inputRange: [0, 0.15, 0.5, 1], outputRange: [0, 1, 1, 1] }),
+            transform: [{ scale: searchAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.9, 0.94, 1] }) }],
+            overflow: "hidden",
+          }}
+        >
           <View style={styles.searchBar}>
             <Feather name="search" size={20} color="rgba(255,255,255,0.85)" />
             <TextInput
@@ -163,6 +196,7 @@ export default function HomeScreen() {
           data={listings ?? []}
           keyExtractor={(item) => item.id}
           numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
           onScroll={handleScroll}
           scrollEventThrottle={16}
           contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
@@ -190,6 +224,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  columnWrapper: { justifyContent: "flex-start", gap: 0 },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: Spacing.lg },
   headerTitle: { ...Typography.h2, color: Colors.gold },
   headerIcons: { flexDirection: "row", gap: Spacing.md },

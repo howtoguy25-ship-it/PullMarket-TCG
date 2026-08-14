@@ -102,6 +102,7 @@ export default function SearchScreen() {
           data={listings ?? []}
           keyExtractor={(item) => item.id}
           numColumns={2}
+          columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -121,6 +122,7 @@ export default function SearchScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, overflow: "hidden" },
+  columnWrapper: { justifyContent: "flex-start", gap: 0 },
   searchRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingHorizontal: Spacing.lg },
   searchBar: {
     flex: 1,

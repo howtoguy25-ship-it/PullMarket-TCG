@@ -39,6 +39,7 @@ export default function FavoritesScreen() {
         data={items}
         keyExtractor={(item) => item.id}
         numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
         contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
         renderItem={({ item }) => <ListingCard listing={item} onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })} />}
         ListEmptyComponent={
@@ -51,5 +52,6 @@ export default function FavoritesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background, overflow: "hidden" },
+  columnWrapper: { justifyContent: "flex-start", gap: 0 },
   title: { ...Typography.h2, color: Colors.text, paddingHorizontal: Spacing.lg, paddingTop: Spacing.sm },
 });
