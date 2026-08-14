@@ -41,6 +41,18 @@ interface BoostTiersResponse {
   tiers: BoostTierOption[];
 }
 
+// Each tier gets a color "barrier" from the app's real brand palette,
+// banded by how long the boost runs — so the list reads as a gradient of
+// commitment (a quick 12h nudge vs. a full 2-week takeover) rather than a
+// wall of identical white rows, and a seller can tell tiers apart at a
+// glance even before reading the price.
+function tierColor(durationHours: number): string {
+  if (durationHours <= 36) return Colors.pokemon;
+  if (durationHours <= 96) return Colors.goldDark;
+  if (durationHours <= 168) return Colors.primary;
+  return Colors.onePiece;
+}
+
 export default function BoostListingScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Rt>();
@@ -117,18 +129,26 @@ export default function BoostListingScreen() {
             {tiers.map((tier) => {
               const active = tier.id === selectedTierId;
               const discounted = tier.finalPriceCents < tier.priceCents;
+              const color = tierColor(tier.durationHours);
               return (
-                <Pressable key={tier.id} onPress={() => setSelectedTierId(tier.id)} style={[styles.tierRow, active && styles.tierRowActive, Shadow.card]}>
-                  <View style={[styles.tierRadio, active && styles.tierRadioActive]}>{active ? <View style={styles.tierRadioDot} /> : null}</View>
+                <Pressable
+                  key={tier.id}
+                  onPress={() => setSelectedTierId(tier.id)}
+                  style={[styles.tierRow, { borderLeftColor: color, backgroundColor: active ? color + "1F" : color + "0D" }, active && { borderColor: color }, Shadow.card]}
+                >
+                  <View style={[styles.tierIcon, { backgroundColor: color + "26" }]}>
+                    <Feather name="clock" size={16} color={color} />
+                  </View>
+                  <View style={[styles.tierRadio, active && { borderColor: color }]}>{active ? <View style={[styles.tierRadioDot, { backgroundColor: color }]} /> : null}</View>
                   <View style={styles.tierInfo}>
-                    <Text style={[styles.tierLabel, active && styles.tierLabelActive]}>{tier.label}</Text>
+                    <Text style={[styles.tierLabel, active && { color }]}>{tier.label}</Text>
                     <Text style={styles.tierHint}>
                       {isPro && tier.discountEligible ? "Top of feed for the full window · Pro discount eligible" : "Top of feed for the full window"}
                     </Text>
                   </View>
                   <View style={styles.tierPriceWrap}>
                     {discounted ? <Text style={styles.tierPriceOriginal}>${(tier.priceCents / 100).toFixed(2)}</Text> : null}
-                    <Text style={[styles.tierPrice, active && styles.tierPriceActive]}>${(tier.finalPriceCents / 100).toFixed(2)}</Text>
+                    <Text style={[styles.tierPrice, active && { color }]}>${(tier.finalPriceCents / 100).toFixed(2)}</Text>
                   </View>
                 </Pressable>
               );
@@ -187,24 +207,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
     borderWidth: 1.5,
     borderColor: Colors.border,
+    borderLeftWidth: 5,
     padding: Spacing.md,
   },
-  tierRowActive: { borderColor: Colors.primary, backgroundColor: Colors.primary + "0D" },
+  tierIcon: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   tierRadio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: Colors.border, alignItems: "center", justifyContent: "center" },
-  tierRadioActive: { borderColor: Colors.primary },
-  tierRadioDot: { width: 11, height: 11, borderRadius: 6, backgroundColor: Colors.primary },
+  tierRadioDot: { width: 11, height: 11, borderRadius: 6 },
   tierInfo: { flex: 1 },
   tierLabel: { ...Typography.bodyBold, color: Colors.text },
-  tierLabelActive: { color: Colors.primary },
   tierHint: { ...Typography.small, color: Colors.textMuted, marginTop: 2 },
   tierPriceWrap: { alignItems: "flex-end" },
   tierPriceOriginal: { ...Typography.small, color: Colors.textMuted, textDecorationLine: "line-through" },
   tierPrice: { ...Typography.bodyBold, color: Colors.text, fontSize: 17 },
-  tierPriceActive: { color: Colors.primary },
   infoBox: { flexDirection: "row", gap: Spacing.sm, backgroundColor: Colors.surfaceAlt, padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.lg },
   infoText: { flex: 1, ...Typography.small, color: Colors.textSecondary, lineHeight: 18 },
   cancelLink: { alignSelf: "center", marginTop: Spacing.md, padding: Spacing.sm },
