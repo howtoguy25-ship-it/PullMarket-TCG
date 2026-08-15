@@ -170,16 +170,16 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
 
           {!isLocked ? (
             <>
-              <Row testID="options-row-edit" icon="edit-2" label="Re-edit listing" onPress={handleEdit} disabled={revisionsLeft <= 0 || isUnlisted} />
-              {!isUnlisted ? <Row testID="options-row-boost" icon="zap" label="Boost listing" onPress={handleBoost} /> : null}
+              <Row testID="options-row-edit" icon="edit-2" label="Re-edit listing" onPress={handleEdit} disabled={revisionsLeft <= 0 || isUnlisted} color={Colors.secondary} />
+              {!isUnlisted ? <Row testID="options-row-boost" icon="zap" label="Boost listing" onPress={handleBoost} color={Colors.goldDark} /> : null}
               {isUnlisted ? (
-                <Row testID="options-row-relist" icon="upload" label="Relist" onPress={handleRelist} loading={busy === "relist"} />
+                <Row testID="options-row-relist" icon="upload" label="Relist" onPress={handleRelist} loading={busy === "relist"} color={Colors.success} />
               ) : (
-                <Row testID="options-row-unlist" icon="eye-off" label="Unlist" onPress={handleUnlist} disabled={revisionsLeft <= 0} loading={busy === "unlist"} />
+                <Row testID="options-row-unlist" icon="eye-off" label="Unlist" onPress={handleUnlist} disabled={revisionsLeft <= 0} loading={busy === "unlist"} color="#92650B" />
               )}
             </>
           ) : null}
-          <Row testID="options-row-share" icon="share-2" label="Share" onPress={handleShare} />
+          <Row testID="options-row-share" icon="share-2" label="Share" onPress={handleShare} color={Colors.pokemon} />
           {!isDeleted ? <Row testID="options-row-delete" icon="trash-2" label="Delete" onPress={handleDelete} loading={busy === "delete"} danger /> : null}
         </Pressable>
       </Pressable>
@@ -194,6 +194,7 @@ function Row({
   disabled,
   loading,
   danger,
+  color = Colors.primary,
   testID,
 }: {
   icon: React.ComponentProps<typeof Feather>["name"];
@@ -202,12 +203,14 @@ function Row({
   disabled?: boolean;
   loading?: boolean;
   danger?: boolean;
+  color?: string;
   testID?: string;
 }) {
+  const iconColor = danger ? Colors.danger : color;
   return (
     <Pressable testID={testID} onPress={onPress} disabled={disabled || loading} style={[styles.row, (disabled || loading) && styles.rowDisabled]}>
-      <View style={[styles.rowIcon, danger && styles.rowIconDanger]}>
-        <Feather name={icon} size={16} color={danger ? Colors.danger : Colors.primary} />
+      <View style={[styles.rowIcon, { backgroundColor: iconColor + "1F" }]}>
+        <Feather name={icon} size={16} color={iconColor} />
       </View>
       <Text style={[styles.rowLabel, danger && styles.rowLabelDanger]}>{loading ? "Working…" : label}</Text>
       <Feather name="chevron-right" size={18} color={Colors.textMuted} />
@@ -232,8 +235,7 @@ const styles = StyleSheet.create({
     borderTopColor: Colors.border,
   },
   rowDisabled: { opacity: 0.4 },
-  rowIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: "#FCE9E4", alignItems: "center", justifyContent: "center" },
-  rowIconDanger: { backgroundColor: "#FDE8E8" },
+  rowIcon: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
   rowLabel: { ...Typography.body, color: Colors.text, flex: 1, fontWeight: "600" },
   rowLabelDanger: { color: Colors.danger },
 });

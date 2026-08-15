@@ -118,6 +118,18 @@ const STATEMENTS = [
    );`,
   `CREATE INDEX IF NOT EXISTS idx_listing_boosts_listing ON listing_boosts (listing_id);`,
   `CREATE INDEX IF NOT EXISTS idx_listing_boosts_user ON listing_boosts (user_id);`,
+
+  // listing_boosts: Apple IAP idempotency key for boost purchases (added
+  // after the table already existed in production — this is exactly the
+  // case this file's header comment describes: a real purchase went
+  // through with Apple and then failed server-side with "column
+  // listing_boosts.apple_transaction_id does not exist" because production
+  // hadn't picked this column up yet).
+  `ALTER TABLE listing_boosts ADD COLUMN IF NOT EXISTS apple_transaction_id text;`,
+  `DO $$ BEGIN
+     ALTER TABLE listing_boosts ADD CONSTRAINT listing_boosts_apple_transaction_id_unique UNIQUE (apple_transaction_id);
+   EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
+   END $$;`,
 ];
 
 async function main() {

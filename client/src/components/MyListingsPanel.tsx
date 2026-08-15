@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
+import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
 import { EmptyState } from "@/components/ui";
 import { PriceTag } from "@/components/ui";
 import { ListingOptionsSheet } from "@/components/ListingOptionsSheet";
@@ -104,9 +104,12 @@ function ListingRow({ listing, onManage }: { listing: MyListing; onManage: () =>
   const canEditStock = listing.status === "active" || listing.status === "sold_out";
 
   return (
-    <Pressable style={[styles.row, { borderLeftWidth: 4, borderLeftColor: meta.color }]} onPress={() => navigation.navigate("ListingDetail", { listingId: listing.id })}>
+    <Pressable
+      style={[styles.row, { borderLeftWidth: 4, borderLeftColor: meta.color, backgroundColor: meta.color + "0A" }, Shadow.card]}
+      onPress={() => navigation.navigate("ListingDetail", { listingId: listing.id })}
+    >
       {listing.images[0] ? (
-        <Image source={{ uri: resolveImageUrl(listing.images[0]) }} style={styles.thumb} />
+        <Image source={{ uri: resolveImageUrl(listing.images[0]) }} style={[styles.thumb, { borderColor: meta.color + "55", borderWidth: 1.5 }]} />
       ) : (
         <View style={[styles.thumb, styles.thumbPlaceholder]}>
           <Feather name="image" size={20} color={Colors.textMuted} />
