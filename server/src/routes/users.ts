@@ -21,6 +21,36 @@ const PUBLIC_USER_COLUMNS = {
   proCurrentPeriodEnd: users.proCurrentPeriodEnd,
 };
 
+const USERNAME_CHANGE_COOLDOWN_DAYS = 30;
+const USERNAME_CHANGE_COOLDOWN_MS = USERNAME_CHANGE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+
+// ── Change username — at most once every 30 days ──────────────────────────
+router.patch("/me/username", async (req, res) => {
+  const parsed = z
+    .object({ username: z.string().min(3).max(24).regex(/^[a-zA-Z0-9_]+$/, "Letters, numbers, and underscores only") })
+    .safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message ?? "Enter a valid username" });
+
+  const [me] = await db.select({ username: users.username, usernameChangedAt: users.usernameChangedAt }).from(users).where(eq(users.id, req.user!.id));
+  if (!me) return res.status(404).json({ message: "User not found" });
+
+  const nextUsername = parsed.data.username;
+  if (nextUsername === me.username) return res.status(400).json({ message: "That's already your username" });
+
+  if (me.usernameChangedAt) {
+    const nextAllowedAt = me.usernameChangedAt.getTime() + USERNAME_CHANGE_COOLDOWN_MS;
+    if (Date.now() < nextAllowedAt) {
+      return res.status(429).json({ message: `You can change your username again on ${new Date(nextAllowedAt).toLocaleDateString()}`, nextAllowedAt: new Date(nextAllowedAt).toISOString() });
+    }
+  }
+
+  const [usernameTaken] = await db.select({ id: users.id }).from(users).where(and(eq(users.username, nextUsername), ne(users.id, req.user!.id)));
+  if (usernameTaken) return res.status(409).json({ message: "That username is already taken" });
+
+  const [updated] = await db.update(users).set({ username: nextUsername, usernameChangedAt: new Date() }).where(eq(users.id, req.user!.id)).returning();
+  res.json({ username: updated.username, usernameChangedAt: updated.usernameChangedAt });
+});
+
 // ── My own profile photo ──────────────────────────────────────────────────
 // Uploaded avatars are persisted via saveUploadedFile — local disk or
 // object storage depending on configuration (see lib/upload.ts). A

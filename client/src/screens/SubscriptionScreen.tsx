@@ -12,6 +12,7 @@ import { StarField } from "@/components/StarField";
 import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { apiJson, ApiError } from "@/lib/api";
 import { useApplePurchase } from "@/lib/applePurchase";
+import { useAuth } from "@/contexts/AuthContext";
 
 function showAlert(title: string, message: string) {
   if (Platform.OS === "web") {
@@ -42,6 +43,7 @@ const PRO_PRODUCT_ID = (Constants.expoConfig?.extra?.APPLE_IAP_PRODUCT_ID as str
 export default function SubscriptionScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
   const apple = useApplePurchase({ productId: PRO_PRODUCT_ID, type: "subs", verifyEndpoint: "/api/subscription/apple/verify" });
 
   const { data: status, isLoading } = useQuery<SubscriptionStatus>({ queryKey: ["/api/subscription/status"] });
@@ -69,7 +71,13 @@ export default function SubscriptionScreen() {
   const handleApplePurchase = async () => {
     try {
       await apple.purchase();
-      await queryClient.invalidateQueries({ queryKey: ["/api/subscription/status"] });
+      // The verified purchase updates proStatus on the users row server-side,
+      // but the tick/perks shown elsewhere (ProfileScreen, search, chat) all
+      // read off the AuthContext user object, not this screen's status
+      // query — without this, a fresh purchase looks "stuck" (this screen
+      // says active, everywhere else still shows no tick) until next app
+      // launch re-fetches /api/auth/me.
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["/api/subscription/status"] }), refreshUser()]);
     } catch (err) {
       showAlert("Purchase failed", err instanceof Error ? err.message : "Please try again.");
     }
@@ -78,11 +86,15 @@ export default function SubscriptionScreen() {
   const handleAppleRestore = async () => {
     try {
       const restored = await apple.restore();
-      await queryClient.invalidateQueries({ queryKey: ["/api/subscription/status"] });
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["/api/subscription/status"] }), refreshUser()]);
       showAlert(restored ? "Restored" : "Nothing to restore", restored ? "Your Pro membership has been restored." : "No previous purchase was found on this Apple ID.");
     } catch (err) {
       showAlert("Restore failed", err instanceof Error ? err.message : "Please try again.");
     }
+  };
+
+  const handleManageAppleSubscription = () => {
+    Linking.openURL("itms-apps://apps.apple.com/account/subscriptions").catch(() => Linking.openURL("https://apps.apple.com/account/subscriptions"));
   };
 
   const webAppUrl = (Constants.expoConfig?.extra?.API_URL as string) || "https://www.pullmarkettcg.com";
@@ -134,7 +146,17 @@ export default function SubscriptionScreen() {
             {status?.proSource === "stripe" ? (
               <Button title="Manage billing" variant="outline" onPress={() => portalMutation.mutate()} loading={portalMutation.isPending} style={{ marginTop: Spacing.md }} />
             ) : (
-              <Text style={styles.statusBody}>Manage or cancel from your iPhone's Settings {">"} [your name] {">"} Subscriptions.</Text>
+              <>
+                <Text style={styles.statusBody}>Billed through the App Store. Cancel any time — you'll keep Pro until the date above.</Text>
+                <Button
+                  title="Cancel subscription"
+                  variant="outline"
+                  icon={<Feather name="external-link" size={15} color={Colors.danger} />}
+                  textColor={Colors.danger}
+                  onPress={handleManageAppleSubscription}
+                  style={styles.cancelButton}
+                />
+              </>
             )}
           </View>
         ) : Platform.OS === "web" ? (
@@ -192,6 +214,7 @@ const styles = StyleSheet.create({
   statusHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
   statusTitle: { ...Typography.bodyBold, color: Colors.text },
   statusBody: { ...Typography.small, color: Colors.textSecondary, marginTop: 4 },
+  cancelButton: { marginTop: Spacing.sm, borderColor: Colors.danger, backgroundColor: Colors.danger + "0D" },
   restoreLink: { alignSelf: "center", marginTop: Spacing.md, padding: Spacing.xs },
   restoreLinkText: { ...Typography.small, color: Colors.goldDark, fontWeight: "600" },
   webLink: { ...Typography.small, color: Colors.goldDark, fontWeight: "700" },

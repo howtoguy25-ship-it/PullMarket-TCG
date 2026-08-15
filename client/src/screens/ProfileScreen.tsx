@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Switch, ActivityIndicator } from "react-native";
+import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Switch, ActivityIndicator, Modal, TextInput } from "react-native";
 import Slider from "@react-native-community/slider";
 import * as Linking from "expo-linking";
 import Constants from "expo-constants";
@@ -9,7 +9,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useMutation } from "@tanstack/react-query";
-import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
+import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
 import { GalaxyHeader } from "@/components/GalaxyHeader";
@@ -136,10 +136,85 @@ function SoundRow({
   );
 }
 
+const USERNAME_COOLDOWN_DAYS = 30;
+
+function nextUsernameChangeDate(usernameChangedAt: string | null): Date | null {
+  if (!usernameChangedAt) return null;
+  const next = new Date(usernameChangedAt).getTime() + USERNAME_COOLDOWN_DAYS * 24 * 60 * 60 * 1000;
+  return next > Date.now() ? new Date(next) : null;
+}
+
+/** A real username-change flow: at most once every 30 days, enforced
+ * server-side (this is just the UI reflecting that same rule so a user
+ * isn't surprised by a 429 after typing). */
+function UsernameChangeModal({ visible, currentUsername, onClose, onChanged }: { visible: boolean; currentUsername: string; onClose: () => void; onChanged: (username: string) => void }) {
+  const [draft, setDraft] = useState(currentUsername);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      setDraft(currentUsername);
+      setError(null);
+    }
+  }, [visible, currentUsername]);
+
+  const mutation = useMutation({
+    mutationFn: (username: string) => apiJson<{ username: string }>("PATCH", "/api/users/me/username", { username }),
+    onSuccess: (data) => {
+      onChanged(data.username);
+      onClose();
+    },
+    onError: (err) => setError(err instanceof ApiError ? err.message : "Please try again."),
+  });
+
+  const trimmed = draft.trim();
+  const valid = /^[a-zA-Z0-9_]{3,24}$/.test(trimmed);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+        <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation?.()}>
+          <Text style={styles.modalTitle}>Change username</Text>
+          <Text style={styles.modalSubtitle}>You can change your username once every {USERNAME_COOLDOWN_DAYS} days. Letters, numbers, and underscores only.</Text>
+          <View style={styles.modalInputRow}>
+            <Text style={styles.modalAt}>@</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={draft}
+              onChangeText={(v) => {
+                setDraft(v);
+                setError(null);
+              }}
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="username"
+              placeholderTextColor={Colors.textMuted}
+              maxLength={24}
+            />
+          </View>
+          {error ? <Text style={styles.modalError}>{error}</Text> : null}
+          <View style={styles.modalActions}>
+            <Button title="Cancel" variant="outline" onPress={onClose} style={{ flex: 1 }} />
+            <Button
+              title="Save"
+              variant="primary"
+              onPress={() => mutation.mutate(trimmed)}
+              loading={mutation.isPending}
+              disabled={!valid || trimmed === currentUsername}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 export default function ProfileScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { user, signOut, refreshUser } = useAuth();
+  const [usernameModalVisible, setUsernameModalVisible] = useState(false);
   const { enabled, selectedId, volume, previewingId, setEnabled, selectSound, setVolume, preview } = useAmbientSound();
   const { selectedId: ringtoneSelectedId, previewingId: ringtonePreviewingId, selectRingtone, preview: previewRingtone } = useRingtone();
   const { selectedId: appThemeId, selectTheme } = useAppTheme();
@@ -211,6 +286,16 @@ export default function ProfileScreen() {
     if (ok) await signOut();
   };
 
+  const nextUsernameChangeAt = user ? nextUsernameChangeDate(user.usernameChangedAt) : null;
+
+  const handleOpenUsernameChange = () => {
+    if (nextUsernameChangeAt) {
+      showAlert("Username on cooldown", `You can change your username again on ${nextUsernameChangeAt.toLocaleDateString()}.`);
+      return;
+    }
+    setUsernameModalVisible(true);
+  };
+
   if (!user) {
     return (
       <View style={[styles.container, styles.center, { paddingTop: insets.top + Spacing.xxl }]}>
@@ -223,31 +308,52 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <AppThemeBackground />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl, paddingHorizontal: Spacing.lg }}>
-      <GalaxyHeader variant="card" style={styles.header} starCount={16}>
+      <GalaxyHeader variant="card" style={styles.header} starCount={20} colors={isActivePro(user) ? ["#150C2E", "#3B1E6B", "#8B4513"] : ["#150C2E", "#1C1040", "#2A1750"]}>
         <Pressable onPress={changeAvatar} disabled={uploadingAvatar} style={styles.avatarWrap}>
-          <Avatar avatarUrl={user.avatarUrl} seed={user.username} size={56} />
+          <View style={[styles.avatarRing, isActivePro(user) && styles.avatarRingPro]}>
+            <Avatar avatarUrl={user.avatarUrl} seed={user.username} size={56} />
+          </View>
           <View style={styles.avatarBadge}>{uploadingAvatar ? <ActivityIndicator size="small" color={Colors.white} /> : <Feather name="camera" size={13} color={Colors.white} />}</View>
         </Pressable>
-        <View>
+        <View style={{ flex: 1 }}>
           <View style={styles.usernameRow}>
             <Text style={styles.username}>@{user.username}</Text>
             {isActivePro(user) ? <VerifiedBadge size={15} /> : null}
+            <Pressable onPress={handleOpenUsernameChange} hitSlop={10} style={styles.editUsernameButton} testID="edit-username-button">
+              <Feather name="edit-2" size={13} color="rgba(255,255,255,0.8)" />
+            </Pressable>
           </View>
           <Text style={styles.contact}>{user.email ?? user.phoneNumber}</Text>
           <Text style={styles.changePhoto}>Tap photo to change</Text>
         </View>
       </GalaxyHeader>
 
-      <Pressable style={styles.proBanner} onPress={() => navigation.navigate("Subscription")}>
-        <View style={styles.proBannerIcon}>
-          <Feather name="star" size={18} color={Colors.goldDark} />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.proBannerTitle}>{isActivePro(user) ? "PullMarket Pro" : "Go Pro"}</Text>
-          <Text style={styles.proBannerSubtitle}>{isActivePro(user) ? "Followers, verified tick, listing boost & search recognition" : "Followers, verified tick, listing boost & search recognition — $19.99/mo"}</Text>
-        </View>
-        <Feather name="chevron-right" size={18} color={Colors.textMuted} />
+      <Pressable onPress={() => navigation.navigate("Subscription")}>
+        <LinearGradient
+          colors={isActivePro(user) ? ["#3B1E6B", "#B8860B"] : [Colors.surface, Colors.surface]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={[styles.proBanner, !isActivePro(user) && styles.proBannerInactive]}
+        >
+          <View style={[styles.proBannerIcon, isActivePro(user) && styles.proBannerIconActive]}>
+            <Feather name="star" size={18} color={isActivePro(user) ? Colors.white : Colors.goldDark} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.proBannerTitle, isActivePro(user) && styles.proBannerTitleActive]}>{isActivePro(user) ? "PullMarket Pro" : "Go Pro"}</Text>
+            <Text style={[styles.proBannerSubtitle, isActivePro(user) && styles.proBannerSubtitleActive]}>
+              {isActivePro(user) ? "Followers, verified tick, listing boost & search recognition" : "Followers, verified tick, listing boost & search recognition — $19.99/mo"}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={18} color={isActivePro(user) ? "rgba(255,255,255,0.85)" : Colors.textMuted} />
+        </LinearGradient>
       </Pressable>
+
+      <UsernameChangeModal
+        visible={usernameModalVisible}
+        currentUsername={user.username}
+        onClose={() => setUsernameModalVisible(false)}
+        onChanged={() => void refreshUser()}
+      />
 
       <SectionHeader label="Selling" color={SECTION_COLORS.selling} />
       <View style={[styles.section, styles.sectionBarrier, { borderLeftColor: SECTION_COLORS.selling }]}>
@@ -402,16 +508,47 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.sm,
-    backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
-    borderWidth: 1,
-    borderColor: Colors.gold + "55",
     padding: Spacing.md,
     marginTop: Spacing.md,
+    ...Shadow.card,
   },
+  proBannerInactive: { borderWidth: 1, borderColor: Colors.gold + "55" },
   proBannerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.gold + "26", alignItems: "center", justifyContent: "center" },
+  proBannerIconActive: { backgroundColor: "rgba(255,255,255,0.2)" },
   proBannerTitle: { ...Typography.bodyBold, color: Colors.text },
+  proBannerTitleActive: { color: Colors.white },
   proBannerSubtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 1 },
+  proBannerSubtitleActive: { color: "rgba(255,255,255,0.85)" },
+  avatarRing: { borderRadius: 32, padding: 2 },
+  avatarRingPro: { borderWidth: 2, borderColor: Colors.gold },
+  editUsernameButton: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: Spacing.xl },
+  modalCard: { width: "100%", maxWidth: 360, backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.lg, ...Shadow.card },
+  modalTitle: { ...Typography.h3, color: Colors.text },
+  modalSubtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 4 },
+  modalInputRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: Spacing.md,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    backgroundColor: Colors.surfaceAlt,
+  },
+  modalAt: { ...Typography.body, color: Colors.textMuted, fontWeight: "700" },
+  modalInput: { ...Typography.body, color: Colors.text, flex: 1, paddingVertical: 12 },
+  modalError: { ...Typography.small, color: Colors.danger, marginTop: 6 },
+  modalActions: { flexDirection: "row", gap: Spacing.sm, marginTop: Spacing.lg },
   sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: Spacing.lg, marginBottom: Spacing.xs },
   sectionDot: { width: 7, height: 7, borderRadius: 4 },
   sectionHeader: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", letterSpacing: 0.5 },

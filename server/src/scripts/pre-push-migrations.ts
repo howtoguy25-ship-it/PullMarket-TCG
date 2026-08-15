@@ -43,6 +43,9 @@ const STATEMENTS = [
    EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
    END $$;`,
 
+  // users: 30-day username-change cooldown tracking
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS username_changed_at timestamp;`,
+
   // users: Pro membership + Remove Ads + read-receipts toggle
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_status text NOT NULL DEFAULT 'none';`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_source text;`,

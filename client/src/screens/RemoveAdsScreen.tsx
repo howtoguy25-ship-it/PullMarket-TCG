@@ -12,6 +12,7 @@ import { StarField } from "@/components/StarField";
 import { apiJson, ApiError } from "@/lib/api";
 import { formatPriceCents } from "@/lib/format";
 import { useApplePurchase } from "@/lib/applePurchase";
+import { useAuth } from "@/contexts/AuthContext";
 
 const FEATURES: { icon: React.ComponentProps<typeof Feather>["name"]; label: string }[] = [
   { icon: "smartphone", label: "No app-open ad when you launch PullMarket" },
@@ -37,6 +38,7 @@ const REMOVE_ADS_PRODUCT_ID = (Constants.expoConfig?.extra?.APPLE_IAP_REMOVE_ADS
 export default function RemoveAdsScreen() {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const { refreshUser } = useAuth();
   const apple = useApplePurchase({ productId: REMOVE_ADS_PRODUCT_ID, type: "in-app", verifyEndpoint: "/api/ads/remove/apple/verify" });
 
   const { data: status, isLoading } = useQuery<AdsStatus>({ queryKey: ["/api/ads/status"] });
@@ -55,7 +57,7 @@ export default function RemoveAdsScreen() {
   const handleApplePurchase = async () => {
     try {
       await apple.purchase();
-      await queryClient.invalidateQueries({ queryKey: ["/api/ads/status"] });
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["/api/ads/status"] }), refreshUser()]);
     } catch (err) {
       showAlert("Purchase failed", err instanceof Error ? err.message : "Please try again.");
     }
@@ -64,7 +66,7 @@ export default function RemoveAdsScreen() {
   const handleAppleRestore = async () => {
     try {
       const restored = await apple.restore();
-      await queryClient.invalidateQueries({ queryKey: ["/api/ads/status"] });
+      await Promise.all([queryClient.invalidateQueries({ queryKey: ["/api/ads/status"] }), refreshUser()]);
       showAlert(restored ? "Restored" : "Nothing to restore", restored ? "Ads have been removed on this account." : "No previous Remove Ads purchase was found on this Apple ID.");
     } catch (err) {
       showAlert("Restore failed", err instanceof Error ? err.message : "Please try again.");

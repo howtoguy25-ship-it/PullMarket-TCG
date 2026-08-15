@@ -12,6 +12,7 @@ export function GalaxyHeader({
   style,
   starCount = 22,
   variant = "banner",
+  colors = ["#150C2E", "#1C1040", "#2A1750"],
 }: {
   children?: React.ReactNode;
   style?: ViewStyle;
@@ -20,10 +21,13 @@ export function GalaxyHeader({
    * edge). "card": rounded on all corners, for use inset within a padded
    * layout instead of edge-to-edge. */
   variant?: "banner" | "card";
+  /** Override the default dark-purple galaxy gradient — e.g. a warmer
+   * gold-tinted variant to mark a Pro member's own profile header. */
+  colors?: [string, string, ...string[]];
 }) {
   return (
     <View style={[styles.container, variant === "card" ? styles.card : styles.banner, style]}>
-      <LinearGradient colors={["#150C2E", "#1C1040", "#2A1750"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       <StarField count={starCount} />
       {children}
     </View>

@@ -14,6 +14,7 @@ function showAlert(title: string, message: string) {
 export interface AuthUser {
   id: string;
   username: string;
+  usernameChangedAt: string | null;
   phoneNumber: string | null;
   email: string | null;
   displayName: string | null;

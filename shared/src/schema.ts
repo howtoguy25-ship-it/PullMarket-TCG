@@ -18,13 +18,14 @@ import { LISTING_REVISION_LIMIT } from "./validation";
 
 // ─── Users ───────────────────────────────────────────────────────────────
 // Passwordless: sign-in is phone OTP, email OTP, or Google. No password
-// column exists on purpose. `username` is chosen once at first sign-up and
-// is what other users see attached to listings/orders.
+// column exists on purpose. `username` can be changed, but at most once
+// every 30 days (usernameChangedAt tracks the last change server-side).
 export const users = pgTable(
   "users",
   {
     id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
     username: text("username").notNull().unique(),
+    usernameChangedAt: timestamp("username_changed_at"),
     phoneNumber: text("phone_number").unique(),
     email: text("email").unique(),
     googleId: text("google_id").unique(),
