@@ -7,11 +7,25 @@ import { sendEmail } from "./mailer";
 const OTP_TTL_MINUTES = 10;
 const MAX_ATTEMPTS = 5;
 
+// App Store Review Guideline 2.1 requires a way for Apple's reviewer to
+// actually sign in and test the app — but PullMarket is passwordless (phone
+// or email OTP, or Google), so there's no username/password to hand over,
+// and a reviewer can't receive a real text/email during review. "+1 555 01xx"
+// is reserved by the North American Numbering Plan for fictional use — it
+// can never be a real, assignable number, so this can't collide with an
+// actual user's phone number. Only this exact number ever bypasses OTP
+// delivery/verification; every other destination goes through the real
+// flow unchanged.
+export const REVIEWER_PHONE = "+15555550199";
+const REVIEWER_OTP_CODE = "424242";
+
 function generateCode(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
 export async function issueOtp(destination: string, channel: "sms" | "email", purpose: "signin" | "signup") {
+  if (destination === REVIEWER_PHONE) return; // fixed code below, nothing to actually send
+
   // Invalidate any still-outstanding codes for this destination first, so
   // verify always checks against the code that was just sent — otherwise a
   // user who requests a second code (e.g. "resend") gets stuck being
@@ -31,6 +45,11 @@ export async function issueOtp(destination: string, channel: "sms" | "email", pu
 }
 
 export async function verifyOtp(destination: string, code: string): Promise<boolean> {
+  // Never expires, never consumed, no DB row involved — App Review may test
+  // sign-in more than once, on different days, and it must keep working
+  // every time. See REVIEWER_PHONE above.
+  if (destination === REVIEWER_PHONE) return code === REVIEWER_OTP_CODE;
+
   // Claiming the code is a single atomic UPDATE, not a SELECT followed by a
   // separate UPDATE — the old two-step version had a real race: iOS's SMS
   // autofill is known to fire the verify screen's change handler more than
