@@ -23,6 +23,26 @@ const STATEMENTS = [
    EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
    END $$;`,
 
+  // The other two unique constraints in shared/src/schema.ts that hit the
+  // exact same "truncate this table?" TTY-prompt crash the header comment
+  // describes — confirmed for real on a production deploy for
+  // uniq_friend_request_pair (drizzle-kit push aborted mid-build without
+  // failing the build, silently skipping every statement after it, on a
+  // table with all of 1 row). Adding all three here up front so db:push
+  // never has anything left to ask about.
+  `DO $$ BEGIN
+     ALTER TABLE cart_items ADD CONSTRAINT uniq_cart_user_listing UNIQUE (user_id, listing_id);
+   EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
+   END $$;`,
+  `DO $$ BEGIN
+     ALTER TABLE friend_requests ADD CONSTRAINT uniq_friend_request_pair UNIQUE (requester_id, recipient_id);
+   EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
+   END $$;`,
+  `DO $$ BEGIN
+     ALTER TABLE conversations ADD CONSTRAINT uniq_conversation_pair UNIQUE (user_a_id, user_b_id);
+   EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
+   END $$;`,
+
   // users: Pro membership + Remove Ads + read-receipts toggle
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_status text NOT NULL DEFAULT 'none';`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_source text;`,
