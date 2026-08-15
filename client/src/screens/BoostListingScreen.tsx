@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Switch, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
@@ -65,7 +64,6 @@ export default function BoostListingScreen() {
   const route = useRoute<Rt>();
   const { listingId } = route.params;
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
   // Real on/off toggle for Pro subscribers: the 15% cut only ever applies
@@ -136,7 +134,7 @@ export default function BoostListingScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: headerHeight, paddingBottom: insets.bottom + Spacing.xxl }}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xxl }}>
       <LinearGradient colors={["#1C1040", "#3B1E6B", "#DB2777"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
         <StarField count={16} />
         <View style={styles.heroIcon}>

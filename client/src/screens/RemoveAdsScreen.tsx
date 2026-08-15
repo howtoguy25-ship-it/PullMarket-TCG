@@ -1,7 +1,6 @@
 import React from "react";
 import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -36,7 +35,6 @@ const REMOVE_ADS_PRODUCT_ID = (Constants.expoConfig?.extra?.APPLE_IAP_REMOVE_ADS
 
 export default function RemoveAdsScreen() {
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
   const apple = useApplePurchase({ productId: REMOVE_ADS_PRODUCT_ID, type: "in-app", verifyEndpoint: "/api/ads/remove/apple/verify" });
 
@@ -77,7 +75,7 @@ export default function RemoveAdsScreen() {
   const priceLabel = status ? `$${(status.priceCents / 100).toFixed(2)}` : "$39.99";
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: headerHeight, paddingBottom: insets.bottom + Spacing.xxl }}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xxl }}>
       <LinearGradient colors={["#0F1B42", "#1E3A8A", "#2A4FB0"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
         <StarField count={18} />
         <View style={styles.heroIcon}>

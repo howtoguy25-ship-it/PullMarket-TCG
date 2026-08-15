@@ -1,7 +1,6 @@
 import React from "react";
 import { View, StyleSheet, Text, ScrollView, Pressable, Platform, Alert, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useHeaderHeight } from "@react-navigation/elements";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
@@ -42,7 +41,6 @@ const PRO_PRODUCT_ID = (Constants.expoConfig?.extra?.APPLE_IAP_PRODUCT_ID as str
 
 export default function SubscriptionScreen() {
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
   const apple = useApplePurchase({ productId: PRO_PRODUCT_ID, type: "subs", verifyEndpoint: "/api/subscription/apple/verify" });
 
@@ -91,7 +89,7 @@ export default function SubscriptionScreen() {
   const active = status?.active ?? false;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingTop: headerHeight, paddingBottom: insets.bottom + Spacing.xxl }}>
+    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xxl }}>
       <LinearGradient colors={["#1C1040", "#5B2A8E", "#D97706"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.hero}>
         <StarField count={18} />
         <View style={styles.heroIcon}>
