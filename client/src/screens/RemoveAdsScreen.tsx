@@ -10,6 +10,7 @@ import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/t
 import { Button } from "@/components/ui";
 import { StarField } from "@/components/StarField";
 import { apiJson, ApiError } from "@/lib/api";
+import { formatPriceCents } from "@/lib/format";
 import { useApplePurchase } from "@/lib/applePurchase";
 
 const FEATURES: { icon: React.ComponentProps<typeof Feather>["name"]; label: string }[] = [
@@ -72,7 +73,7 @@ export default function RemoveAdsScreen() {
 
   const webAppUrl = (Constants.expoConfig?.extra?.API_URL as string) || "https://www.pullmarkettcg.com";
   const removed = status?.adsRemoved ?? false;
-  const priceLabel = status ? `$${(status.priceCents / 100).toFixed(2)}` : "$39.99";
+  const priceLabel = status ? formatPriceCents(status.priceCents) : "$39.99";
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xxl }}>

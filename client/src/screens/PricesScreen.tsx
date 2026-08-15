@@ -10,6 +10,7 @@ import { Colors, Spacing, Typography, BorderRadius, Shadow, Fonts, NoWebFocusOut
 import { EmptyState } from "@/components/ui";
 import { SkyBackground } from "@/components/SkyBackground";
 import { apiJson, ApiError } from "@/lib/api";
+import { formatPriceCents } from "@/lib/format";
 import { RootStackParamList } from "@/navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -62,12 +63,12 @@ const FRANCHISES: { key: Franchise; label: string; color: string }[] = [
 
 function formatUsd(cents: number | null): string {
   if (cents === null) return "—";
-  return `US$${(cents / 100).toFixed(2)}`;
+  return formatPriceCents(cents, "US$");
 }
 
 function formatAud(cents: number | null): string {
   if (cents === null) return "—";
-  return `AU$${(cents / 100).toFixed(2)}`;
+  return formatPriceCents(cents, "AU$");
 }
 
 function CardImage({ uri }: { uri: string | null }) {

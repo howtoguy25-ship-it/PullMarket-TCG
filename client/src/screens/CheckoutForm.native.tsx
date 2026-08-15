@@ -24,6 +24,7 @@ import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/t
 import { Button } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
+import { formatPriceCents } from "@/lib/format";
 import { SHIPPING_COUNTRIES, SHIPPING_COUNTRY_LABELS } from "@shared/validation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "Checkout">;
@@ -216,20 +217,20 @@ export default function CheckoutForm() {
       <View style={[styles.card, Shadow.card]}>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Subtotal</Text>
-          <Text style={styles.summaryValue}>${(group.subtotalCents / 100).toFixed(2)}</Text>
+          <Text style={styles.summaryValue}>{formatPriceCents(group.subtotalCents)}</Text>
         </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Platform fee</Text>
-          <Text style={styles.summaryValue}>${(group.platformFeeCents / 100).toFixed(2)}</Text>
+          <Text style={styles.summaryValue}>{formatPriceCents(group.platformFeeCents)}</Text>
         </View>
         <View style={[styles.summaryRow, styles.totalRow]}>
           <Text style={styles.summaryTotalLabel}>Total</Text>
-          <Text style={styles.summaryTotalValue}>${(group.totalCents / 100).toFixed(2)}</Text>
+          <Text style={styles.summaryTotalValue}>{formatPriceCents(group.totalCents)}</Text>
         </View>
       </View>
 
       <Button
-        title={submitting || confirming ? "Processing…" : `Pay $${(group.totalCents / 100).toFixed(2)}`}
+        title={submitting || confirming ? "Processing…" : `Pay ${formatPriceCents(group.totalCents)}`}
         onPress={handlePay}
         loading={submitting || confirming}
         disabled={!canPay}

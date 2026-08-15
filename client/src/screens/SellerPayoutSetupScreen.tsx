@@ -8,6 +8,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Spacing, Typography, BorderRadius, Fonts, Shadow } from "@/constants/theme";
 import { Button, Badge } from "@/components/ui";
 import { apiJson, ApiError } from "@/lib/api";
+import { formatPriceCents } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 
 function showAlert(title: string, message: string) {
@@ -29,8 +30,8 @@ function confirmAsync(title: string, message: string, confirmLabel: string): Pro
 }
 
 function formatMoney(cents: number, currency: string | null) {
-  const amount = (cents / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  return currency ? `${currency === "USD" ? "$" : currency + " "}${amount}` : `$${amount}`;
+  if (currency && currency !== "USD") return formatPriceCents(cents, `${currency} `);
+  return formatPriceCents(cents);
 }
 
 interface ConnectStatus {

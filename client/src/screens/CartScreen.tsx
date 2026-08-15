@@ -12,6 +12,7 @@ import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/t
 import { Button, PriceTag, EmptyState } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
+import { formatPriceCents } from "@/lib/format";
 import { resolveImageUrl } from "@/lib/media";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -140,20 +141,20 @@ export default function CartScreen() {
           <View style={styles.summaryBlock}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Subtotal</Text>
-              <Text style={styles.summaryValue}>${(group.subtotalCents / 100).toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>{formatPriceCents(group.subtotalCents)}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Platform fee</Text>
-              <Text style={styles.summaryValue}>${(group.platformFeeCents / 100).toFixed(2)}</Text>
+              <Text style={styles.summaryValue}>{formatPriceCents(group.platformFeeCents)}</Text>
             </View>
             <View style={[styles.summaryRow, { marginTop: 4 }]}>
               <Text style={styles.summaryTotalLabel}>Total</Text>
-              <Text style={styles.summaryTotalValue}>${(group.totalCents / 100).toFixed(2)}</Text>
+              <Text style={styles.summaryTotalValue}>{formatPriceCents(group.totalCents)}</Text>
             </View>
           </View>
 
           <Button
-            title={`Pay Now — $${(group.totalCents / 100).toFixed(2)}`}
+            title={`Pay Now — ${formatPriceCents(group.totalCents)}`}
             onPress={() => handlePay(group.sellerId)}
             loading={webCheckoutMutation.isPending}
             style={{ marginTop: Spacing.md }}

@@ -1,6 +1,7 @@
 import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle, TextStyle, PressableProps } from "react-native";
 import { Colors, Spacing, BorderRadius, Typography, Fonts } from "@/constants/theme";
+import { formatPriceCents } from "@/lib/format";
 
 export function Button({
   title,
@@ -81,7 +82,7 @@ export function Card({ children, style }: { children: React.ReactNode; style?: V
 }
 
 export function PriceTag({ cents, style }: { cents: number; style?: TextStyle }) {
-  return <Text style={[styles.price, style]}>${(cents / 100).toFixed(2)}</Text>;
+  return <Text style={[styles.price, style]}>{formatPriceCents(cents)}</Text>;
 }
 
 export function Badge({ label, color = Colors.primary, textColor = Colors.white, style }: { label: string; color?: string; textColor?: string; style?: ViewStyle }) {

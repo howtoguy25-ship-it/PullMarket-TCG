@@ -8,18 +8,19 @@ import { Feather } from "@expo/vector-icons";
 import { Colors, Spacing, Typography, BorderRadius, Shadow, Fonts } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/types";
 import { EmptyState } from "@/components/ui";
+import { formatPriceCents } from "@/lib/format";
 import type { PriceCard, PricesPage } from "@/screens/PricesScreen";
 
 type Route = RouteProp<RootStackParamList, "PriceCardDetail">;
 
 function formatUsd(cents: number | null): string {
   if (cents === null) return "—";
-  return `US$${(cents / 100).toFixed(2)}`;
+  return formatPriceCents(cents, "US$");
 }
 
 function formatAud(cents: number | null): string {
   if (cents === null) return "—";
-  return `AU$${(cents / 100).toFixed(2)}`;
+  return formatPriceCents(cents, "AU$");
 }
 
 function timeAgo(ms: number | null): string {

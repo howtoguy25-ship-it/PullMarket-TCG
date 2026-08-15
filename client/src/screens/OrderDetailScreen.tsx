@@ -10,6 +10,7 @@ import { Colors, Spacing, Typography, BorderRadius, Shadow, Fonts } from "@/cons
 import { Button, Badge, PriceTag } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
+import { formatPriceCents } from "@/lib/format";
 import { resolveImageUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
 import * as Linking from "expo-linking";
@@ -191,15 +192,15 @@ export default function OrderDetailScreen() {
         </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Subtotal</Text>
-          <Text style={styles.summaryValue}>${(order.subtotalCents / 100).toFixed(2)}</Text>
+          <Text style={styles.summaryValue}>{formatPriceCents(order.subtotalCents)}</Text>
         </View>
         <View style={styles.summaryRow}>
           <Text style={styles.summaryLabel}>Platform fee</Text>
-          <Text style={styles.summaryValue}>${(order.platformFeeCents / 100).toFixed(2)}</Text>
+          <Text style={styles.summaryValue}>{formatPriceCents(order.platformFeeCents)}</Text>
         </View>
         <View style={[styles.summaryRow, styles.summaryTotalRow]}>
           <Text style={styles.summaryTotalLabel}>Total</Text>
-          <Text style={styles.summaryTotalValue}>${(order.totalCents / 100).toFixed(2)}</Text>
+          <Text style={styles.summaryTotalValue}>{formatPriceCents(order.totalCents)}</Text>
         </View>
       </View>
 

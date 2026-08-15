@@ -14,6 +14,7 @@ import { Button } from "@/components/ui";
 import { StarField } from "@/components/StarField";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, describeApiError } from "@/lib/api";
+import { formatPriceCents } from "@/lib/format";
 import { BOOST_TIERS, appleBoostProductId } from "@shared/validation";
 import { useApplePurchaseCatalog } from "@/lib/applePurchase";
 
@@ -126,8 +127,8 @@ export default function BoostListingScreen() {
   const buttonLoading = isIOS ? !!selectedTier && apple.purchasingId === appleBoostProductId(selectedTier.id) : checkoutMutation.isPending;
   const buttonTitle = (() => {
     if (!selectedTier) return "Pick a boost window";
-    if (isIOS) return `Boost — ${selectedApple?.priceLabel ?? `$${(selectedTier.priceCents / 100).toFixed(2)}`}`;
-    return `Boost — $${(selectedTier.finalPriceCents / 100).toFixed(2)}`;
+    if (isIOS) return `Boost — ${selectedApple?.priceLabel ?? formatPriceCents(selectedTier.priceCents)}`;
+    return `Boost — ${formatPriceCents(selectedTier.finalPriceCents)}`;
   })();
 
   const handleBuyPress = () => {
@@ -194,7 +195,7 @@ export default function BoostListingScreen() {
                   const appleEntry = isIOS ? apple.catalog[appleBoostProductId(tier.id)] : undefined;
                   const tierDisabled = isIOS && !appleEntry?.available;
                   const discounted = !isIOS && tier.finalPriceCents < tier.priceCents;
-                  const priceLabel = isIOS ? (appleEntry?.priceLabel ?? `$${(tier.priceCents / 100).toFixed(2)}`) : `$${(tier.finalPriceCents / 100).toFixed(2)}`;
+                  const priceLabel = isIOS ? (appleEntry?.priceLabel ?? formatPriceCents(tier.priceCents)) : formatPriceCents(tier.finalPriceCents);
                   return (
                     <Pressable
                       key={tier.id}
@@ -223,7 +224,7 @@ export default function BoostListingScreen() {
                         </Text>
                       </View>
                       <View style={styles.tierPriceWrap}>
-                        {discounted ? <Text style={styles.tierPriceOriginal}>${(tier.priceCents / 100).toFixed(2)}</Text> : null}
+                        {discounted ? <Text style={styles.tierPriceOriginal}>{formatPriceCents(tier.priceCents)}</Text> : null}
                         <Text style={[styles.tierPrice, active && { color }]}>{priceLabel}</Text>
                       </View>
                     </Pressable>
