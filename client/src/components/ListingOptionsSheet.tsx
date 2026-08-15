@@ -90,7 +90,16 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
 
   const revisionsLeft = Math.max(0, LISTING_REVISION_LIMIT - listing.revisionCount);
   const isUnlisted = listing.status === "unlisted";
-  const isLocked = listing.status === "removed" || listing.status === "deleted";
+  const isRemoved = listing.status === "removed";
+  const isDeleted = listing.status === "deleted";
+  // Removed and deleted listings both stay locked out of edit/boost/unlist —
+  // a moderator removal shouldn't be workable-around by re-editing and
+  // relisting. Delete is a separate, narrower question: it's a soft flip to
+  // status "deleted" (see routes/listings.ts), which doesn't touch the
+  // reports table, so a seller clearing a removed listing off their own
+  // list can't erase moderation history — only an already-deleted listing
+  // has nothing left to delete.
+  const isLocked = isRemoved || isDeleted;
 
   const handleUnlist = async () => {
     const ok = await confirmAsync("Unlist this card?", "It'll come off the marketplace until you relist it. This uses 1 of your remaining edits/unlists.", "Unlist");
@@ -156,7 +165,7 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
                 : "No edits/unlists remaining — create a new listing to make changes"}
             </Text>
           ) : (
-            <Text style={styles.revisionNote}>{listing.status === "removed" ? "This listing was removed by moderation." : "This listing was deleted."}</Text>
+            <Text style={styles.revisionNote}>{isRemoved ? "This listing was removed by moderation — you can still delete it from your list." : "This listing was deleted."}</Text>
           )}
 
           {!isLocked ? (
@@ -171,7 +180,7 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
             </>
           ) : null}
           <Row testID="options-row-share" icon="share-2" label="Share" onPress={handleShare} />
-          {!isLocked ? <Row testID="options-row-delete" icon="trash-2" label="Delete" onPress={handleDelete} loading={busy === "delete"} danger /> : null}
+          {!isDeleted ? <Row testID="options-row-delete" icon="trash-2" label="Delete" onPress={handleDelete} loading={busy === "delete"} danger /> : null}
         </Pressable>
       </Pressable>
     </Modal>

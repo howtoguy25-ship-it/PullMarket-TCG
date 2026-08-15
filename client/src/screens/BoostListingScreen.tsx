@@ -120,7 +120,10 @@ export default function BoostListingScreen() {
   const selectedApple = selectedTier ? apple.catalog[appleBoostProductId(selectedTier.id)] : undefined;
 
   const buttonDisabled = !selectedTier || (isIOS && !selectedApple?.available);
-  const buttonLoading = isIOS ? apple.purchasingId === (selectedTier ? appleBoostProductId(selectedTier.id) : null) : checkoutMutation.isPending;
+  // Not `apple.purchasingId === (selectedTier ? ... : null)` — with no tier
+  // selected yet that compares null to null and is true, permanently
+  // showing the button as loading before anything was ever tapped.
+  const buttonLoading = isIOS ? !!selectedTier && apple.purchasingId === appleBoostProductId(selectedTier.id) : checkoutMutation.isPending;
   const buttonTitle = (() => {
     if (!selectedTier) return "Pick a boost window";
     if (isIOS) return `Boost — ${selectedApple?.priceLabel ?? `$${(selectedTier.priceCents / 100).toFixed(2)}`}`;
