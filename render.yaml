@@ -88,6 +88,17 @@ services:
         sync: false
       - key: EXPO_PUBLIC_APPLE_SERVICES_ID
         value: com.pullmarket.tcg.web
+      # Server-side counterparts of the client's EXPO_PUBLIC_APPLE_IAP_*
+      # vars (set in eas.json/scripts/eas-update-production.sh) — those let
+      # the app FIND and show the purchase button via StoreKit; these let
+      # the server VERIFY the purchase afterwards against Apple's signed
+      # transaction data (see lib/appleSubscription.ts). Both product ids
+      # are public (they're baked into the client bundle anyway), so it's
+      # safe to commit the actual values here rather than sync: false.
+      - key: APPLE_IAP_PRODUCT_ID
+        value: com.pullmarket.tcg.pro_monthly
+      - key: APPLE_IAP_REMOVE_ADS_PRODUCT_ID
+        value: com.pullmarket.tcg.remove_ads
       # Optional — powers real-time AI chat moderation (scam/harassment
       # detection, see server/src/lib/moderation.ts) AND the in-app AI help
       # assistant (Profile > Support > AI Help Assistant, see
