@@ -127,6 +127,12 @@ const STATEMENTS = [
      PRIMARY KEY (user_id, conversation_id)
    );`,
 
+  // app_settings: single global row for owner-controlled runtime toggles
+  `CREATE TABLE IF NOT EXISTS app_settings (
+     id varchar PRIMARY KEY,
+     review_bypass_enabled boolean NOT NULL DEFAULT true
+   );`,
+
   // listing_boosts: paid time-tiered "top of feed" purchases
   `CREATE TABLE IF NOT EXISTS listing_boosts (
      id varchar PRIMARY KEY DEFAULT gen_random_uuid(),

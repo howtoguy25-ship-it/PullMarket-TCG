@@ -3,6 +3,7 @@ import { otpCodes } from "@shared/schema";
 import { and, desc, eq, gt, lt, or, isNull, sql } from "drizzle-orm";
 import { sendSms } from "./sms";
 import { sendEmail } from "./mailer";
+import { isReviewBypassEnabled } from "./appSettings";
 
 const OTP_TTL_MINUTES = 10;
 const MAX_ATTEMPTS = 5;
@@ -24,7 +25,13 @@ function generateCode(): string {
 }
 
 export async function issueOtp(destination: string, channel: "sms" | "email", purpose: "signin" | "signup") {
-  if (destination === REVIEWER_PHONE) return; // fixed code below, nothing to actually send
+  if (destination === REVIEWER_PHONE) {
+    if (await isReviewBypassEnabled()) return; // fixed code below, nothing to actually send
+    // Owner switched the bypass off (Owner Panel > App Review sign-in) —
+    // fall through to the real flow below, same as any other destination.
+    // A generated code gets sent to this fictional number and is never
+    // delivered to anyone, so sign-in for it is now effectively impossible.
+  }
 
   // Invalidate any still-outstanding codes for this destination first, so
   // verify always checks against the code that was just sent — otherwise a
@@ -45,10 +52,14 @@ export async function issueOtp(destination: string, channel: "sms" | "email", pu
 }
 
 export async function verifyOtp(destination: string, code: string): Promise<boolean> {
-  // Never expires, never consumed, no DB row involved — App Review may test
-  // sign-in more than once, on different days, and it must keep working
-  // every time. See REVIEWER_PHONE above.
-  if (destination === REVIEWER_PHONE) return code === REVIEWER_OTP_CODE;
+  if (destination === REVIEWER_PHONE) {
+    // Never expires, never consumed, no DB row involved — App Review may
+    // test sign-in more than once, on different days, and it must keep
+    // working every time. See REVIEWER_PHONE above. Once the owner turns
+    // the bypass off, this stops short-circuiting and falls through to the
+    // real check below, which the fixed code can no longer satisfy.
+    if (await isReviewBypassEnabled()) return code === REVIEWER_OTP_CODE;
+  }
 
   // Claiming the code is a single atomic UPDATE, not a SELECT followed by a
   // separate UPDATE — the old two-step version had a real race: iOS's SMS

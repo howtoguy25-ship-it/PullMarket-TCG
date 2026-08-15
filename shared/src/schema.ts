@@ -241,6 +241,17 @@ export const listingBoostsRelations = relations(listingBoosts, ({ one }) => ({
   user: one(users, { fields: [listingBoosts.userId], references: [users.id] }),
 }));
 
+// ─── App settings ────────────────────────────────────────────────────────
+// A single global row (id is always the literal "global") for app-wide
+// toggles an owner needs to flip live, without a redeploy. Currently just
+// the App Review sign-in bypass (see server/src/lib/otp.ts) — the owner
+// panel lets it be switched off once Apple's review is done, so the fixed
+// test phone number/code stops working for anyone else.
+export const appSettings = pgTable("app_settings", {
+  id: varchar("id").primaryKey(),
+  reviewBypassEnabled: boolean("review_bypass_enabled").notNull().default(true),
+});
+
 // ─── Favorites ───────────────────────────────────────────────────────────
 export const favorites = pgTable(
   "favorites",
@@ -789,6 +800,7 @@ export type MessageAttachment = typeof messageAttachments.$inferSelect;
 export type MessageDeletion = typeof messageDeletions.$inferSelect;
 export type Block = typeof blocks.$inferSelect;
 export type ConversationSetting = typeof conversationSettings.$inferSelect;
+export type AppSettings = typeof appSettings.$inferSelect;
 export type Condition = (typeof CONDITIONS)[number];
 export type Franchise = (typeof FRANCHISES)[number];
 export type Courier = (typeof COURIERS)[number];

@@ -6,6 +6,7 @@ import { desc, eq, inArray, sql } from "drizzle-orm";
 import { authenticateToken, requireOwner } from "../middleware/auth";
 import { sendEmail } from "../lib/mailer";
 import { notifyUser } from "../lib/notify";
+import { isReviewBypassEnabled, setReviewBypassEnabled } from "../lib/appSettings";
 
 const router = Router();
 router.use(authenticateToken, requireOwner);
@@ -218,6 +219,18 @@ router.post("/users/:id/unsuspend", async (req, res) => {
 router.get("/orders", async (_req, res) => {
   const rows = await db.select().from(orders).orderBy(desc(orders.createdAt)).limit(500);
   res.json(rows);
+});
+
+// ── App-wide runtime settings (currently just the App Review sign-in
+// bypass — see server/src/lib/otp.ts) ─────────────────────────────────────
+router.get("/settings", async (_req, res) => {
+  res.json({ reviewBypassEnabled: await isReviewBypassEnabled() });
+});
+
+router.post("/settings/review-bypass", async (req, res) => {
+  const parsed = z.object({ enabled: z.boolean() }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Invalid request" });
+  res.json({ reviewBypassEnabled: await setReviewBypassEnabled(parsed.data.enabled) });
 });
 
 export default router;
