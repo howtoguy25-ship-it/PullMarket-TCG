@@ -6,7 +6,7 @@ import { and, desc, eq, gt, gte, ilike, inArray, isNull, lte, or, sql } from "dr
 import { authenticateToken, optionalAuth } from "../middleware/auth";
 import { upload, saveUploadedFile } from "../lib/upload";
 import { CONDITIONS, FRANCHISES } from "@shared/schema";
-import { detectFranchise, isActivePro, PRO_LISTING_BOOST_HOURS, LISTING_REVISION_LIMIT } from "@shared/validation";
+import { isActivePro, PRO_LISTING_BOOST_HOURS, LISTING_REVISION_LIMIT } from "@shared/validation";
 import { notifyUsers } from "../lib/notify";
 import { rankBoostedListings, interleaveBoostedListings, DEFAULT_BOOST_WEIGHT_PRICE_CENTS } from "../lib/feedRanking";
 
@@ -221,17 +221,14 @@ router.post("/", authenticateToken, upload.array("images", 6), async (req, res) 
     priceCents: z.coerce.number().int().min(50).max(100_000_00),
     condition: z.enum(CONDITIONS),
     quantityTotal: z.coerce.number().int().min(1).max(999).default(1),
+    // The seller picks this explicitly on the Sell screen — it's the real
+    // source of truth for what a listing is, not a guess parsed out of
+    // whatever words happen to appear in the title/description.
+    franchise: z.enum(["pokemon", "one_piece"]),
   });
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid listing" });
-  const { title, description, priceCents, condition, quantityTotal } = parsed.data;
-
-  const franchise = detectFranchise(title, description);
-  if (!franchise) {
-    return res.status(400).json({
-      message: 'The title or description must mention "Pokémon" or "One Piece" so buyers can find it.',
-    });
-  }
+  const { title, description, priceCents, condition, quantityTotal, franchise } = parsed.data;
 
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   if (files.length === 0) {
@@ -266,11 +263,10 @@ router.post("/", authenticateToken, upload.array("images", 6), async (req, res) 
   );
 
   // Notify anyone subscribed to "new card" alerts for this franchise.
-  const franchisesToNotify = franchise === "both" ? ["pokemon", "one_piece"] : [franchise];
   const subscribers = await db
     .select({ userId: franchiseSubscriptions.userId })
     .from(franchiseSubscriptions)
-    .where(and(inArray(franchiseSubscriptions.franchise, franchisesToNotify), sql`${franchiseSubscriptions.userId} != ${req.user!.id}`));
+    .where(and(eq(franchiseSubscriptions.franchise, franchise), sql`${franchiseSubscriptions.userId} != ${req.user!.id}`));
   if (subscribers.length > 0) {
     await notifyUsers(
       subscribers.map((s) => s.userId),
@@ -325,10 +321,6 @@ router.patch("/:id", authenticateToken, async (req, res) => {
   if (isRealEdit) {
     if (listing.revisionCount >= LISTING_REVISION_LIMIT) {
       return res.status(403).json({ message: `You've used your ${LISTING_REVISION_LIMIT} edits for this listing. Create a new listing instead.` });
-    }
-    if (parsed.data.title) {
-      const franchise = detectFranchise(parsed.data.title, parsed.data.description ?? listing.description);
-      if (!franchise) return res.status(400).json({ message: 'The title or description must mention "Pokémon" or "One Piece" so buyers can find it.' });
     }
   }
 

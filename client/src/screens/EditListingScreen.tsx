@@ -10,7 +10,7 @@ import { Button } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, describeApiError } from "@/lib/api";
 import { invalidateListingsQueries } from "@/lib/queryClient";
-import { CONDITION_LABELS, titleMentionsFranchise, LISTING_REVISION_LIMIT } from "@shared/validation";
+import { CONDITION_LABELS, LISTING_REVISION_LIMIT } from "@shared/validation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "EditListing">;
 type Rt = RouteProp<RootStackParamList, "EditListing">;
@@ -61,7 +61,6 @@ export default function EditListingScreen() {
     }
   }, [listing, hydrated]);
 
-  const franchiseOk = titleMentionsFranchise(title);
   const revisionsLeft = listing ? Math.max(0, LISTING_REVISION_LIMIT - listing.revisionCount) : 0;
 
   const saveMutation = useMutation({
@@ -81,7 +80,7 @@ export default function EditListingScreen() {
     onError: (err) => showAlert("Couldn't save changes", describeApiError(err)),
   });
 
-  const canSubmit = title.trim().length >= 3 && franchiseOk && parseFloat(price || "0") >= 0.5 && revisionsLeft > 0;
+  const canSubmit = title.trim().length >= 3 && parseFloat(price || "0") >= 0.5 && revisionsLeft > 0;
 
   if (isLoading || !listing) {
     return (
@@ -104,7 +103,6 @@ export default function EditListingScreen() {
 
       <Text style={styles.label}>Title</Text>
       <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="Card title" placeholderTextColor={Colors.textMuted} />
-      {title.length > 0 && !franchiseOk ? <Text style={styles.errorText}>Title must mention "Pokémon" or "One Piece" so buyers can find it.</Text> : null}
 
       <Text style={styles.label}>Description</Text>
       <TextInput
@@ -157,7 +155,6 @@ const styles = StyleSheet.create({
   label: { ...Typography.bodyBold, color: Colors.text, marginBottom: Spacing.xs, marginTop: Spacing.md },
   input: { borderWidth: 1.5, borderColor: Colors.border, borderRadius: BorderRadius.lg, paddingHorizontal: Spacing.md, paddingVertical: 12, backgroundColor: Colors.surface, fontSize: 15, color: Colors.text },
   textArea: { minHeight: 90, textAlignVertical: "top" },
-  errorText: { ...Typography.small, color: Colors.danger, marginTop: 6 },
   priceRow: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderColor: Colors.border, borderRadius: BorderRadius.lg, backgroundColor: Colors.surface, paddingHorizontal: Spacing.md },
   dollarSign: { ...Typography.h3, color: Colors.textSecondary },
   priceInput: { flex: 1, paddingVertical: 12, paddingHorizontal: Spacing.xs, fontSize: 18, color: Colors.text, borderWidth: 0 },

@@ -18,7 +18,7 @@ import { RootStackParamList } from "@/navigation/types";
 import { apiRequest, ApiError } from "@/lib/api";
 import { invalidateListingsQueries } from "@/lib/queryClient";
 import { appendImageToFormData } from "@/lib/formDataImage";
-import { CONDITION_LABELS, titleMentionsFranchise, SHIPPING_DEADLINE_BUSINESS_DAYS } from "@shared/validation";
+import { CONDITION_LABELS, SHIPPING_DEADLINE_BUSINESS_DAYS } from "@shared/validation";
 import { useAuth } from "@/contexts/AuthContext";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -154,8 +154,6 @@ export default function SellScreen() {
   const [condition, setCondition] = useState<string>("brand_new");
   const [quantity, setQuantity] = useState(1);
 
-  const franchiseOk = titleMentionsFranchise(title);
-
   const submitMutation = useMutation({
     mutationFn: async () => {
       const formData = new FormData();
@@ -164,6 +162,7 @@ export default function SellScreen() {
       formData.append("priceCents", String(Math.round(parseFloat(price || "0") * 100)));
       formData.append("condition", condition);
       formData.append("quantityTotal", String(quantity));
+      formData.append("franchise", franchise!);
       for (let i = 0; i < images.length; i++) {
         await appendImageToFormData(formData, images[i], i);
       }
@@ -224,7 +223,7 @@ export default function SellScreen() {
     });
   };
 
-  const canSubmit = images.length > 0 && !!franchise && title.trim().length >= 3 && franchiseOk && parseFloat(price || "0") >= 0.5;
+  const canSubmit = images.length > 0 && !!franchise && title.trim().length >= 3 && parseFloat(price || "0") >= 0.5;
 
   if (!user) {
     return (
@@ -325,8 +324,7 @@ export default function SellScreen() {
         </Section>
 
         <Section icon="type" title="Title">
-          <ModernInput style={styles.input} placeholder='e.g. "Charizard VMAX Pokémon Rainbow Rare"' placeholderTextColor={Colors.textMuted} value={title} onChangeText={setTitle} />
-          {title.length > 0 && !franchiseOk ? <Text style={styles.errorText}>Title must mention "Pokémon" or "One Piece" so buyers can find it.</Text> : null}
+          <ModernInput style={styles.input} placeholder='e.g. "Charizard VMAX Rainbow Rare"' placeholderTextColor={Colors.textMuted} value={title} onChangeText={setTitle} />
         </Section>
 
         <Section icon="align-left" title="Description">
@@ -459,7 +457,6 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1.5, borderColor: Colors.border, borderRadius: BorderRadius.lg, paddingHorizontal: Spacing.md, paddingVertical: 12, backgroundColor: Colors.background, fontSize: 15, color: Colors.text },
   inputFocused: { borderColor: "#7C3AED", shadowColor: "#7C3AED", shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.25, shadowRadius: 8, elevation: 3 },
   textArea: { minHeight: 90, textAlignVertical: "top" },
-  errorText: { ...Typography.small, color: Colors.danger, marginTop: 6 },
   priceInputRow: { flexDirection: "row", alignItems: "center", borderWidth: 1.5, borderColor: Colors.border, borderRadius: BorderRadius.lg, backgroundColor: Colors.background, paddingHorizontal: Spacing.md },
   dollarSign: { ...Typography.h3, color: Colors.textSecondary },
   priceInput: { flex: 1, paddingVertical: 12, paddingHorizontal: Spacing.xs, fontSize: 18, color: Colors.text, borderWidth: 0 },

@@ -116,24 +116,6 @@ export function isActivePro(user: { proStatus: string; proCurrentPeriodEnd: stri
   return new Date(user.proCurrentPeriodEnd).getTime() > Date.now();
 }
 
-const POKEMON_RE = /pok[eé]mon/i;
-const ONE_PIECE_RE = /one\s*piece/i;
-
-/** Every listing title must reference at least one of the two franchises. */
-export function detectFranchise(title: string, description: string): "pokemon" | "one_piece" | "both" | null {
-  const text = `${title} ${description}`;
-  const hasPokemon = POKEMON_RE.test(text);
-  const hasOnePiece = ONE_PIECE_RE.test(text);
-  if (hasPokemon && hasOnePiece) return "both";
-  if (hasPokemon) return "pokemon";
-  if (hasOnePiece) return "one_piece";
-  return null;
-}
-
-export function titleMentionsFranchise(title: string): boolean {
-  return POKEMON_RE.test(title) || ONE_PIECE_RE.test(title);
-}
-
 // ─── Courier tracking-number format validation ──────────────────────────
 // These match the real public numbering formats each carrier documents.
 // This is FORMAT validation only — it confirms the string is shaped like a
