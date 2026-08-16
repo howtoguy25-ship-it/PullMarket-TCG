@@ -12,6 +12,7 @@ import { registerRoutes } from "./routes";
 import webhookRoutes from "./routes/webhook";
 import { setupCallSignaling } from "./lib/callSignaling";
 import { startAutoUnlistScheduler } from "./lib/autoUnlist";
+import { startShippingDeadlineScheduler } from "./lib/shippingDeadlineSweeper";
 import { privacyPolicyHtml, supportHtml } from "./lib/staticPages";
 
 const app = express();
@@ -98,6 +99,7 @@ function setupErrorHandler(app: express.Application) {
   const server = await registerRoutes(app);
   setupCallSignaling(server);
   startAutoUnlistScheduler();
+  startShippingDeadlineScheduler();
 
   if (process.env.NODE_ENV === "production") {
     serveWebBuildInProduction(app);

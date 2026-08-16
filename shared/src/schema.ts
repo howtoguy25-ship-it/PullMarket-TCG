@@ -360,6 +360,11 @@ export const orders = pgTable(
     shippingDeadline: timestamp("shipping_deadline"), // createdAt + 5 business days, set on payment
     shippedAt: timestamp("shipped_at"),
     deliveredAt: timestamp("delivered_at"),
+    // Set once by the shipping-deadline sweeper (see lib/shippingDeadlineSweeper.ts)
+    // the first time it finds this order still unpaid-for-shipping past its
+    // deadline — an auto-generated report is filed for the owner and both
+    // sides are notified. Prevents re-flagging the same order every sweep.
+    shippingOverdueFlaggedAt: timestamp("shipping_overdue_flagged_at"),
 
     refundRequestedAt: timestamp("refund_requested_at"),
     refundReason: text("refund_reason"),

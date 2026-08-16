@@ -73,6 +73,9 @@ const STATEMENTS = [
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_tracking_verified boolean;`,
   `ALTER TABLE orders ADD COLUMN IF NOT EXISTS custom_tracking_note text;`,
 
+  // orders: real shipping-deadline enforcement sweep marker
+  `ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_overdue_flagged_at timestamp;`,
+
   // messages: reply / forward / delete-for-everyone
   `ALTER TABLE messages ADD COLUMN IF NOT EXISTS reply_to_message_id varchar REFERENCES messages(id) ON DELETE SET NULL;`,
   `ALTER TABLE messages ADD COLUMN IF NOT EXISTS forwarded boolean NOT NULL DEFAULT false;`,

@@ -56,6 +56,7 @@ router.get("/reports/:id", async (req, res) => {
 
   const listing = report.listingId ? (await db.select().from(listings).where(eq(listings.id, report.listingId)))[0] : null;
   const images = listing ? await db.select().from(listingImages).where(eq(listingImages.listingId, listing.id)) : [];
+  const order = report.orderId ? (await db.select().from(orders).where(eq(orders.id, report.orderId)))[0] ?? null : null;
 
   let message: { id: string; text: string | null; createdAt: Date | null } | null = null;
   let recentMessages: { senderId: string; text: string | null; createdAt: Date | null }[] = [];
@@ -77,6 +78,7 @@ router.get("/reports/:id", async (req, res) => {
     reporter,
     reportedUser,
     listing: listing ? { ...listing, images: images.map((i) => i.url) } : null,
+    order,
     flaggedMessage: message,
     recentMessages,
   });

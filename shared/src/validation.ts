@@ -192,6 +192,7 @@ export const REPORT_REASON_LABELS: Record<string, string> = {
   inappropriate: "Inappropriate content",
   harassment: "Harassment or threats",
   screenshot_detected: "Screenshotted buyer delivery info",
+  missed_shipping_deadline: "Seller missed the shipping deadline",
   other: "Other",
 };
 

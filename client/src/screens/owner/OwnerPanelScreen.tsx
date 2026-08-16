@@ -27,7 +27,7 @@ const STATUS_COLORS: Record<string, string> = { pending: Colors.warning, reviewe
 
 interface OwnerReport {
   id: string;
-  source: "user" | "ai_moderation";
+  source: "user" | "ai_moderation" | "system";
   reason: string;
   description: string;
   status: string;
@@ -35,7 +35,13 @@ interface OwnerReport {
   reporter: { username: string; email: string | null; phoneNumber: string | null } | null;
   reportedUser: { username: string } | null;
   listing: { title: string } | null;
+  order: { id: string; totalCents: number } | null;
 }
+
+const SOURCE_META: Record<string, { label: string; icon: React.ComponentProps<typeof Feather>["name"]; color: string }> = {
+  ai_moderation: { label: "AI", icon: "cpu", color: Colors.secondary },
+  system: { label: "Auto", icon: "clock", color: Colors.warning },
+};
 
 interface OwnerSettings {
   reviewBypassEnabled: boolean;
@@ -113,17 +119,20 @@ export default function OwnerPanelScreen() {
             <View style={styles.cardHeader}>
               <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
                 <Badge label={REPORT_REASON_LABELS[item.reason] ?? item.reason} color={STATUS_COLORS[item.status]} />
-                {item.source === "ai_moderation" ? (
-                  <View style={styles.aiChip}>
-                    <Feather name="cpu" size={10} color={Colors.white} />
+                {SOURCE_META[item.source] ? (
+                  <View style={[styles.aiChip, { backgroundColor: SOURCE_META[item.source].color }]}>
+                    <Feather name={SOURCE_META[item.source].icon} size={10} color={Colors.white} />
                   </View>
                 ) : null}
               </View>
               <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
             </View>
-            <Text style={styles.reporterName}>{item.reporter ? `From @${item.reporter.username}` : "Detected by AI Moderation"}</Text>
+            <Text style={styles.reporterName}>
+              {item.reporter ? `From @${item.reporter.username}` : item.source === "system" ? "Auto-filed by the shipping-deadline sweep" : "Detected by AI Moderation"}
+            </Text>
             {item.listing ? <Text style={styles.listingTitle}>Re: {item.listing.title}</Text> : null}
             {item.reportedUser ? <Text style={styles.listingTitle}>Re: @{item.reportedUser.username}</Text> : null}
+            {item.order ? <Text style={styles.listingTitle}>Order #{item.order.id.slice(0, 8)} · ${(item.order.totalCents / 100).toFixed(2)}</Text> : null}
             <Text style={styles.description} numberOfLines={2}>
               {item.description}
             </Text>

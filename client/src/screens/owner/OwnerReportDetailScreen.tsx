@@ -50,7 +50,7 @@ interface ThreadMessage {
 
 interface OwnerReportDetail {
   id: string;
-  source: "user" | "ai_moderation";
+  source: "user" | "ai_moderation" | "system";
   reason: string;
   description: string;
   aiReasoning: string | null;
@@ -59,9 +59,12 @@ interface OwnerReportDetail {
   reporter: ReportUser | null;
   reportedUser: ReportUser | null;
   listing: { title: string; images: string[] } | null;
+  order: { id: string; status: string; totalCents: number; trackingNumber: string | null } | null;
   flaggedMessage: { text: string | null } | null;
   recentMessages: ThreadMessage[];
 }
+
+const SOURCE_LABELS: Record<string, string> = { ai_moderation: "AI-flagged", system: "Auto-flagged" };
 
 const STATUS_COLORS: Record<string, string> = { pending: Colors.warning, reviewed: Colors.secondary, actioned: Colors.success, dismissed: Colors.textMuted };
 
@@ -139,16 +142,16 @@ export default function OwnerReportDetailScreen() {
       </View>
       <View style={styles.badgeRow}>
         <Badge label={REPORT_REASON_LABELS[report.reason] ?? report.reason} color={Colors.danger} />
-        {report.source === "ai_moderation" ? (
+        {SOURCE_LABELS[report.source] ? (
           <View style={styles.aiBadge}>
-            <Feather name="cpu" size={12} color={Colors.white} />
-            <Text style={styles.aiBadgeText}>AI-flagged</Text>
+            <Feather name={report.source === "system" ? "clock" : "cpu"} size={12} color={Colors.white} />
+            <Text style={styles.aiBadgeText}>{SOURCE_LABELS[report.source]}</Text>
           </View>
         ) : null}
       </View>
 
       <View style={styles.customerCard}>
-        <Text style={styles.label}>{report.source === "ai_moderation" ? "Detected by" : "Reported by"}</Text>
+        <Text style={styles.label}>{report.source === "ai_moderation" ? "Detected by" : report.source === "system" ? "Filed by" : "Reported by"}</Text>
         {report.reporter ? (
           <>
             <Text style={styles.value}>@{report.reporter.username}</Text>
@@ -156,7 +159,7 @@ export default function OwnerReportDetailScreen() {
             {report.reporter.phoneNumber ? <Text style={styles.valueSecondary}>{report.reporter.phoneNumber}</Text> : null}
           </>
         ) : (
-          <Text style={styles.value}>PullMarket AI Moderation</Text>
+          <Text style={styles.value}>{report.source === "system" ? "Shipping-deadline sweep" : "PullMarket AI Moderation"}</Text>
         )}
       </View>
 
@@ -164,6 +167,16 @@ export default function OwnerReportDetailScreen() {
         <View style={styles.customerCard}>
           <Text style={styles.label}>Reported user</Text>
           <Text style={styles.value}>@{report.reportedUser.username}</Text>
+        </View>
+      ) : null}
+
+      {report.order ? (
+        <View style={styles.customerCard}>
+          <Text style={styles.label}>Order</Text>
+          <Text style={styles.value}>
+            #{report.order.id.slice(0, 8)} · ${(report.order.totalCents / 100).toFixed(2)} · {report.order.status}
+          </Text>
+          {report.order.trackingNumber ? <Text style={styles.valueSecondary}>Tracking: {report.order.trackingNumber}</Text> : <Text style={styles.valueSecondary}>No tracking number entered</Text>}
         </View>
       ) : null}
 
