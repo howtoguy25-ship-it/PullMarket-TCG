@@ -16,6 +16,7 @@ import { MyListingsPanel } from "@/components/MyListingsPanel";
 import { StarField } from "@/components/StarField";
 import { RootStackParamList } from "@/navigation/types";
 import { apiRequest, ApiError } from "@/lib/api";
+import { invalidateListingsQueries } from "@/lib/queryClient";
 import { appendImageToFormData } from "@/lib/formDataImage";
 import { CONDITION_LABELS, titleMentionsFranchise, SHIPPING_DEADLINE_BUSINESS_DAYS } from "@shared/validation";
 import { useAuth } from "@/contexts/AuthContext";
@@ -169,7 +170,7 @@ export default function SellScreen() {
       return apiRequest("POST", "/api/listings", formData, true);
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+      await invalidateListingsQueries(queryClient);
       showAlert("Listed!", "Your card is now live on the marketplace.");
       setImages([]);
       setFranchise(null);

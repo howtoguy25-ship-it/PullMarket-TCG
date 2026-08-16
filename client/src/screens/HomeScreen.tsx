@@ -19,6 +19,7 @@ import { FloatingHoloCards } from "@/components/FloatingHoloCards";
 import { useHomeBackground } from "@/contexts/HomeBackgroundContext";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson } from "@/lib/api";
+import { invalidateListingsQueries } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCartCount } from "@/hooks/useCartCount";
 import { useUnreadNotifications } from "@/hooks/useUnreadNotifications";
@@ -163,7 +164,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+    await invalidateListingsQueries(queryClient);
     setRefreshing(false);
   };
 

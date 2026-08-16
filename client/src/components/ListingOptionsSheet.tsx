@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { apiJson, describeApiError } from "@/lib/api";
+import { invalidateListingsQueries } from "@/lib/queryClient";
 import { RootStackParamList } from "@/navigation/types";
 import { LISTING_REVISION_LIMIT } from "@shared/validation";
 
@@ -54,9 +55,7 @@ export function ListingOptionsSheet({ visible, listing, onClose }: { visible: bo
   const listingId = listing?.id ?? "";
 
   const invalidateAll = () => {
-    queryClient.invalidateQueries({ queryKey: ["/api/listings/mine"] });
-    queryClient.invalidateQueries({ queryKey: [`/api/listings/${listingId}`] });
-    queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+    invalidateListingsQueries(queryClient);
   };
 
   const unlistMutation = useMutation({

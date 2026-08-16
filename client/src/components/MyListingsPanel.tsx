@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui";
 import { PriceTag } from "@/components/ui";
 import { ListingOptionsSheet } from "@/components/ListingOptionsSheet";
 import { apiJson, describeApiError } from "@/lib/api";
+import { invalidateListingsQueries } from "@/lib/queryClient";
 import { resolveImageUrl } from "@/lib/media";
 import { RootStackParamList } from "@/navigation/types";
 import { CONDITION_LABELS, LISTING_REVISION_LIMIT } from "@shared/validation";
@@ -53,9 +54,7 @@ function StockEditor({ listing }: { listing: MyListing }) {
   const stockMutation = useMutation({
     mutationFn: (quantityAvailable: number) => apiJson("PATCH", `/api/listings/${listing.id}/stock`, { quantityAvailable }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/listings/mine"] });
-      queryClient.invalidateQueries({ queryKey: [`/api/listings/${listing.id}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+      invalidateListingsQueries(queryClient);
       setExpanded(false);
     },
     onError: (err) => showAlert("Couldn't update stock", describeApiError(err)),

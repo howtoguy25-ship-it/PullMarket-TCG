@@ -7,6 +7,7 @@ import { Feather } from "@expo/vector-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography } from "@/constants/theme";
 import { Button } from "@/components/ui";
+import { invalidateListingsQueries } from "@/lib/queryClient";
 import { RootStackParamList } from "@/navigation/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "BoostReturn">;
@@ -21,9 +22,7 @@ export default function BoostReturnScreen() {
   const listingId = route.params?.listingId;
 
   if (success) {
-    void queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
-    void queryClient.invalidateQueries({ queryKey: ["/api/listings/mine"] });
-    if (listingId) void queryClient.invalidateQueries({ queryKey: [`/api/listings/${listingId}`] });
+    void invalidateListingsQueries(queryClient);
   }
 
   const goToListing = () => {

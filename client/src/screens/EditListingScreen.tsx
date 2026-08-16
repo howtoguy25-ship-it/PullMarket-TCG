@@ -9,6 +9,7 @@ import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, describeApiError } from "@/lib/api";
+import { invalidateListingsQueries } from "@/lib/queryClient";
 import { CONDITION_LABELS, titleMentionsFranchise, LISTING_REVISION_LIMIT } from "@shared/validation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "EditListing">;
@@ -73,11 +74,7 @@ export default function EditListingScreen() {
         quantityTotal: quantity,
       }),
     onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: [`/api/listings/${listingId}`] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/listings/mine"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/listings"] }),
-      ]);
+      await invalidateListingsQueries(queryClient);
       showAlert("Saved", "Your listing has been updated.");
       navigation.goBack();
     },

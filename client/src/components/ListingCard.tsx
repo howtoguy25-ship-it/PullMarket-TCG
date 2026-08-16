@@ -5,6 +5,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, BorderRadius, Typography, Shadow } from "@/constants/theme";
 import { apiJson, describeApiError } from "@/lib/api";
+import { invalidateListingsQueries } from "@/lib/queryClient";
 import { resolveImageUrl } from "@/lib/media";
 import { useAuth } from "@/contexts/AuthContext";
 import { PriceTag, Badge } from "./ui";
@@ -57,7 +58,7 @@ export function ListingCard({
     mutationFn: () => apiJson<{ favorited: boolean }>("POST", `/api/favorites/${listing.id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/favorites"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/listings"] });
+      invalidateListingsQueries(queryClient);
     },
     onError: (err) => showError(describeApiError(err)),
   });
