@@ -82,6 +82,11 @@ export function interleaveBoostedListings<T extends { id: string }>(
   const configuredInterval = opts.slotInterval ?? SPONSORED_SLOT_INTERVAL;
   const maxAppearancesPerBoost = opts.maxAppearancesPerBoost ?? MAX_APPEARANCES_PER_BOOST;
   if (boostedRanked.length === 0) return organicRanked;
+  // The main loop below is driven by `organicIdx < organicRanked.length`,
+  // so with zero organic listings it never runs even once — every boosted
+  // listing would silently vanish from the feed instead of being shown on
+  // its own, which is the real bug this early return exists to prevent.
+  if (organicRanked.length === 0) return boostedRanked;
 
   // The loop below stops once organic supply runs out (a feed never
   // outlasts its real inventory), which means every boosted listing needs
