@@ -330,21 +330,21 @@ export default function ProfileScreen() {
 
       <Pressable onPress={() => navigation.navigate("Subscription")}>
         <LinearGradient
-          colors={isActivePro(user) ? ["#3B1E6B", "#B8860B"] : [Colors.surface, Colors.surface]}
+          colors={isActivePro(user) ? ["#3B1E6B", "#B8860B"] : ["#2A1750", "#8B5A0F"]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={[styles.proBanner, !isActivePro(user) && styles.proBannerInactive]}
+          style={styles.proBanner}
         >
-          <View style={[styles.proBannerIcon, isActivePro(user) && styles.proBannerIconActive]}>
-            <Feather name="star" size={18} color={isActivePro(user) ? Colors.white : Colors.goldDark} />
+          <View style={[styles.proBannerIcon, styles.proBannerIconActive]}>
+            <Feather name="star" size={18} color={Colors.white} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.proBannerTitle, isActivePro(user) && styles.proBannerTitleActive]}>{isActivePro(user) ? "PullMarket Pro" : "Go Pro"}</Text>
-            <Text style={[styles.proBannerSubtitle, isActivePro(user) && styles.proBannerSubtitleActive]}>
+            <Text style={[styles.proBannerTitle, styles.proBannerTitleActive]}>{isActivePro(user) ? "PullMarket Pro" : "Go Pro"}</Text>
+            <Text style={[styles.proBannerSubtitle, styles.proBannerSubtitleActive]}>
               {isActivePro(user) ? "Followers, verified tick, listing boost & search recognition" : "Followers, verified tick, listing boost & search recognition — $19.99/mo"}
             </Text>
           </View>
-          <Feather name="chevron-right" size={18} color={isActivePro(user) ? "rgba(255,255,255,0.85)" : Colors.textMuted} />
+          <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.85)" />
         </LinearGradient>
       </Pressable>
 
@@ -513,8 +513,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     ...Shadow.card,
   },
-  proBannerInactive: { borderWidth: 1, borderColor: Colors.gold + "55" },
-  proBannerIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: Colors.gold + "26", alignItems: "center", justifyContent: "center" },
+  proBannerIcon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   proBannerIconActive: { backgroundColor: "rgba(255,255,255,0.2)" },
   proBannerTitle: { ...Typography.bodyBold, color: Colors.text },
   proBannerTitleActive: { color: Colors.white },
