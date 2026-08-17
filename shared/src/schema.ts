@@ -173,6 +173,14 @@ export const listings = pgTable(
     // boostedUntil — so stacking multiple paid boosts (or buying one while
     // the free Pro perk is still active) adds up rather than overwriting.
     boostedUntil: timestamp("boosted_until"),
+    // A real pause: boostedUntil is cleared (so isBoosted immediately goes
+    // false — no sponsored placement while paused) and the exact time that
+    // was left gets frozen here in milliseconds. Resuming sets boostedUntil
+    // back to now + boostPausedRemainingMs, picking up exactly where it left
+    // off. If the window fully ran out before anyone paused it, boostedUntil
+    // just ends up in the past — genuinely finished, nothing to resume.
+    boostPaused: boolean("boost_paused").notNull().default(false),
+    boostPausedRemainingMs: integer("boost_paused_remaining_ms"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
   },

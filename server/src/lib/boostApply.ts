@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { listings, listingBoosts } from "@shared/schema";
+import { listings, listingBoosts, users } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { getBoostTierById, formatBoostDuration } from "@shared/validation";
 import { notifyUser } from "./notify";
@@ -39,14 +39,26 @@ export async function applyListingBoost(args: ApplyListingBoostArgs): Promise<vo
     if (existing) return;
   }
 
-  const [listing] = await db.select({ boostedUntil: listings.boostedUntil }).from(listings).where(eq(listings.id, listingId));
+  const [listing] = await db
+    .select({ title: listings.title, sellerId: listings.sellerId, boostedUntil: listings.boostedUntil, boostPaused: listings.boostPaused, boostPausedRemainingMs: listings.boostPausedRemainingMs })
+    .from(listings)
+    .where(eq(listings.id, listingId));
   if (!listing) return;
 
   const now = new Date();
-  const base = listing.boostedUntil && listing.boostedUntil.getTime() > now.getTime() ? listing.boostedUntil : now;
-  const newBoostedUntil = new Date(base.getTime() + tier.durationHours * 60 * 60 * 1000);
+  const durationMs = tier.durationHours * 60 * 60 * 1000;
 
-  await db.update(listings).set({ boostedUntil: newBoostedUntil, updatedAt: now }).where(eq(listings.id, listingId));
+  // A listing the seller has explicitly paused stays paused through a new
+  // purchase — it just adds the extra time to what's frozen, rather than
+  // silently un-pausing a decision the seller made on purpose.
+  if (listing.boostPaused) {
+    const newRemainingMs = (listing.boostPausedRemainingMs ?? 0) + durationMs;
+    await db.update(listings).set({ boostPausedRemainingMs: newRemainingMs, updatedAt: now }).where(eq(listings.id, listingId));
+  } else {
+    const base = listing.boostedUntil && listing.boostedUntil.getTime() > now.getTime() ? listing.boostedUntil : now;
+    const newBoostedUntil = new Date(base.getTime() + durationMs);
+    await db.update(listings).set({ boostedUntil: newBoostedUntil, updatedAt: now }).where(eq(listings.id, listingId));
+  }
 
   await db.insert(listingBoosts).values({
     listingId,
@@ -59,10 +71,29 @@ export async function applyListingBoost(args: ApplyListingBoostArgs): Promise<vo
     appleTransactionId: appleTransactionId ?? null,
   });
 
-  await notifyUser(userId, {
-    type: "listing_boosted",
-    title: "Your listing is boosted!",
-    body: `Your listing is now pinned to the top of the marketplace for ${formatBoostDuration(tier.durationHours)}.`,
-    data: { listingId },
-  });
+  const durationLabel = formatBoostDuration(tier.durationHours);
+  const isSelfBoost = userId === listing.sellerId;
+
+  if (isSelfBoost) {
+    await notifyUser(userId, {
+      type: "listing_boosted",
+      title: "Your listing is boosted!",
+      body: `"${listing.title}" is now pinned to the top of the marketplace for ${durationLabel}.`,
+      data: { listingId },
+    });
+  } else {
+    const [buyer] = await db.select({ username: users.username }).from(users).where(eq(users.id, userId));
+    await notifyUser(listing.sellerId, {
+      type: "listing_boosted",
+      title: "Someone boosted your listing!",
+      body: `@${buyer?.username ?? "A buyer"} paid to promote "${listing.title}" — it's pinned to the top of the marketplace for ${durationLabel}.`,
+      data: { listingId },
+    });
+    await notifyUser(userId, {
+      type: "listing_boosted",
+      title: "You boosted a listing!",
+      body: `"${listing.title}" is now pinned to the top of the marketplace for ${durationLabel} — thanks for helping a fellow collector out.`,
+      data: { listingId },
+    });
+  }
 }

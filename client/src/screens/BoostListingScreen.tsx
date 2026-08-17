@@ -14,8 +14,9 @@ import { Button } from "@/components/ui";
 import { StarField } from "@/components/StarField";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, describeApiError } from "@/lib/api";
+import { invalidateListingsQueries } from "@/lib/queryClient";
 import { formatPriceCents } from "@/lib/format";
-import { BOOST_TIERS, appleBoostProductId } from "@shared/validation";
+import { BOOST_TIERS, appleBoostProductId, formatBoostDuration } from "@shared/validation";
 import { useApplePurchaseCatalog } from "@/lib/applePurchase";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "BoostListing">;
@@ -27,6 +28,16 @@ function showAlert(title: string, message: string) {
     return;
   }
   Alert.alert(title, message);
+}
+
+function confirmAsync(title: string, message: string, confirmLabel: string): Promise<boolean> {
+  if (Platform.OS === "web") return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [
+      { text: "No", style: "cancel", onPress: () => resolve(false) },
+      { text: confirmLabel, style: "destructive", onPress: () => resolve(true) },
+    ]);
+  });
 }
 
 interface BoostTierOption {
@@ -44,6 +55,99 @@ interface BoostTiersResponse {
   tiers: BoostTierOption[];
 }
 
+interface BoostStatus {
+  isOwner: boolean;
+  isBoosted: boolean;
+  boostedUntil: string | null;
+  isPaused: boolean;
+  remainingMs: number;
+  canPause: boolean;
+  canResume: boolean;
+  canCancel: boolean;
+}
+
+// Real countdown label, refreshed by the status query's own refetchInterval
+// rather than a client-side ticking clock — plenty live enough for "how
+// much boost time is left", and never drifts out of sync with the server.
+function remainingLabel(ms: number): string {
+  if (ms <= 0) return "0 hours";
+  const hours = Math.max(1, Math.round(ms / (60 * 60 * 1000)));
+  return formatBoostDuration(hours);
+}
+
+function ManageBoostCard({ listingId }: { listingId: string }) {
+  const queryClient = useQueryClient();
+  const statusKey = [`/api/boost/listings/${listingId}/status`];
+  const { data: status } = useQuery<BoostStatus>({ queryKey: statusKey, refetchInterval: 30_000 });
+
+  const refreshAfterChange = async () => {
+    await queryClient.invalidateQueries({ queryKey: statusKey });
+    await queryClient.invalidateQueries({ queryKey: [`/api/listings/${listingId}`] });
+    await queryClient.invalidateQueries({ queryKey: ["/api/listings/mine"] });
+    invalidateListingsQueries(queryClient);
+  };
+
+  const pauseMutation = useMutation({
+    mutationFn: () => apiJson("POST", `/api/boost/listings/${listingId}/pause`),
+    onSuccess: refreshAfterChange,
+    onError: (err) => showAlert("Couldn't pause boosting", describeApiError(err)),
+  });
+  const resumeMutation = useMutation({
+    mutationFn: () => apiJson("POST", `/api/boost/listings/${listingId}/resume`),
+    onSuccess: refreshAfterChange,
+    onError: (err) => showAlert("Couldn't resume boosting", describeApiError(err)),
+  });
+  const cancelMutation = useMutation({
+    mutationFn: () => apiJson("POST", `/api/boost/listings/${listingId}/cancel`),
+    onSuccess: refreshAfterChange,
+    onError: (err) => showAlert("Couldn't stop boosting", describeApiError(err)),
+  });
+
+  const handleStopBoosting = async () => {
+    const confirmed = await confirmAsync(
+      "Cancel boosting?",
+      "Are you sure you want to cancel your boosting? This stops it immediately and can't be undone.",
+      "Yes, cancel boosting",
+    );
+    if (confirmed) cancelMutation.mutate();
+  };
+
+  if (!status?.isOwner || (!status.isBoosted && !status.isPaused)) return null;
+
+  const busy = pauseMutation.isPending || resumeMutation.isPending || cancelMutation.isPending;
+
+  return (
+    <View style={[styles.manageCard, Shadow.card]}>
+      <View style={styles.manageHeaderRow}>
+        <View style={[styles.manageStatusDot, { backgroundColor: status.isPaused ? Colors.warning : Colors.success }]} />
+        <Text style={styles.manageStatusText}>{status.isPaused ? "Boost paused" : "Boost active"}</Text>
+        <Text style={styles.manageRemaining}>{remainingLabel(status.remainingMs)} left</Text>
+      </View>
+
+      <View style={styles.manageButtonRow}>
+        {status.canPause ? (
+          <Pressable onPress={() => pauseMutation.mutate()} disabled={busy} style={[styles.manageButton, styles.manageButtonOutline]}>
+            <Feather name="pause" size={15} color={Colors.text} />
+            <Text style={styles.manageButtonOutlineText}>Pause</Text>
+          </Pressable>
+        ) : null}
+        {status.canResume ? (
+          <Pressable onPress={() => resumeMutation.mutate()} disabled={busy} style={[styles.manageButton, styles.manageButtonPrimary]}>
+            <Feather name="play" size={15} color={Colors.white} />
+            <Text style={styles.manageButtonPrimaryText}>Resume</Text>
+          </Pressable>
+        ) : null}
+        {status.canCancel ? (
+          <Pressable onPress={handleStopBoosting} disabled={busy} style={[styles.manageButton, styles.manageButtonDanger]}>
+            <Feather name="x-circle" size={15} color={Colors.danger} />
+            <Text style={styles.manageButtonDangerText}>Stop boosting</Text>
+          </Pressable>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
 // Each tier gets a color "barrier" from the app's real brand palette, one
 // fixed color per tier (there are only 4 now) rather than duration bands —
 // so the list reads as a gradient of commitment (a quick day vs. a full
@@ -59,11 +163,12 @@ function tierColor(tierId: string): string {
 }
 
 const APPLE_BOOST_PRODUCT_IDS = BOOST_TIERS.map((t) => appleBoostProductId(t.id));
+const PROMOTE_MODE_TIER_IDS = ["72h", "168h"];
 
 export default function BoostListingScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Rt>();
-  const { listingId } = route.params;
+  const { listingId, promoteMode } = route.params;
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
@@ -110,7 +215,10 @@ export default function BoostListingScreen() {
     }
   };
 
-  const tiers = data?.tiers ?? [];
+  // The "promote someone else's listing" prompt only offers 3-day/7-day —
+  // a deliberately small, low-friction menu for someone helping a fellow
+  // collector out, not the full seller-facing tier lineup.
+  const tiers = (data?.tiers ?? []).filter((t) => !promoteMode || PROMOTE_MODE_TIER_IDS.includes(t.id));
   const isPro = data?.isPro ?? false;
   const selectedTier = tiers.find((t) => t.id === selectedTierId) ?? null;
 
@@ -144,15 +252,21 @@ export default function BoostListingScreen() {
         <View style={styles.heroIcon}>
           <Feather name="zap" size={22} color={Colors.gold} />
         </View>
-        <Text style={styles.heroTitle}>Boost This Listing</Text>
-        <Text style={styles.heroSubtitle}>Pin it to the very top of the marketplace feed for buyers to see first.</Text>
-        {isPro && !isIOS ? (
+        <Text style={styles.heroTitle}>{promoteMode ? "Promote This Listing" : "Boost This Listing"}</Text>
+        <Text style={styles.heroSubtitle}>
+          {promoteMode
+            ? "Help a fellow collector get noticed — pin their card to the top of the marketplace feed for buyers to see first."
+            : "Pin it to the very top of the marketplace feed for buyers to see first."}
+        </Text>
+        {isPro && !isIOS && !promoteMode ? (
           <View style={styles.proPill}>
             <Feather name="award" size={12} color="#3A2A00" />
             <Text style={styles.proPillText}>PullMarket Pro — 15% off 2-day+ boosts</Text>
           </View>
         ) : null}
       </LinearGradient>
+
+      {!promoteMode ? <ManageBoostCard listingId={listingId} /> : null}
 
       {isPro && !isIOS ? (
         <View style={styles.discountToggleRow}>
@@ -257,6 +371,19 @@ const styles = StyleSheet.create({
   heroSubtitle: { ...Typography.small, color: "rgba(255,255,255,0.85)", textAlign: "center", marginTop: 6, maxWidth: 300 },
   proPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: Colors.gold, borderRadius: BorderRadius.pill, paddingHorizontal: Spacing.md, paddingVertical: 6, marginTop: Spacing.md },
   proPillText: { color: "#3A2A00", fontSize: 12, fontWeight: "800" },
+  manageCard: { backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, borderWidth: 1.5, borderColor: Colors.border, padding: Spacing.md, marginHorizontal: Spacing.lg, marginTop: Spacing.lg },
+  manageHeaderRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
+  manageStatusDot: { width: 9, height: 9, borderRadius: 5 },
+  manageStatusText: { ...Typography.bodyBold, color: Colors.text, flex: 1 },
+  manageRemaining: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700" },
+  manageButtonRow: { flexDirection: "row", gap: Spacing.sm, marginTop: Spacing.md },
+  manageButton: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 10, borderRadius: BorderRadius.md },
+  manageButtonOutline: { backgroundColor: Colors.surfaceAlt, borderWidth: 1, borderColor: Colors.border },
+  manageButtonOutlineText: { ...Typography.small, color: Colors.text, fontWeight: "700" },
+  manageButtonPrimary: { backgroundColor: Colors.primary },
+  manageButtonPrimaryText: { ...Typography.small, color: Colors.white, fontWeight: "700" },
+  manageButtonDanger: { backgroundColor: Colors.danger + "14", borderWidth: 1, borderColor: Colors.danger + "55" },
+  manageButtonDangerText: { ...Typography.small, color: Colors.danger, fontWeight: "700" },
   discountToggleRow: {
     flexDirection: "row",
     alignItems: "center",

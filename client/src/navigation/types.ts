@@ -18,7 +18,10 @@ export type RootStackParamList = {
   MainTabs: undefined;
   ListingDetail: { listingId: string };
   EditListing: { listingId: string };
-  BoostListing: { listingId: string };
+  // promoteMode: reached from "Promote this listing" on someone else's
+  // listing — restricts the tier picker to the 3-day/7-day options and
+  // swaps the hero copy to "help a fellow collector" framing.
+  BoostListing: { listingId: string; promoteMode?: boolean };
   BoostReturn: { status?: string; listingId?: string };
   ImageViewer: { images: string[]; startIndex: number };
   Cart: undefined;

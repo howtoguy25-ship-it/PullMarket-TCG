@@ -187,6 +187,16 @@ export default function ListingDetailScreen() {
           </View>
         ) : null}
 
+        {!isOwnListing ? (
+          <Pressable
+            onPress={() => requireAuth(() => navigation.navigate("BoostListing", { listingId: listing.id, promoteMode: true }))}
+            style={styles.promoteRow}
+          >
+            <Feather name="zap" size={15} color={Colors.gold} />
+            <Text style={styles.promoteText}>Help promote this listing</Text>
+          </Pressable>
+        ) : null}
+
         <Pressable onPress={() => requireAuth(() => navigation.navigate("Report", { listingId: listing.id }))} style={styles.reportRow}>
           <Feather name="flag" size={15} color={Colors.textSecondary} />
           <Text style={styles.reportText}>Report this listing</Text>
@@ -257,6 +267,8 @@ const styles = StyleSheet.create({
   shippingNoteText: { flex: 1, ...Typography.small, color: "#92650B" },
   sellerRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginTop: Spacing.lg },
   sellerName: { ...Typography.bodyBold, color: Colors.text },
+  promoteRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: Spacing.md },
+  promoteText: { ...Typography.small, color: Colors.goldDark, fontWeight: "700" },
   reportRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: Spacing.lg },
   reportText: { ...Typography.small, color: Colors.textSecondary, textDecorationLine: "underline" },
   footer: { flexDirection: "row", gap: Spacing.md, padding: Spacing.lg, backgroundColor: Colors.surface, borderTopWidth: 1, borderTopColor: Colors.border },

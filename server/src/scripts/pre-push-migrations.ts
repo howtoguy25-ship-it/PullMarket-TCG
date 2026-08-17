@@ -63,6 +63,10 @@ const STATEMENTS = [
   `ALTER TABLE listings ADD COLUMN IF NOT EXISTS boosted_until timestamp;`,
   `CREATE INDEX IF NOT EXISTS idx_listings_boosted ON listings (boosted_until);`,
 
+  // listings: real pause/resume for an active paid boost
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS boost_paused boolean NOT NULL DEFAULT false;`,
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS boost_paused_remaining_ms integer;`,
+
   // listings: seller edit/unlist revision cap + out-of-stock auto-unlist tracking
   `ALTER TABLE listings ADD COLUMN IF NOT EXISTS revision_count integer NOT NULL DEFAULT 0;`,
   `ALTER TABLE listings ADD COLUMN IF NOT EXISTS sold_out_at timestamp;`,
