@@ -136,9 +136,15 @@ export default function HomeScreen() {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (franchises.length) params.set("franchise", franchises.join(","));
+    // hideBoosted never removes anything from the feed — every active
+    // listing always shows. It only decides positioning: off (default)
+    // weaves boosted listings into sponsored slots; on requests plain
+    // chronological order from the server, so a boosted listing sits in
+    // its natural, unpromoted spot instead of a special slot.
+    if (hideBoosted) params.set("plainOrder", "1");
     const s = params.toString();
     return s ? `?${s}` : "";
-  }, [query, franchises]);
+  }, [query, franchises, hideBoosted]);
 
   const { data: listings, isLoading } = useQuery<ListingSummary[]>({
     queryKey: [`/api/listings${queryString}`],
@@ -147,7 +153,7 @@ export default function HomeScreen() {
   const { data: favorites } = useQuery<ListingSummary[]>({ queryKey: ["/api/favorites"], enabled: !!user });
   const favoritedIds = useMemo(() => new Set((favorites ?? []).map((f) => f.id)), [favorites]);
 
-  const visibleListings = useMemo(() => (hideBoosted ? (listings ?? []).filter((l) => !l.isBoosted) : (listings ?? [])), [listings, hideBoosted]);
+  const visibleListings = listings ?? [];
 
   const toggleFranchise = (key: string) => {
     setFranchises((prev) => (prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]));

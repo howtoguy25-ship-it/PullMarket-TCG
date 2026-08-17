@@ -69,10 +69,17 @@ router.get("/", async (req, res) => {
     sellerId: z.string().optional(),
     limit: z.coerce.number().min(1).max(100).default(50),
     offset: z.coerce.number().min(0).default(0),
+    // Every active listing is always included in the feed regardless of
+    // this flag — boosted listings are never hidden. This only decides
+    // WHERE a boosted listing sits: the default (false) weaves it into
+    // sponsored slots via lib/feedRanking.ts; true instead sorts the whole
+    // feed by createdAt only, so boosted listings land in their natural,
+    // unpromoted position alongside everything else.
+    plainOrder: z.coerce.boolean().optional().default(false),
   });
   const parsed = querySchema.safeParse(req.query);
   if (!parsed.success) return res.status(400).json({ message: "Invalid query" });
-  const { q, franchise, condition, minPrice, maxPrice, sellerId, limit, offset } = parsed.data;
+  const { q, franchise, condition, minPrice, maxPrice, sellerId, limit, offset, plainOrder } = parsed.data;
 
   const conditions = [eq(listings.status, "active")];
   if (q) conditions.push(ilike(listings.title, `%${q}%`));
@@ -118,6 +125,21 @@ router.get("/", async (req, res) => {
       .from(listings)
       .where(and(...conditions))
       .orderBy(sql`CASE WHEN ${listings.boostedUntil} IS NOT NULL AND ${listings.boostedUntil} > NOW() THEN 0 ELSE 1 END`, ...organicOrderByClauses)
+      .limit(limit)
+      .offset(offset);
+    return res.json(await attachImagesAndSellers(rows));
+  }
+
+  // Plain mode: every active listing (boosted included) sorted purely by
+  // createdAt, no sponsored-slot interleaving. A boosted listing still
+  // shows up here — it's never hidden — it just sits wherever it would
+  // naturally land by recency instead of getting a promoted slot.
+  if (plainOrder) {
+    const rows = await db
+      .select()
+      .from(listings)
+      .where(and(...conditions))
+      .orderBy(...organicOrderByClauses)
       .limit(limit)
       .offset(offset);
     return res.json(await attachImagesAndSellers(rows));
