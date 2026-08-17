@@ -380,6 +380,7 @@ export default function ProfileScreen() {
       <View style={[styles.section, styles.sectionBarrier, { borderLeftColor: SECTION_COLORS.support }]}>
         <MenuRow icon="message-circle" color={SECTION_COLORS.support} label="AI Help Assistant" subtitle="Ask how to do anything in the app" onPress={() => navigation.navigate("HelpChat")} />
         <MenuRow icon="shield" color={SECTION_COLORS.support} label="Privacy Policy" onPress={() => Linking.openURL(`${getApiUrl()}/privacy`)} />
+        <MenuRow icon="file-text" color={SECTION_COLORS.support} label="Terms of Use" onPress={() => Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")} />
         <MenuRow icon="life-buoy" color={SECTION_COLORS.support} label="Support" onPress={() => Linking.openURL(`${getApiUrl()}/support`)} />
       </View>
 
