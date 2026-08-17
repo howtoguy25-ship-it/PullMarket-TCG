@@ -1,0 +1,7 @@
+{
+  "name": "audio-route-picker",
+  "version": "1.0.0",
+  "description": "Native iOS AVRoutePickerView wrapper so the in-call speaker button opens Apple's real system audio route menu (Bluetooth / Speaker / iPhone).",
+  "main": "index.tsx",
+  "license": "UNLICENSED"
+}

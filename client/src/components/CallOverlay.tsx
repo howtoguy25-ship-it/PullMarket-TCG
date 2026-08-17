@@ -6,6 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Spacing, Typography } from "@/constants/theme";
 import { resolveImageUrl } from "@/lib/media";
 import { useCall } from "@/contexts/CallContext";
+import { AudioRoutePickerView } from "audio-route-picker";
 
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -18,6 +19,28 @@ function phaseLabel(phase: string): string {
   if (phase === "connecting") return "Connecting…";
   if (phase === "active") return "";
   return "";
+}
+
+// On iOS this renders Apple's real system route picker (AVRoutePickerView)
+// — the same control FaceTime uses — so a user with a Bluetooth headset
+// connected gets the actual "Speaker / iPhone / [device name]" menu,
+// instead of a plain on/off toggle that can't reach Bluetooth at all.
+// react-native-incall-manager's route-switching API only exists on
+// Android, so Android keeps the simple InCallManager-driven toggle.
+function SpeakerButton({ isSpeakerOn, onToggle }: { isSpeakerOn: boolean; onToggle: () => void }) {
+  if (Platform.OS === "ios") {
+    return (
+      <View style={[styles.smallButton, isSpeakerOn && styles.smallButtonActive]}>
+        <AudioRoutePickerView style={StyleSheet.absoluteFillObject} tintColor={Colors.white} activeTintColor={Colors.gold} />
+        <Feather name="volume-2" size={22} color={Colors.white} />
+      </View>
+    );
+  }
+  return (
+    <Pressable onPress={onToggle} style={[styles.smallButton, isSpeakerOn && styles.smallButtonActive]}>
+      <Feather name={isSpeakerOn ? "volume-2" : "volume-1"} size={22} color={Colors.white} />
+    </Pressable>
+  );
 }
 
 // react-native-webrtc's RTCView is a native view with no web build — like
@@ -84,9 +107,7 @@ export function CallOverlay() {
               <Pressable onPress={toggleMute} style={[styles.smallButton, isMuted && styles.smallButtonActive]}>
                 <Feather name={isMuted ? "mic-off" : "mic"} size={22} color={Colors.white} />
               </Pressable>
-              <Pressable onPress={toggleSpeaker} style={[styles.smallButton, isSpeakerOn && styles.smallButtonActive]}>
-                <Feather name={isSpeakerOn ? "volume-2" : "volume-1"} size={22} color={Colors.white} />
-              </Pressable>
+              <SpeakerButton isSpeakerOn={isSpeakerOn} onToggle={toggleSpeaker} />
               <Pressable onPress={endCall} style={[styles.callButton, styles.declineButton]}>
                 <Feather name="phone-off" size={26} color={Colors.white} />
               </Pressable>
@@ -130,9 +151,7 @@ export function CallOverlay() {
                 <Pressable onPress={toggleMute} style={[styles.smallButton, isMuted && styles.smallButtonActive]}>
                   <Feather name={isMuted ? "mic-off" : "mic"} size={22} color={Colors.white} />
                 </Pressable>
-                <Pressable onPress={toggleSpeaker} style={[styles.smallButton, isSpeakerOn && styles.smallButtonActive]}>
-                  <Feather name={isSpeakerOn ? "volume-2" : "volume-1"} size={22} color={Colors.white} />
-                </Pressable>
+                <SpeakerButton isSpeakerOn={isSpeakerOn} onToggle={toggleSpeaker} />
                 <Pressable onPress={endCall} style={[styles.callButton, styles.declineButton]}>
                   <Feather name="phone-off" size={26} color={Colors.white} />
                 </Pressable>

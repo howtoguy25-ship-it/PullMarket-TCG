@@ -7,8 +7,8 @@ dist/
 .env.local
 *.log
 .DS_Store
-ios/
-android/
+/ios/
+/android/
 .metro-cache/
 uploads/
 *.tsbuildinfo

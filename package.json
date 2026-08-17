@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "main": "client/index.js",
+  "workspaces": ["modules/*"],
   "scripts": {
     "dev:client": "expo start --web",
     "dev:server": "NODE_ENV=development tsx server/src/index.ts",
