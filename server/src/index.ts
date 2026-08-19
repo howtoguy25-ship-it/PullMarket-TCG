@@ -95,6 +95,10 @@ function setupErrorHandler(app: express.Application) {
   // URL), independent of whether the app itself is up.
   app.get("/privacy", (_req, res) => res.type("html").send(privacyPolicyHtml()));
   app.get("/support", (_req, res) => res.type("html").send(supportHtml()));
+  // AdMob (Google) verifies ad-serving authorization by crawling this exact
+  // path on the app's declared developer website — required for AdMob
+  // revenue to be attributed correctly, independent of the app bundle.
+  app.get("/app-ads.txt", (_req, res) => res.type("text/plain").send("google.com, pub-6423632749110820, DIRECT, f08c47fec0942fa0\n"));
 
   const server = await registerRoutes(app);
   setupCallSignaling(server);

@@ -6,7 +6,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Colors, Spacing, Typography } from "@/constants/theme";
 import { resolveImageUrl } from "@/lib/media";
 import { useCall } from "@/contexts/CallContext";
-import { AudioRoutePickerView } from "audio-route-picker";
+import { AudioRoutePickerView, isAudioRoutePickerAvailable } from "audio-route-picker";
 
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -27,8 +27,15 @@ function phaseLabel(phase: string): string {
 // instead of a plain on/off toggle that can't reach Bluetooth at all.
 // react-native-incall-manager's route-switching API only exists on
 // Android, so Android keeps the simple InCallManager-driven toggle.
+//
+// isAudioRoutePickerAvailable guards against a real bug: a binary built
+// before this native module existed (or built without the module linked)
+// has no "AudioRoutePicker" view manager on the native side, and React
+// Native's fallback for that is UnimplementedView — a broken-looking box
+// with literal wrapped text where the button should be. Falling back to
+// the plain toggle there keeps the button always real and tappable.
 function SpeakerButton({ isSpeakerOn, onToggle }: { isSpeakerOn: boolean; onToggle: () => void }) {
-  if (Platform.OS === "ios") {
+  if (Platform.OS === "ios" && isAudioRoutePickerAvailable) {
     return (
       <View style={[styles.smallButton, isSpeakerOn && styles.smallButtonActive]}>
         <AudioRoutePickerView style={StyleSheet.absoluteFillObject} tintColor={Colors.white} activeTintColor={Colors.gold} />
