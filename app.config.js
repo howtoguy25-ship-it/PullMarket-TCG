@@ -84,12 +84,15 @@ module.exports = () => {
             // an incompatible version of Kotlin". Bumping the toolchain
             // version here fixes that without pinning an older ads SDK.
             android: {
-              // Metadata version tracks Kotlin's major.minor (2.1 -> "2.1.0",
-              // 2.3 -> "2.3.0"), and an older compiler can't read newer
-              // metadata at all — a 2.1.x patch bump wouldn't fix this, the
-              // toolchain has to move to the 2.3 line that play-services-ads
-              // was actually compiled with.
-              kotlinVersion: "2.3.21",
+              // play-services-ads 25.x (pulled in by react-native-google-mobile-ads)
+              // needs a newer Kotlin metadata reader than the toolchain's
+              // 2.1.0 default. 2.3.x fixes the metadata-version mismatch but
+              // Expo's KSP integration doesn't support it yet (only up to
+              // 2.2.20), so this is pinned to the highest Kotlin version KSP
+              // supports, paired with downgrading the ads SDK below (see
+              // package.json) to a play-services-ads release built against
+              // metadata that toolchain can actually read.
+              kotlinVersion: "2.2.20",
             },
           },
         ],
