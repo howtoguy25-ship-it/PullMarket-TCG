@@ -57,6 +57,13 @@ module.exports = () => {
           backgroundColor: "#0B0716",
         },
         permissions: ["android.permission.CAMERA", "android.permission.READ_EXTERNAL_STORAGE"],
+        // expo-sensors bundles Pedometer support and unconditionally
+        // declares ACTIVITY_RECOGNITION in its manifest, even though this
+        // app only uses Accelerometer (see CardScannerModal.tsx) and never
+        // touches Pedometer. Leaving it in would force an unjustifiable
+        // "Health apps" declaration in Play Console for a permission the
+        // app doesn't actually use.
+        blockedPermissions: ["android.permission.ACTIVITY_RECOGNITION"],
       },
       web: {
         output: "single",
