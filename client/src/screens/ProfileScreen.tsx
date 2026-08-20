@@ -18,6 +18,7 @@ import { VerifiedBadge } from "@/components/VerifiedBadge";
 import { RootStackParamList } from "@/navigation/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAmbientSound } from "@/contexts/AmbientSoundContext";
+import { isAdsAvailable, loadAds } from "@/lib/ads";
 import { useRingtone } from "@/contexts/RingtoneContext";
 import { useAppTheme } from "@/contexts/AppThemeContext";
 import { AMBIENT_SOUNDS } from "@/lib/ambientSounds";
@@ -382,6 +383,22 @@ export default function ProfileScreen() {
         <MenuRow icon="shield" color={SECTION_COLORS.support} label="Privacy Policy" onPress={() => Linking.openURL(`${getApiUrl()}/privacy`)} />
         <MenuRow icon="file-text" color={SECTION_COLORS.support} label="Terms of Use" onPress={() => Linking.openURL("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")} />
         <MenuRow icon="life-buoy" color={SECTION_COLORS.support} label="Support" onPress={() => Linking.openURL(`${getApiUrl()}/support`)} />
+        {isAdsAvailable() ? (
+          <MenuRow
+            icon="sliders"
+            color={SECTION_COLORS.support}
+            label="Ad privacy choices"
+            subtitle="Manage personalized ads consent (EEA, UK, Switzerland)"
+            onPress={async () => {
+              try {
+                const { AdsConsent } = await loadAds();
+                await AdsConsent.showPrivacyOptionsForm();
+              } catch {
+                Alert.alert("Not available", "There are no ad privacy choices to manage on this device right now.");
+              }
+            }}
+          />
+        ) : null}
       </View>
 
       {user.isOwner ? (

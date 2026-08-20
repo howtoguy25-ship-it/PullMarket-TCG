@@ -52,7 +52,14 @@ export async function initAds(): Promise<void> {
       const { status } = await ATT.getTrackingPermissionsAsync();
       if (status === "undetermined") await ATT.requestTrackingPermissionsAsync();
     }
-    const { MobileAds } = await loadAds();
+    const { MobileAds, AdsConsent } = await loadAds();
+    // Real GDPR/UK/Switzerland consent flow via Google's UMP SDK, required
+    // by AdMob policy before any ad request in those regions. gatherConsent()
+    // checks whether this device is even in a regulated region and only
+    // shows Google's consent form when it actually applies — everywhere
+    // else (including most of the US) it resolves immediately as a no-op.
+    const consentInfo = await AdsConsent.gatherConsent();
+    if (!consentInfo.canRequestAds) return; // consent still outstanding — don't request ads yet
     await MobileAds().initialize();
   } catch (err) {
     console.error("Ad SDK init failed:", err);
