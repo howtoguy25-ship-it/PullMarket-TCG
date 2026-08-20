@@ -69,7 +69,11 @@ export function BannerAdBar() {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      <BannerAd unitId={unitId} size={BannerAdSize.LARGE_ANCHORED_ADAPTIVE_BANNER} onAdLoaded={handleLoaded} onAdFailedToLoad={() => setDismissed(true)} />
+      {/* Fixed 320x50 — the classic compact banner strip. The adaptive
+          anchored sizes (especially LARGE_ANCHORED_ADAPTIVE_BANNER) scale
+          their height up with device width and can render noticeably
+          taller than a typical top bar on wider phones. */}
+      <BannerAd unitId={unitId} size={BannerAdSize.BANNER} onAdLoaded={handleLoaded} onAdFailedToLoad={() => setDismissed(true)} />
       {canDismiss && (
         <Pressable onPress={() => setDismissed(true)} style={styles.closeButton} hitSlop={10} accessibilityLabel="Close ad" accessibilityRole="button">
           <Feather name="x" size={14} color={Colors.text} />
