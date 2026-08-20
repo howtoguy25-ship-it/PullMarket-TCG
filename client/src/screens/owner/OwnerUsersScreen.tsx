@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Text, FlatList, Pressable, Platform, Alert } from "react-native";
+import { View, StyleSheet, Text, FlatList, Pressable, Platform, Alert, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -36,7 +36,19 @@ export default function OwnerUsersScreen() {
   const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
 
-  const { data: users, isLoading } = useQuery<OwnerUser[]>({ queryKey: ["/api/owner/users"] });
+  // Polls while this screen is mounted so a new signup shows up without the
+  // owner having to back out and reopen the panel. The interval is cleared
+  // automatically when the screen unmounts (React Query only polls while an
+  // observer is active), so it doesn't run in the background.
+  const {
+    data: users,
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery<OwnerUser[]>({
+    queryKey: ["/api/owner/users"],
+    refetchInterval: 10_000,
+  });
 
   const suspendMutation = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => apiJson("POST", `/api/owner/users/${id}/suspend`, { reason }),
@@ -62,6 +74,7 @@ export default function OwnerUsersScreen() {
         data={users ?? []}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: Spacing.lg, paddingBottom: insets.bottom + Spacing.xl }}
+        refreshControl={<RefreshControl refreshing={!isLoading && isRefetching} onRefresh={refetch} tintColor={Colors.primary} />}
         renderItem={({ item }) => (
           <View style={styles.row}>
             <View style={{ flex: 1 }}>
