@@ -74,29 +74,6 @@ module.exports = () => {
       },
       plugins: [
         [
-          "expo-build-properties",
-          {
-            // react-native-google-mobile-ads pulls in
-            // com.google.android.gms:play-services-ads, whose newer releases
-            // are compiled with a Kotlin metadata version the Android
-            // Gradle plugin's default Kotlin toolchain (2.1.0) can't read,
-            // failing `compileReleaseKotlin` with "Module was compiled with
-            // an incompatible version of Kotlin". Bumping the toolchain
-            // version here fixes that without pinning an older ads SDK.
-            android: {
-              // play-services-ads 25.x (pulled in by react-native-google-mobile-ads)
-              // needs a newer Kotlin metadata reader than the toolchain's
-              // 2.1.0 default. 2.3.x fixes the metadata-version mismatch but
-              // Expo's KSP integration doesn't support it yet (only up to
-              // 2.2.20), so this is pinned to the highest Kotlin version KSP
-              // supports, paired with downgrading the ads SDK below (see
-              // package.json) to a play-services-ads release built against
-              // metadata that toolchain can actually read.
-              kotlinVersion: "2.2.20",
-            },
-          },
-        ],
-        [
           "expo-camera",
           {
             cameraPermission: "PullMarket needs camera access to scan and photograph cards you're listing for sale, and for video calls in chat.",
