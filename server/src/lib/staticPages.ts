@@ -114,3 +114,33 @@ export function supportHtml(): string {
   `,
   );
 }
+
+export function deleteAccountHtml(): string {
+  return page(
+    "Delete Your Account",
+    `
+    <h1>Delete Your Account</h1>
+    <div class="meta">PullMarket TCG</div>
+
+    <p>You can permanently delete your PullMarket TCG account and its associated data at any time, directly from the app.</p>
+
+    <h2>Steps to delete your account</h2>
+    <ul>
+      <li>Open the PullMarket TCG app and sign in.</li>
+      <li>Go to <strong>Profile</strong>.</li>
+      <li>Scroll to the bottom and tap <strong>Delete account</strong>.</li>
+      <li>Confirm the deletion when prompted.</li>
+    </ul>
+
+    <p>This starts a 30-day grace period (in case it was a mistake, or someone else's action), after which your account and associated data are permanently deleted — other than records we're legally required to keep, such as transaction records.</p>
+
+    <h2>Data deleted</h2>
+    <p>This removes your profile, listings, favorites, cart, messages, and account preferences. Order and transaction history tied to completed purchases may be retained as required by law.</p>
+
+    <h2>Can't sign in to delete your account?</h2>
+    <p>If you've lost access to your phone number or email and can't sign in, email us at <a href="mailto:${SUPPORT_EMAIL}">${SUPPORT_EMAIL}</a> from an address we can use to verify you, and we'll process the deletion request manually.</p>
+
+    <p>See also our <a href="/privacy">Privacy Policy</a>.</p>
+  `,
+  );
+}

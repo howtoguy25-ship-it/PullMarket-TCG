@@ -13,7 +13,7 @@ import webhookRoutes from "./routes/webhook";
 import { setupCallSignaling } from "./lib/callSignaling";
 import { startAutoUnlistScheduler } from "./lib/autoUnlist";
 import { startShippingDeadlineScheduler } from "./lib/shippingDeadlineSweeper";
-import { privacyPolicyHtml, supportHtml } from "./lib/staticPages";
+import { privacyPolicyHtml, supportHtml, deleteAccountHtml } from "./lib/staticPages";
 
 const app = express();
 const log = console.log;
@@ -95,6 +95,10 @@ function setupErrorHandler(app: express.Application) {
   // URL), independent of whether the app itself is up.
   app.get("/privacy", (_req, res) => res.type("html").send(privacyPolicyHtml()));
   app.get("/support", (_req, res) => res.type("html").send(supportHtml()));
+  // Google Play's Data safety declaration requires a real, working URL that
+  // clearly documents the account-deletion steps — a generic support page
+  // doesn't satisfy that requirement.
+  app.get("/delete-account", (_req, res) => res.type("html").send(deleteAccountHtml()));
   // AdMob (Google) verifies ad-serving authorization by crawling this exact
   // path on the app's declared developer website — required for AdMob
   // revenue to be attributed correctly, independent of the app bundle.
