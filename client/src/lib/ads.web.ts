@@ -15,6 +15,10 @@ export async function loadAds(): Promise<never> {
   throw new Error("Ads are not available on web.");
 }
 
+export function isAdsAvailable(): boolean {
+  return false;
+}
+
 export async function initAds(): Promise<void> {}
 
 export async function canShowToday(_storageKey: string, _maxPerDay: number): Promise<boolean> {
