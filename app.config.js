@@ -74,6 +74,26 @@ module.exports = () => {
       },
       plugins: [
         [
+          "expo-build-properties",
+          {
+            // react-native-google-mobile-ads pulls in
+            // com.google.android.gms:play-services-ads, whose newer releases
+            // are compiled with a Kotlin metadata version the Android
+            // Gradle plugin's default Kotlin toolchain (2.1.0) can't read,
+            // failing `compileReleaseKotlin` with "Module was compiled with
+            // an incompatible version of Kotlin". Bumping the toolchain
+            // version here fixes that without pinning an older ads SDK.
+            android: {
+              // Metadata version tracks Kotlin's major.minor (2.1 -> "2.1.0",
+              // 2.3 -> "2.3.0"), and an older compiler can't read newer
+              // metadata at all — a 2.1.x patch bump wouldn't fix this, the
+              // toolchain has to move to the 2.3 line that play-services-ads
+              // was actually compiled with.
+              kotlinVersion: "2.3.21",
+            },
+          },
+        ],
+        [
           "expo-camera",
           {
             cameraPermission: "PullMarket needs camera access to scan and photograph cards you're listing for sale, and for video calls in chat.",
