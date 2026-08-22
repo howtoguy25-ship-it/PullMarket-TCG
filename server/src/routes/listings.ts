@@ -9,6 +9,7 @@ import { CONDITIONS, FRANCHISES } from "@shared/schema";
 import { isActivePro, PRO_LISTING_BOOST_HOURS, LISTING_REVISION_LIMIT } from "@shared/validation";
 import { notifyUsers } from "../lib/notify";
 import { rankBoostedListings, interleaveBoostedListings, DEFAULT_BOOST_WEIGHT_PRICE_CENTS } from "../lib/feedRanking";
+import { warmPriceMatchCache } from "./prices";
 
 const router = Router();
 
@@ -352,6 +353,12 @@ router.post("/", authenticateToken, upload.array("images", 6), async (req, res) 
     });
   }
 
+  // Kick off the real card analysis (matching this title against JustTCG's
+  // catalog for its actual price chart) right now, in the background — by
+  // the time anyone opens this listing, it's already resolved and cached
+  // instead of them waiting out a cold multi-query search.
+  warmPriceMatchCache(franchise, title);
+
   const [withDetails] = await attachImagesAndSellers([listing]);
   res.status(201).json(withDetails);
 });
@@ -396,6 +403,14 @@ router.patch("/:id", authenticateToken, async (req, res) => {
   if (isRealEdit) updates.revisionCount = listing.revisionCount + 1;
 
   const [updated] = await db.update(listings).set(updates).where(eq(listings.id, listing.id)).returning();
+
+  // A retitled listing is potentially a different real card — re-run the
+  // analysis against the new title so the chart doesn't keep showing
+  // whatever the old title happened to match.
+  if (parsed.data.title !== undefined && parsed.data.title !== listing.title) {
+    warmPriceMatchCache(updated.franchise as "pokemon" | "one_piece", updated.title);
+  }
+
   const [withDetails] = await attachImagesAndSellers([updated]);
   res.json(withDetails);
 });

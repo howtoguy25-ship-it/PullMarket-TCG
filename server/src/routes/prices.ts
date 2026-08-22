@@ -79,6 +79,31 @@ export interface CardPriceHistoryWithAud extends CardPriceHistory {
 const HISTORY_CACHE_TTL_MS = 60 * 60 * 1000;
 const historyCache = new Map<string, { at: number; data: CardPriceHistory | null }>();
 
+// Resolves (and caches) the matched card for a listing, without the AUD
+// conversion or HTTP response shaping the /match route adds — shared so a
+// new listing can be analyzed once at creation time (see
+// warmPriceMatchCache below) instead of every viewer's first load paying
+// for a cold multi-query JustTCG search.
+async function resolveAndCache(franchise: "pokemon" | "one_piece" | "both", title: string): Promise<CardPriceHistory | null> {
+  const cacheKey = `${franchise}:${title.toLowerCase()}`;
+  const cached = historyCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < HISTORY_CACHE_TTL_MS) return cached.data;
+  const data = await findPriceHistoryForListing(franchise, title);
+  historyCache.set(cacheKey, { at: Date.now(), data });
+  return data;
+}
+
+// Fire-and-forget: called right after a listing is created so the real
+// card analysis (name/set/rarity matching against JustTCG's catalog) has
+// already run and is sitting warm in the cache by the time a buyer opens
+// the listing — instead of them waiting out a several-second cold search.
+// Never throws into the caller: a failed/slow analysis here just means the
+// chart resolves lazily on first view instead, same as before this existed.
+export function warmPriceMatchCache(franchise: "pokemon" | "one_piece" | "both", title: string): void {
+  if (!isJustTcgConfigured()) return;
+  resolveAndCache(franchise, title).catch(() => {});
+}
+
 router.get("/match", async (req, res) => {
   if (!isJustTcgConfigured()) {
     return res.status(503).json({ message: "Live card prices aren't configured yet. Set JUSTTCG_API_KEY (see .env.example)." });
@@ -93,13 +118,9 @@ router.get("/match", async (req, res) => {
   if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid request" });
   const { franchise, title } = parsed.data;
 
-  const cacheKey = `${franchise}:${title.toLowerCase()}`;
-  const cached = historyCache.get(cacheKey);
-
   try {
     const usdToAud = await getUsdToAudRate();
-    const data = cached && Date.now() - cached.at < HISTORY_CACHE_TTL_MS ? cached.data : await findPriceHistoryForListing(franchise, title);
-    if (!cached || Date.now() - cached.at >= HISTORY_CACHE_TTL_MS) historyCache.set(cacheKey, { at: Date.now(), data });
+    const data = await resolveAndCache(franchise, title);
 
     if (!data) return res.json({ match: null });
 
