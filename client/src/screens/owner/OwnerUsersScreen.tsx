@@ -2,11 +2,16 @@ import React from "react";
 import { View, StyleSheet, Text, FlatList, Pressable, Platform, Alert, RefreshControl } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Feather } from "@expo/vector-icons";
 import { Colors, Spacing, Typography, BorderRadius } from "@/constants/theme";
 import { Badge } from "@/components/ui";
 import { apiJson } from "@/lib/api";
+import { RootStackParamList } from "@/navigation/types";
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 function promptText(title: string): Promise<string | null> {
   return new Promise((resolve) => {
@@ -35,6 +40,7 @@ export default function OwnerUsersScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
+  const navigation = useNavigation<Nav>();
 
   // Polls while this screen is mounted so a new signup shows up without the
   // owner having to back out and reopen the panel. The interval is cleared
@@ -77,14 +83,14 @@ export default function OwnerUsersScreen() {
         refreshControl={<RefreshControl refreshing={!isLoading && isRefetching} onRefresh={refetch} tintColor={Colors.primary} />}
         renderItem={({ item }) => (
           <View style={styles.row}>
-            <View style={{ flex: 1 }}>
+            <Pressable style={{ flex: 1 }} onPress={() => navigation.navigate("OwnerUserDetail", { userId: item.id, username: item.username })}>
               <View style={styles.nameRow}>
                 <Text style={styles.username}>@{item.username}</Text>
                 {item.isOwner ? <Badge label="Owner" color={Colors.gold} textColor="#3A2A00" /> : null}
                 {item.isSuspended ? <Badge label="Suspended" color={Colors.danger} /> : null}
               </View>
               <Text style={styles.contact}>{item.email ?? item.phoneNumber ?? "—"}</Text>
-            </View>
+            </Pressable>
             {!item.isOwner ? (
               <Pressable onPress={() => handleToggleSuspend(item)} style={[styles.actionButton, item.isSuspended && styles.actionButtonUnsuspend]}>
                 <Feather name={item.isSuspended ? "unlock" : "lock"} size={14} color={item.isSuspended ? Colors.success : Colors.danger} />

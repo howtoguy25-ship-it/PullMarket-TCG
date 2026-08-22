@@ -39,6 +39,7 @@ import FollowersScreen from "@/screens/FollowersScreen";
 import OwnerPanelScreen from "@/screens/owner/OwnerPanelScreen";
 import OwnerReportDetailScreen from "@/screens/owner/OwnerReportDetailScreen";
 import OwnerUsersScreen from "@/screens/owner/OwnerUsersScreen";
+import OwnerUserDetailScreen from "@/screens/owner/OwnerUserDetailScreen";
 import UserSearchScreen from "@/screens/UserSearchScreen";
 import UserProfileScreen from "@/screens/UserProfileScreen";
 import FriendRequestsScreen from "@/screens/FriendRequestsScreen";
@@ -108,6 +109,11 @@ function MainNavigator() {
       <RootStack.Screen name="OwnerPanel" component={OwnerPanelScreen} options={{ title: "Owner Panel" }} />
       <RootStack.Screen name="OwnerReportDetail" component={OwnerReportDetailScreen} options={{ title: "Incident Report" }} />
       <RootStack.Screen name="OwnerUsers" component={OwnerUsersScreen} options={{ title: "All Users" }} />
+      <RootStack.Screen
+        name="OwnerUserDetail"
+        component={OwnerUserDetailScreen}
+        options={({ route }) => ({ title: `@${route.params.username}` })}
+      />
       <RootStack.Screen name="UserSearch" component={UserSearchScreen} options={{ title: "New message" }} />
       <RootStack.Screen name="UserProfile" component={UserProfileScreen} options={{ title: "" }} />
       <RootStack.Screen name="FriendRequests" component={FriendRequestsScreen} options={{ title: "Friend requests" }} />

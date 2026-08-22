@@ -309,11 +309,29 @@ export default function ProfileScreen() {
     <View style={styles.container}>
       <AppThemeBackground />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + Spacing.lg, paddingBottom: insets.bottom + Spacing.xl, paddingHorizontal: Spacing.lg }}>
-      <GalaxyHeader variant="card" style={styles.header} starCount={20} colors={isActivePro(user) ? ["#150C2E", "#3B1E6B", "#8B4513"] : ["#150C2E", "#1C1040", "#2A1750"]}>
+      <GalaxyHeader variant="card" style={styles.header} starCount={26} colors={isActivePro(user) ? ["#1A0F35", "#4A2680", "#B8860B"] : ["#150C2E", "#241650", "#3B2470"]}>
+        {/* A rotated, low-opacity band sweeping across the header — the same
+            "foil catching the light" effect as a holo card tilted under a
+            lamp, purely decorative and behind all real content. */}
+        <View pointerEvents="none" style={styles.foilSweepClip}>
+          <LinearGradient
+            colors={["transparent", "rgba(255,255,255,0.16)", "transparent"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.foilSweep}
+          />
+        </View>
         <Pressable onPress={changeAvatar} disabled={uploadingAvatar} style={styles.avatarWrap}>
-          <View style={[styles.avatarRing, isActivePro(user) && styles.avatarRingPro]}>
-            <Avatar avatarUrl={user.avatarUrl} seed={user.username} size={56} />
-          </View>
+          <LinearGradient
+            colors={isActivePro(user) ? ["#FFE9A8", "#D4A017", "#8B5A0F"] : ["#E8E4F5", "#A89ECF", "#5C4A8F"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.avatarRing}
+          >
+            <View style={styles.avatarInner}>
+              <Avatar avatarUrl={user.avatarUrl} seed={user.username} size={60} />
+            </View>
+          </LinearGradient>
           <View style={styles.avatarBadge}>{uploadingAvatar ? <ActivityIndicator size="small" color={Colors.white} /> : <Feather name="camera" size={13} color={Colors.white} />}</View>
         </Pressable>
         <View style={{ flex: 1 }}>
@@ -503,7 +521,9 @@ const styles = StyleSheet.create({
   themeSwatch: { width: 34, height: 34, borderRadius: BorderRadius.sm, borderWidth: 1, borderColor: Colors.border },
   center: { alignItems: "center", justifyContent: "center" },
   notSignedIn: { ...Typography.body, color: Colors.textSecondary },
-  header: { flexDirection: "row", alignItems: "center", gap: Spacing.md, marginBottom: Spacing.lg, padding: Spacing.lg },
+  header: { flexDirection: "row", alignItems: "center", gap: Spacing.md, marginBottom: Spacing.lg, padding: Spacing.lg, ...Shadow.card },
+  foilSweepClip: { ...StyleSheet.absoluteFillObject, overflow: "hidden" },
+  foilSweep: { position: "absolute", top: -40, left: -60, width: "160%", height: "220%", transform: [{ rotate: "-18deg" }] },
   avatarWrap: { position: "relative" },
   avatarBadge: {
     position: "absolute",
@@ -519,8 +539,8 @@ const styles = StyleSheet.create({
     borderColor: "#1C1040",
   },
   usernameRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  username: { ...Typography.h3, color: Colors.white },
-  contact: { ...Typography.small, color: "rgba(255,255,255,0.7)" },
+  username: { ...Typography.h3, color: Colors.white, letterSpacing: 0.2, textShadowColor: "rgba(0,0,0,0.35)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  contact: { ...Typography.small, color: "rgba(255,255,255,0.72)" },
   changePhoto: { ...Typography.small, color: Colors.gold, marginTop: 2, fontSize: 11 },
   proBanner: {
     flexDirection: "row",
@@ -537,8 +557,12 @@ const styles = StyleSheet.create({
   proBannerTitleActive: { color: Colors.white },
   proBannerSubtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 1 },
   proBannerSubtitleActive: { color: "rgba(255,255,255,0.85)" },
-  avatarRing: { borderRadius: 32, padding: 2 },
-  avatarRingPro: { borderWidth: 2, borderColor: Colors.gold },
+  // A 3px gradient ring standing in for a real metal foil border — gold for
+  // Pro, brushed pearl/lavender for everyone else — with the avatar itself
+  // sitting in a small dark-navy gap so the ring reads as a distinct border
+  // rather than just tinting the photo.
+  avatarRing: { width: 68, height: 68, borderRadius: 34, padding: 3, alignItems: "center", justifyContent: "center", ...Shadow.card },
+  avatarInner: { width: "100%", height: "100%", borderRadius: 31, backgroundColor: "#1A0F35", alignItems: "center", justifyContent: "center" },
   editUsernameButton: {
     width: 22,
     height: 22,

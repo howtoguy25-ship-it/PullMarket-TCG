@@ -44,6 +44,7 @@ export type RootStackParamList = {
   OwnerPanel: undefined;
   OwnerReportDetail: { reportId: string };
   OwnerUsers: undefined;
+  OwnerUserDetail: { userId: string; username: string };
   UserSearch: undefined;
   UserProfile: { userId: string };
   FriendRequests: undefined;

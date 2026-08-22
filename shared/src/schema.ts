@@ -183,6 +183,9 @@ export const listings = pgTable(
     boostPausedRemainingMs: integer("boost_paused_remaining_ms"),
     createdAt: timestamp("created_at").defaultNow(),
     updatedAt: timestamp("updated_at").defaultNow(),
+    // Owner-only internal note (moderation/follow-up context) — never
+    // exposed on any public listings route, only /api/owner/*.
+    ownerNote: text("owner_note"),
   },
   (table) => [
     index("idx_listings_seller").on(table.sellerId),

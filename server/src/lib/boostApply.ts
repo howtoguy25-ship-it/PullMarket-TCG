@@ -97,3 +97,52 @@ export async function applyListingBoost(args: ApplyListingBoostArgs): Promise<vo
     });
   }
 }
+
+/** Same boostedUntil math as applyListingBoost, but for a free grant the
+ * app owner hands out from the Owner Panel — no payment record, no
+ * idempotency key (each tap is a deliberate admin action), and a
+ * notification that reads as a gift rather than "someone paid to promote
+ * your listing." */
+export async function applyOwnerFreeBoost(listingId: string, tierId: string): Promise<{ boostedUntil: Date } | null> {
+  const tier = getBoostTierById(tierId);
+  if (!tier) return null;
+
+  const [listing] = await db
+    .select({ title: listings.title, sellerId: listings.sellerId, boostedUntil: listings.boostedUntil, boostPaused: listings.boostPaused, boostPausedRemainingMs: listings.boostPausedRemainingMs })
+    .from(listings)
+    .where(eq(listings.id, listingId));
+  if (!listing) return null;
+
+  const now = new Date();
+  const durationMs = tier.durationHours * 60 * 60 * 1000;
+  let boostedUntil: Date;
+
+  if (listing.boostPaused) {
+    const newRemainingMs = (listing.boostPausedRemainingMs ?? 0) + durationMs;
+    await db.update(listings).set({ boostPausedRemainingMs: newRemainingMs, updatedAt: now }).where(eq(listings.id, listingId));
+    boostedUntil = new Date(now.getTime() + newRemainingMs);
+  } else {
+    const base = listing.boostedUntil && listing.boostedUntil.getTime() > now.getTime() ? listing.boostedUntil : now;
+    boostedUntil = new Date(base.getTime() + durationMs);
+    await db.update(listings).set({ boostedUntil, updatedAt: now }).where(eq(listings.id, listingId));
+  }
+
+  await db.insert(listingBoosts).values({
+    listingId,
+    userId: listing.sellerId,
+    tierId,
+    durationHours: tier.durationHours,
+    priceCentsPaid: 0,
+    proDiscountApplied: false,
+  });
+
+  const durationLabel = formatBoostDuration(tier.durationHours);
+  await notifyUser(listing.sellerId, {
+    type: "listing_boosted",
+    title: "The PullMarket team boosted your listing!",
+    body: `"${listing.title}" is now pinned to the top of the marketplace for ${durationLabel} — on us.`,
+    data: { listingId },
+  });
+
+  return { boostedUntil };
+}

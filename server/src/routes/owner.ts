@@ -1,12 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { reports, users, listings, orders, listingImages, conversations, messages } from "@shared/schema";
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { reports, users, listings, orders, listingImages, conversations, messages, follows, franchiseSubscriptions } from "@shared/schema";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { authenticateToken, requireOwner } from "../middleware/auth";
 import { sendEmail } from "../lib/mailer";
-import { notifyUser } from "../lib/notify";
+import { notifyUser, notifyUsers } from "../lib/notify";
 import { isReviewBypassEnabled, setReviewBypassEnabled } from "../lib/appSettings";
+import { attachImagesAndSellers } from "./listings";
+import { applyOwnerFreeBoost } from "../lib/boostApply";
+import { BOOST_TIERS } from "@shared/validation";
 
 const router = Router();
 router.use(authenticateToken, requireOwner);
@@ -215,6 +218,84 @@ router.post("/users/:id/unsuspend", async (req, res) => {
   const [updated] = await db.update(users).set({ isSuspended: false, suspendedAt: null, suspensionReason: null }).where(eq(users.id, req.params.id)).returning();
   if (!updated) return res.status(404).json({ message: "User not found" });
   res.json(updated);
+});
+
+// ── A specific user's listings — lets the owner see, boost, ping, and
+// annotate a seller's cards without leaving the panel. ────────────────────
+router.get("/users/:id/listings", async (req, res) => {
+  const rows = await db.select().from(listings).where(eq(listings.sellerId, req.params.id)).orderBy(desc(listings.createdAt));
+  res.json(await attachImagesAndSellers(rows));
+});
+
+// ── Free owner-granted boost — same boostedUntil math as a real paid
+// boost, just with no payment behind it (see applyOwnerFreeBoost). ───────
+router.post("/listings/:id/boost", async (req, res) => {
+  const parsed = z.object({ tierId: z.enum(BOOST_TIERS.map((t) => t.id) as [string, ...string[]]) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Choose a boost duration" });
+
+  const result = await applyOwnerFreeBoost(req.params.id, parsed.data.tierId);
+  if (!result) return res.status(404).json({ message: "Listing not found" });
+  res.json({ boostedUntil: result.boostedUntil });
+});
+
+// ── Internal note — owner-only context on a listing, never shown on any
+// public route. ───────────────────────────────────────────────────────────
+router.patch("/listings/:id/note", async (req, res) => {
+  const parsed = z.object({ note: z.string().max(2000) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: "Invalid note" });
+
+  const [updated] = await db
+    .update(listings)
+    .set({ ownerNote: parsed.data.note.trim() || null, updatedAt: new Date() })
+    .where(eq(listings.id, req.params.id))
+    .returning();
+  if (!updated) return res.status(404).json({ message: "Listing not found" });
+  res.json({ ownerNote: updated.ownerNote });
+});
+
+// ── Ping — a manual, owner-triggered broadcast highlighting one listing to
+// the seller's followers and to anyone subscribed to alerts for that
+// franchise. Distinct wording from the automatic "new listing" notice (see
+// routes/listings.ts) so it reads as a featured push, not a duplicate. ───
+router.post("/listings/:id/ping", async (req, res) => {
+  const [listing] = await db.select().from(listings).where(eq(listings.id, req.params.id));
+  if (!listing) return res.status(404).json({ message: "Listing not found" });
+
+  const [seller] = await db.select({ username: users.username }).from(users).where(eq(users.id, listing.sellerId));
+
+  const [followerRows, subscriberRows] = await Promise.all([
+    db.select({ userId: follows.followerId }).from(follows).where(eq(follows.followingId, listing.sellerId)),
+    db
+      .select({ userId: franchiseSubscriptions.userId })
+      .from(franchiseSubscriptions)
+      .where(and(eq(franchiseSubscriptions.franchise, listing.franchise), ne(franchiseSubscriptions.userId, listing.sellerId))),
+  ]);
+  const recipientIds = Array.from(new Set([...followerRows.map((f) => f.userId), ...subscriberRows.map((s) => s.userId)]));
+
+  if (recipientIds.length > 0) {
+    await notifyUsers(recipientIds, {
+      type: "listing_highlight",
+      title: "🔥 Trending on PullMarket",
+      body: `"${listing.title}" by @${seller?.username ?? "a seller"} for $${(listing.priceCents / 100).toFixed(2)} — check it out.`,
+      data: { listingId: listing.id },
+    });
+  }
+
+  // Separate from the broadcast above: a direct nudge to the seller
+  // themselves, suggesting they boost while attention is genuinely
+  // elevated. Sent even if recipientIds is empty (no followers/subscribers
+  // yet) — the suggestion to boost still makes sense on its own.
+  const isCurrentlyBoosted = !listing.boostPaused && !!listing.boostedUntil && listing.boostedUntil.getTime() > Date.now();
+  if (!isCurrentlyBoosted) {
+    await notifyUser(listing.sellerId, {
+      type: "boost_suggestion",
+      title: "Your card is getting attention 👀",
+      body: `"${listing.title}" just got featured on PullMarket. Boost it now to stay pinned to the top while eyes are on it.`,
+      data: { listingId: listing.id },
+    });
+  }
+
+  res.json({ pinged: true, notified: recipientIds.length });
 });
 
 // ── Orders overview (for manual refund/shipping disputes) ────────────────
