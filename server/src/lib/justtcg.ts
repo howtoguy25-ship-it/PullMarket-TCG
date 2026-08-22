@@ -189,42 +189,138 @@ function candidateSearchQueries(title: string): string[] {
   return queries;
 }
 
+// Real listing titles routinely name a card that JustTCG simply doesn't
+// carry (verified live: their catalog has no "Charizard Gold Star / EX
+// Dragon Frontiers" at all, despite it being a real, well-known card) — and
+// because their search matches loosely (querying "Charizard Gold Star"
+// returns "Charizard VSTAR" results, matching "Star" as a substring of
+// "VSTAR"), blindly taking result #1 from a shrinking query would
+// confidently show a DIFFERENT card's price as if it were this one. So
+// every candidate JustTCG returns is scored against the actual listing
+// title instead of trusted by search-result order, and nothing is
+// returned at all unless a candidate clears a real confidence bar — an
+// honest "no live match" beats a wrong chart that looks authoritative.
+const RARITY_KEYWORDS = ["gold star", "vmax", "vstar", "gx", "ex", "v", "alt art", "alternate art", "secret rare", "rainbow", "full art", "hyper rare", "amazing rare", "radiant", "promo", "1st edition", "shadowless"];
+
+function normalizeWords(s: string): Set<string> {
+  return new Set(
+    s
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 1),
+  );
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function scoreCandidate(card: JustTcgCard, titleLower: string, titleWords: Set<string>): number {
+  const nameLower = card.name.toLowerCase();
+  let score = 0;
+
+  // The single strongest signal: the card's actual name shows up bodily in
+  // the listing title (e.g. "Charizard ex" inside "PSA 9 CHARIZARD EX...").
+  // Must be a whole-word match, not a raw substring — otherwise a card
+  // named "Charizard G" reads as present inside "CHARIZARD GOLD STAR"
+  // (the same class of false-positive JustTCG's own loose search has).
+  const nameBoundaryMatch = new RegExp(`\\b${escapeRegExp(nameLower)}\\b`).test(titleLower);
+  if (nameBoundaryMatch) score += 5;
+  else {
+    // Partial credit for how many of the card name's own words appear in
+    // the title, so multi-word names ("Portgas D Ace") aren't all-or-nothing.
+    const nameWords = normalizeWords(card.name);
+    let overlap = 0;
+    for (const w of nameWords) if (titleWords.has(w)) overlap++;
+    score += nameWords.size > 0 ? (overlap / nameWords.size) * 3 : 0;
+  }
+
+  // Set name words appearing in the title (e.g. "Dragon Frontiers")
+  // increase confidence this is the exact print, not just the same
+  // character from a different era/set.
+  const setWords = normalizeWords(card.set_name);
+  for (const w of setWords) if (titleWords.has(w) && w.length > 3) score += 1;
+
+  // A rarity/subtype keyword the title names (e.g. "Gold Star", "VMAX") is
+  // a strong signal either way: a candidate that shares it is more likely
+  // right, but a candidate that DOESN'T — despite the title being specific
+  // about it — is probably a different, more common print of the same
+  // character (e.g. a plain "Charizard" reprint isn't the "Charizard Gold
+  // Star" the title actually names), so it's penalized, not just skipped.
+  // Without this, a bare character-name match alone could clear the
+  // confidence bar even when the title is explicit about a rarity this
+  // candidate doesn't have.
+  const rarityLower = (card.rarity ?? "").toLowerCase();
+  for (const kw of RARITY_KEYWORDS) {
+    const kwKey = kw.trim();
+    if (!new RegExp(`\\b${escapeRegExp(kwKey)}\\b`).test(titleLower)) continue;
+    const candidateHasKw =
+      new RegExp(`\\b${escapeRegExp(kwKey)}\\b`).test(rarityLower) || new RegExp(`\\b${escapeRegExp(kwKey)}\\b`).test(nameLower);
+    score += candidateHasKw ? 1.5 : -3;
+  }
+
+  return score;
+}
+
+// Below this, a "match" is more likely to mislead than help — e.g. a bare
+// single-word overlap with no name/set/rarity corroboration.
+const MIN_CONFIDENT_SCORE = 4;
+
 export async function findPriceHistoryForListing(franchise: "pokemon" | "one_piece" | "both", title: string): Promise<CardPriceHistory | null> {
   const ids = await resolveGameIds();
   const candidateGameIds = franchise === "both" ? [ids.pokemon, ids.onePiece] : [franchise === "pokemon" ? ids.pokemon : ids.onePiece];
   const queries = candidateSearchQueries(title);
   if (queries.length === 0) return null;
 
+  const titleLower = title.toLowerCase();
+  const titleWords = normalizeWords(title);
+
+  let best: { card: JustTcgCard; score: number } | null = null;
+  const seenCardIds = new Set<string>();
+
   for (const gameId of candidateGameIds) {
     if (!gameId) continue;
     for (const q of queries) {
-      const params = new URLSearchParams({ game: gameId, q, limit: "1" });
+      const params = new URLSearchParams({ game: gameId, q, limit: "8" });
       const res = await fetch(`${BASE_URL}/cards?${params}`, { headers: headers() });
       if (!res.ok) continue;
       const body = (await res.json()) as JustTcgCardsResponse;
-      const card = body.data[0];
-      if (!card) continue;
 
-      const variant =
-        card.variants.find((v) => /near ?mint/i.test(v.condition) && /normal/i.test(v.printing)) ??
-        card.variants.find((v) => /near ?mint/i.test(v.condition)) ??
-        card.variants[0];
-      if (!variant) continue;
-
-      return {
-        cardName: card.name,
-        setName: card.set_name,
-        matchedVariant: { condition: variant.condition, printing: variant.printing },
-        marketPriceCents: Math.round(variant.price * 100),
-        priceChange7dPct: variant.priceChange7d ?? null,
-        priceChange30dPct: variant.priceChange30d ?? null,
-        minPriceAllTimeCents: variant.minPriceAllTime != null ? Math.round(variant.minPriceAllTime * 100) : null,
-        maxPriceAllTimeCents: variant.maxPriceAllTime != null ? Math.round(variant.maxPriceAllTime * 100) : null,
-        history: (variant.priceHistory ?? []).map((p) => ({ priceCents: Math.round(p.p * 100), date: new Date(p.t * 1000).toISOString() })),
-        imageUrl: card.tcgplayerId ? `https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayerId}_200w.jpg` : null,
-      };
+      for (const card of body.data) {
+        const cardId = card.uuid || card.id;
+        if (seenCardIds.has(cardId)) continue;
+        seenCardIds.add(cardId);
+        const score = scoreCandidate(card, titleLower, titleWords);
+        if (!best || score > best.score) best = { card, score };
+      }
     }
+    // A strong same-game match is worth stopping for — no reason to also
+    // burn calls searching the other franchise's game once one is found.
+    const soFar = best;
+    if (soFar && soFar.score >= MIN_CONFIDENT_SCORE) break;
   }
 
-  return null;
+  const found = best;
+  if (!found || found.score < MIN_CONFIDENT_SCORE) return null;
+  const { card } = found;
+
+  const variant =
+    card.variants.find((v) => /near ?mint/i.test(v.condition) && /normal/i.test(v.printing)) ??
+    card.variants.find((v) => /near ?mint/i.test(v.condition)) ??
+    card.variants[0];
+  if (!variant) return null;
+
+  return {
+    cardName: card.name,
+    setName: card.set_name,
+    matchedVariant: { condition: variant.condition, printing: variant.printing },
+    marketPriceCents: Math.round(variant.price * 100),
+    priceChange7dPct: variant.priceChange7d ?? null,
+    priceChange30dPct: variant.priceChange30d ?? null,
+    minPriceAllTimeCents: variant.minPriceAllTime != null ? Math.round(variant.minPriceAllTime * 100) : null,
+    maxPriceAllTimeCents: variant.maxPriceAllTime != null ? Math.round(variant.maxPriceAllTime * 100) : null,
+    history: (variant.priceHistory ?? []).map((p) => ({ priceCents: Math.round(p.p * 100), date: new Date(p.t * 1000).toISOString() })),
+    imageUrl: card.tcgplayerId ? `https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayerId}_200w.jpg` : null,
+  };
 }
