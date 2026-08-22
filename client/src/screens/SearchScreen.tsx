@@ -42,6 +42,11 @@ function MultiSelectRow({ options, selected, onToggle }: { options: { key: strin
   );
 }
 
+interface PriceRange {
+  minCents: number | null;
+  maxCents: number | null;
+}
+
 export default function SearchScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
@@ -49,18 +54,43 @@ export default function SearchScreen() {
   const [query, setQuery] = useState("");
   const [franchises, setFranchises] = useState<string[]>([]);
   const [conditions, setConditions] = useState<string[]>([]);
+  const [minPriceInput, setMinPriceInput] = useState("");
+  const [maxPriceInput, setMaxPriceInput] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // The real lowest/highest price among listings that already match every
+  // OTHER active filter (franchise, condition, search text) — recomputed
+  // whenever those change, so "$5 – $29,499" always reflects what's
+  // actually available right now rather than a guessed/fixed range.
+  const rangeQueryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (franchises.length) params.set("franchise", franchises.join(","));
+    if (conditions.length) params.set("condition", conditions.join(","));
+    return params.toString();
+  }, [query, franchises, conditions]);
+  const { data: priceRange } = useQuery<PriceRange>({ queryKey: [`/api/listings/price-range?${rangeQueryString}`] });
+
+  const minPrice = minPriceInput.trim() ? Number(minPriceInput) : undefined;
+  const maxPrice = maxPriceInput.trim() ? Number(maxPriceInput) : undefined;
+  const priceInputsValid = (minPrice === undefined || !Number.isNaN(minPrice)) && (maxPrice === undefined || !Number.isNaN(maxPrice));
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
     if (franchises.length) params.set("franchise", franchises.join(","));
     if (conditions.length) params.set("condition", conditions.join(","));
+    if (priceInputsValid && minPrice !== undefined) params.set("minPrice", String(minPrice));
+    if (priceInputsValid && maxPrice !== undefined) params.set("maxPrice", String(maxPrice));
     const s = params.toString();
     return s ? `?${s}` : "";
-  }, [query, franchises, conditions]);
+  }, [query, franchises, conditions, minPrice, maxPrice, priceInputsValid]);
 
-  const { data: listings, isLoading } = useQuery<ListingSummary[]>({ queryKey: [`/api/listings${queryString}`], enabled: query.length > 0 || franchises.length > 0 || conditions.length > 0 });
+  const hasPriceFilter = priceInputsValid && (minPrice !== undefined || maxPrice !== undefined);
+  const { data: listings, isLoading } = useQuery<ListingSummary[]>({
+    queryKey: [`/api/listings${queryString}`],
+    enabled: query.length > 0 || franchises.length > 0 || conditions.length > 0 || hasPriceFilter,
+  });
   const { data: favorites } = useQuery<ListingSummary[]>({ queryKey: ["/api/favorites"], enabled: !!user });
   const favoritedIds = useMemo(() => new Set((favorites ?? []).map((f) => f.id)), [favorites]);
 
@@ -68,7 +98,7 @@ export default function SearchScreen() {
     setList(list.includes(key) ? list.filter((x) => x !== key) : [...list, key]);
   };
 
-  const activeFilterCount = franchises.length + conditions.length;
+  const activeFilterCount = franchises.length + conditions.length + (hasPriceFilter ? 1 : 0);
   const hasQuery = query.length > 0 || activeFilterCount > 0;
 
   const clearSearch = () => {
@@ -84,7 +114,7 @@ export default function SearchScreen() {
           <Feather name="search" size={18} color={Colors.textMuted} />
           <TextInput style={styles.searchInput} placeholder="Search for a card…" placeholderTextColor={Colors.textMuted} value={query} onChangeText={setQuery} autoFocus />
         </View>
-        <Pressable onPress={() => setFiltersOpen((v) => !v)} style={[styles.filterButton, activeFilterCount > 0 && styles.filterButtonActive]}>
+        <Pressable onPress={() => setFiltersOpen((v) => !v)} style={[styles.filterButton, activeFilterCount > 0 && styles.filterButtonActive]} testID="search-filter-button">
           <Feather name="sliders" size={18} color={activeFilterCount > 0 ? Colors.white : Colors.text} />
           {activeFilterCount > 0 ? <Text style={styles.filterCount}>{activeFilterCount}</Text> : null}
         </Pressable>
@@ -99,6 +129,50 @@ export default function SearchScreen() {
           <MultiSelectRow options={FRANCHISE_OPTIONS} selected={franchises} onToggle={(k) => toggle(franchises, setFranchises, k)} />
           <Text style={styles.filterLabel}>Condition (select multiple)</Text>
           <MultiSelectRow options={CONDITION_OPTIONS} selected={conditions} onToggle={(k) => toggle(conditions, setConditions, k)} />
+
+          <Text style={styles.filterLabel}>Price range</Text>
+          <View style={styles.priceRow}>
+            <View style={styles.priceInputWrap}>
+              <Text style={styles.priceDollar}>$</Text>
+              <TextInput
+                style={styles.priceInput}
+                placeholder={priceRange?.minCents != null ? (priceRange.minCents / 100).toFixed(0) : "Min"}
+                placeholderTextColor={Colors.textMuted}
+                value={minPriceInput}
+                onChangeText={setMinPriceInput}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <Text style={styles.priceDash}>–</Text>
+            <View style={styles.priceInputWrap}>
+              <Text style={styles.priceDollar}>$</Text>
+              <TextInput
+                style={styles.priceInput}
+                placeholder={priceRange?.maxCents != null ? (priceRange.maxCents / 100).toFixed(0) : "Max"}
+                placeholderTextColor={Colors.textMuted}
+                value={maxPriceInput}
+                onChangeText={setMaxPriceInput}
+                keyboardType="decimal-pad"
+              />
+            </View>
+            {minPriceInput || maxPriceInput ? (
+              <Pressable
+                onPress={() => {
+                  setMinPriceInput("");
+                  setMaxPriceInput("");
+                }}
+                hitSlop={8}
+              >
+                <Feather name="x-circle" size={18} color={Colors.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+          {priceRange?.minCents != null && priceRange?.maxCents != null ? (
+            <Text style={styles.priceHint}>
+              Available now: ${(priceRange.minCents / 100).toLocaleString()} – ${(priceRange.maxCents / 100).toLocaleString()}
+            </Text>
+          ) : null}
+          {!priceInputsValid ? <Text style={styles.priceError}>Enter a number for min/max price</Text> : null}
         </View>
       ) : null}
 
@@ -153,4 +227,22 @@ const styles = StyleSheet.create({
   multiRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
   optionChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: BorderRadius.pill, borderWidth: 1.5 },
   optionChipText: { ...Typography.small, fontWeight: "600" },
+  priceRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
+  priceInputWrap: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 8,
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: BorderRadius.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  priceDollar: { ...Typography.small, color: Colors.textMuted, fontWeight: "700" },
+  priceInput: { flex: 1, color: Colors.text, fontSize: 14, ...NoWebFocusOutline },
+  priceDash: { color: Colors.textMuted, fontWeight: "700" },
+  priceHint: { ...Typography.small, color: Colors.textMuted, fontSize: 11 },
+  priceError: { ...Typography.small, color: Colors.danger, fontSize: 11 },
 });

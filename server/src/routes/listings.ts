@@ -201,6 +201,47 @@ router.get("/", async (req, res) => {
 router.get("/conditions", (_req, res) => res.json(CONDITIONS));
 router.get("/franchises", (_req, res) => res.json(FRANCHISES));
 
+// ── Real min/max price across whatever's currently active + matching the
+// search/franchise/condition filters (excluding price itself) — lets the
+// client show real "lowest to highest available" bounds instead of a
+// guessed range, and keeps those bounds correct as other filters change
+// (e.g. picking "Pokémon" narrows the real range shown for the price
+// fields). Registered before "/:id" so "price-range" is never swallowed
+// as a listing id. ─────────────────────────────────────────────────────
+router.get("/price-range", async (req, res) => {
+  const parsed = z
+    .object({
+      q: z.string().optional(),
+      franchise: z.string().optional(),
+      condition: z.string().optional(),
+    })
+    .safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ message: "Invalid query" });
+  const { q, franchise, condition } = parsed.data;
+
+  const conditions = [eq(listings.status, "active")];
+  if (q) conditions.push(ilike(listings.title, `%${q}%`));
+  if (franchise) {
+    const list = franchise.split(",").filter(Boolean);
+    if (list.length > 0) {
+      conditions.push(
+        or(...list.map((f) => (f === "both" ? eq(listings.franchise, "both") : or(eq(listings.franchise, f), eq(listings.franchise, "both")))))!,
+      );
+    }
+  }
+  if (condition) {
+    const list = condition.split(",").filter(Boolean);
+    if (list.length > 0) conditions.push(inArray(listings.condition, list));
+  }
+
+  const [row] = await db
+    .select({ minCents: sql<number | null>`MIN(${listings.priceCents})`, maxCents: sql<number | null>`MAX(${listings.priceCents})` })
+    .from(listings)
+    .where(and(...conditions));
+
+  res.json({ minCents: row?.minCents ?? null, maxCents: row?.maxCents ?? null });
+});
+
 // ── A seller's own listings, every status included (used by the "My
 // Listings" tab) ──────────────────────────────────────────────────────────
 router.get("/mine", authenticateToken, async (req, res) => {
