@@ -17,6 +17,11 @@ function headers(): Record<string, string> {
   return { "x-api-key": process.env.JUSTTCG_API_KEY! };
 }
 
+interface JustTcgPriceHistoryPoint {
+  p: number;
+  t: number;
+}
+
 interface JustTcgVariant {
   id: string;
   printing: string;
@@ -24,6 +29,11 @@ interface JustTcgVariant {
   price: number;
   priceChange24hr?: number;
   lastUpdated: number;
+  priceHistory?: JustTcgPriceHistoryPoint[];
+  priceChange7d?: number;
+  priceChange30d?: number;
+  minPriceAllTime?: number;
+  maxPriceAllTime?: number;
 }
 
 interface JustTcgCard {
@@ -117,4 +127,104 @@ export async function browseCards(franchise: "pokemon" | "one_piece", offset: nu
   const body = (await res.json()) as JustTcgCardsResponse;
 
   return { cards: body.data.map(normalizeCard), total: body.meta.total, hasMore: body.meta.hasMore };
+}
+
+export interface PriceHistoryPoint {
+  priceCents: number;
+  date: string; // ISO 8601, converted from JustTCG's unix-seconds "t"
+}
+
+export interface CardPriceHistory {
+  cardName: string;
+  setName: string;
+  matchedVariant: { condition: string; printing: string };
+  marketPriceCents: number;
+  priceChange7dPct: number | null;
+  priceChange30dPct: number | null;
+  minPriceAllTimeCents: number | null;
+  maxPriceAllTimeCents: number | null;
+  history: PriceHistoryPoint[];
+  imageUrl: string | null;
+}
+
+// A marketplace listing's title is free text a seller typed ("PSA 7
+// CHARIZARD GOLD STAR - 100/101 - POKEMON 2006 EX DRAGON FRONTIERS"), not a
+// stable card id — so finding its real market chart means searching
+// JustTCG's card names for the closest match rather than a direct lookup.
+// This is inherently best-effort (grading/condition/set details in a
+// listing title aren't guaranteed to isolate one exact card), which is why
+// the API response is explicit about which card/variant it actually
+// matched, and the client labels this as a reference chart rather than
+// implying it's this exact physical card's own price history.
+//
+// JustTCG's search (verified live) is a fairly literal substring match, not
+// a fuzzy/relevance search — querying its full cleaned title ("Charizard
+// Gold Star Dragon Frontiers") reliably returns zero results, while just
+// "Charizard Gold Star" matches. So rather than guess one "right" amount of
+// truncation, this returns several candidate queries from most to least
+// specific (full cleaned phrase down to just the first couple of words),
+// and the caller tries each until one actually returns a card.
+function candidateSearchQueries(title: string): string[] {
+  const cleaned = title
+    .replace(/\b(PSA|BGS|CGC|SGC)\s*[\d.]+\b/gi, "")
+    .replace(/\bGEM\s*MT\s*\d+\b/gi, "")
+    .replace(/\b\d+\/\d+\b/g, "")
+    .replace(/\b(pokemon|pok[eé]mon|one\s*piece)\b/gi, "")
+    .replace(/\b(19|20)\d{2}\b/g, "") // release years add noise, not signal
+    .replace(/[-–—|.]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!cleaned) return [];
+
+  // Capped at 6 words to start: a real card name is almost never longer
+  // than that, and every extra word beyond it in a listing title tends to
+  // be rarity/set noise that actively hurts JustTCG's literal matching —
+  // capping also bounds this to at most 5 API calls per (game, listing).
+  const words = cleaned.split(" ").slice(0, 6);
+  const queries: string[] = [];
+  for (let take = words.length; take >= Math.min(2, words.length); take--) {
+    const q = words.slice(0, take).join(" ");
+    if (!queries.includes(q)) queries.push(q);
+  }
+  return queries;
+}
+
+export async function findPriceHistoryForListing(franchise: "pokemon" | "one_piece" | "both", title: string): Promise<CardPriceHistory | null> {
+  const ids = await resolveGameIds();
+  const candidateGameIds = franchise === "both" ? [ids.pokemon, ids.onePiece] : [franchise === "pokemon" ? ids.pokemon : ids.onePiece];
+  const queries = candidateSearchQueries(title);
+  if (queries.length === 0) return null;
+
+  for (const gameId of candidateGameIds) {
+    if (!gameId) continue;
+    for (const q of queries) {
+      const params = new URLSearchParams({ game: gameId, q, limit: "1" });
+      const res = await fetch(`${BASE_URL}/cards?${params}`, { headers: headers() });
+      if (!res.ok) continue;
+      const body = (await res.json()) as JustTcgCardsResponse;
+      const card = body.data[0];
+      if (!card) continue;
+
+      const variant =
+        card.variants.find((v) => /near ?mint/i.test(v.condition) && /normal/i.test(v.printing)) ??
+        card.variants.find((v) => /near ?mint/i.test(v.condition)) ??
+        card.variants[0];
+      if (!variant) continue;
+
+      return {
+        cardName: card.name,
+        setName: card.set_name,
+        matchedVariant: { condition: variant.condition, printing: variant.printing },
+        marketPriceCents: Math.round(variant.price * 100),
+        priceChange7dPct: variant.priceChange7d ?? null,
+        priceChange30dPct: variant.priceChange30d ?? null,
+        minPriceAllTimeCents: variant.minPriceAllTime != null ? Math.round(variant.minPriceAllTime * 100) : null,
+        maxPriceAllTimeCents: variant.maxPriceAllTime != null ? Math.round(variant.maxPriceAllTime * 100) : null,
+        history: (variant.priceHistory ?? []).map((p) => ({ priceCents: Math.round(p.p * 100), date: new Date(p.t * 1000).toISOString() })),
+        imageUrl: card.tcgplayerId ? `https://tcgplayer-cdn.tcgplayer.com/product/${card.tcgplayerId}_200w.jpg` : null,
+      };
+    }
+  }
+
+  return null;
 }

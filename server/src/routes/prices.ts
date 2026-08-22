@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { isJustTcgConfigured, browseCards, type PriceCardResult } from "../lib/justtcg";
+import { isJustTcgConfigured, browseCards, findPriceHistoryForListing, type PriceCardResult, type CardPriceHistory } from "../lib/justtcg";
 import { getUsdToAudRate } from "../lib/fx";
 
 const router = Router();
@@ -58,6 +58,61 @@ router.get("/", async (req, res) => {
     res.json({ ...result, cards: withAud(result.cards, usdToAud), fxRateUsdToAud: usdToAud });
   } catch (err) {
     console.error("JustTCG price lookup failed:", err);
+    res.status(502).json({ message: "Couldn't reach the live price service — try again shortly." });
+  }
+});
+
+export interface CardPriceHistoryWithAud extends CardPriceHistory {
+  marketPriceAudCents: number;
+  minPriceAllTimeAudCents: number | null;
+  maxPriceAllTimeAudCents: number | null;
+  history: (CardPriceHistory["history"][number] & { priceAudCents: number })[];
+}
+
+// Keyed by (franchise, listing title) rather than listing id — a re-edited
+// listing title should re-match rather than serve a stale card forever,
+// and this also means two different listings for the same real card share
+// one JustTCG lookup instead of each burning their own. 1h TTL: the chart
+// itself is daily-granularity price history, so there's no value in
+// re-fetching more often than that, and it keeps this well within
+// JustTCG's request quota even on a busy listings page.
+const HISTORY_CACHE_TTL_MS = 60 * 60 * 1000;
+const historyCache = new Map<string, { at: number; data: CardPriceHistory | null }>();
+
+router.get("/match", async (req, res) => {
+  if (!isJustTcgConfigured()) {
+    return res.status(503).json({ message: "Live card prices aren't configured yet. Set JUSTTCG_API_KEY (see .env.example)." });
+  }
+
+  const parsed = z
+    .object({
+      franchise: z.enum(["pokemon", "one_piece", "both"]),
+      title: z.string().trim().min(1).max(300),
+    })
+    .safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid request" });
+  const { franchise, title } = parsed.data;
+
+  const cacheKey = `${franchise}:${title.toLowerCase()}`;
+  const cached = historyCache.get(cacheKey);
+
+  try {
+    const usdToAud = await getUsdToAudRate();
+    const data = cached && Date.now() - cached.at < HISTORY_CACHE_TTL_MS ? cached.data : await findPriceHistoryForListing(franchise, title);
+    if (!cached || Date.now() - cached.at >= HISTORY_CACHE_TTL_MS) historyCache.set(cacheKey, { at: Date.now(), data });
+
+    if (!data) return res.json({ match: null });
+
+    const result: CardPriceHistoryWithAud = {
+      ...data,
+      marketPriceAudCents: Math.round(data.marketPriceCents * usdToAud),
+      minPriceAllTimeAudCents: data.minPriceAllTimeCents != null ? Math.round(data.minPriceAllTimeCents * usdToAud) : null,
+      maxPriceAllTimeAudCents: data.maxPriceAllTimeCents != null ? Math.round(data.maxPriceAllTimeCents * usdToAud) : null,
+      history: data.history.map((p) => ({ ...p, priceAudCents: Math.round(p.priceCents * usdToAud) })),
+    };
+    res.json({ match: result });
+  } catch (err) {
+    console.error("JustTCG price-history lookup failed:", err);
     res.status(502).json({ message: "Couldn't reach the live price service — try again shortly." });
   }
 });

@@ -11,9 +11,11 @@ import { Button, PriceTag } from "@/components/ui";
 import { Avatar } from "@/components/Avatar";
 import { ListingOptionsSheet } from "@/components/ListingOptionsSheet";
 import { AppThemeBackground } from "@/components/AppThemeBackground";
+import { PriceHistoryChart } from "@/components/PriceHistoryChart";
 import { RootStackParamList } from "@/navigation/types";
 import { apiJson, ApiError } from "@/lib/api";
 import { resolveImageUrl } from "@/lib/media";
+import { formatPriceCents } from "@/lib/format";
 import { useAuth } from "@/contexts/AuthContext";
 import { CONDITION_LABELS, SHIPPING_DEADLINE_BUSINESS_DAYS, LISTING_REVISION_LIMIT } from "@shared/validation";
 
@@ -44,6 +46,62 @@ interface ListingDetail {
   seller: { id: string; username: string; avatarUrl: string | null } | null;
 }
 
+interface PriceMatchResponse {
+  match: {
+    cardName: string;
+    setName: string;
+    marketPriceCents: number;
+    marketPriceAudCents: number;
+    priceChange7dPct: number | null;
+    priceChange30dPct: number | null;
+    minPriceAllTimeAudCents: number | null;
+    maxPriceAllTimeAudCents: number | null;
+    history: { priceCents: number; priceAudCents: number; date: string }[];
+  } | null;
+}
+
+function MarketPriceCard({ data }: { data: PriceMatchResponse["match"] }) {
+  if (!data) return null;
+  const change = data.priceChange7dPct;
+  const trendUp = change === null ? null : change > 0;
+
+  return (
+    <View style={styles.marketCard}>
+      <View style={styles.marketHeaderRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.marketLabel}>Market price reference</Text>
+          <Text style={styles.marketCardName} numberOfLines={1}>
+            {data.cardName} · {data.setName}
+          </Text>
+        </View>
+        {change !== null ? (
+          <View style={[styles.marketChangeBadge, trendUp && styles.marketChangeBadgeUp, trendUp === false && styles.marketChangeBadgeDown]}>
+            <Feather name={trendUp ? "trending-up" : trendUp === false ? "trending-down" : "minus"} size={11} color={trendUp ? Colors.success : trendUp === false ? Colors.danger : Colors.textMuted} />
+            <Text style={[styles.marketChangeText, { color: trendUp ? Colors.success : trendUp === false ? Colors.danger : Colors.textMuted }]}>{Math.abs(change).toFixed(1)}% · 7d</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <Text style={styles.marketPrice}>{formatPriceCents(data.marketPriceAudCents, "AU$")}</Text>
+
+      {data.history.length >= 2 ? (
+        <View style={{ marginTop: Spacing.sm, marginBottom: Spacing.md }}>
+          <PriceHistoryChart history={data.history} trendUp={trendUp} />
+        </View>
+      ) : null}
+
+      {data.minPriceAllTimeAudCents != null && data.maxPriceAllTimeAudCents != null ? (
+        <View style={styles.marketRangeRow}>
+          <Text style={styles.marketRangeText}>All-time low {formatPriceCents(data.minPriceAllTimeAudCents, "AU$")}</Text>
+          <Text style={styles.marketRangeText}>All-time high {formatPriceCents(data.maxPriceAllTimeAudCents, "AU$")}</Text>
+        </View>
+      ) : null}
+
+      <Text style={styles.marketDisclaimer}>Closest matching card on JustTCG — a reference, not this exact listing's own sale history.</Text>
+    </View>
+  );
+}
+
 export default function ListingDetailScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Rt>();
@@ -71,6 +129,13 @@ export default function ListingDetailScreen() {
       showAlert("Added to cart", "This card was added to your cart.");
     },
     onError: (err) => showAlert("Couldn't add to cart", err instanceof ApiError ? err.message : "Please try again."),
+  });
+
+  const priceMatchQuery = new URLSearchParams({ franchise: listing?.franchise ?? "both", title: listing?.title ?? "" }).toString();
+  const { data: priceMatch } = useQuery<PriceMatchResponse>({
+    queryKey: [`/api/prices/match?${priceMatchQuery}`],
+    enabled: !!listing,
+    staleTime: 60 * 60 * 1000,
   });
 
   const requireAuth = (action: () => void) => {
@@ -170,6 +235,8 @@ export default function ListingDetailScreen() {
           </View>
         </View>
 
+        <MarketPriceCard data={priceMatch?.match ?? null} />
+
         <View style={styles.separatorInline} />
 
         <Text style={styles.sectionTitle}>Description</Text>
@@ -261,6 +328,18 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm, marginTop: Spacing.xs },
   metaPill: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: Colors.surfaceAlt, paddingHorizontal: Spacing.sm, paddingVertical: 5, borderRadius: BorderRadius.pill },
   metaText: { ...Typography.small, color: Colors.textSecondary, fontWeight: "600" },
+  marketCard: { backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, marginTop: Spacing.md, borderWidth: 1, borderColor: Colors.border, ...Shadow.card },
+  marketHeaderRow: { flexDirection: "row", alignItems: "flex-start", gap: Spacing.sm },
+  marketLabel: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4, fontSize: 10 },
+  marketCardName: { ...Typography.small, color: Colors.text, fontWeight: "700", marginTop: 2 },
+  marketChangeBadge: { flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: Colors.surfaceAlt, paddingHorizontal: Spacing.sm, paddingVertical: 4, borderRadius: BorderRadius.pill },
+  marketChangeBadgeUp: { backgroundColor: "#E4F6EB" },
+  marketChangeBadgeDown: { backgroundColor: "#FDE8E8" },
+  marketChangeText: { fontSize: 11, fontWeight: "800" },
+  marketPrice: { ...Typography.h3, color: Colors.text, marginTop: Spacing.xs },
+  marketRangeRow: { flexDirection: "row", justifyContent: "space-between" },
+  marketRangeText: { ...Typography.small, color: Colors.textMuted, fontSize: 11 },
+  marketDisclaimer: { ...Typography.small, color: Colors.textMuted, fontSize: 10, marginTop: Spacing.sm, fontStyle: "italic" },
   sectionTitle: { ...Typography.bodyBold, color: Colors.text, marginTop: Spacing.md },
   description: { ...Typography.body, color: Colors.textSecondary, lineHeight: 21 },
   shippingNote: { flexDirection: "row", gap: Spacing.sm, alignItems: "flex-start", backgroundColor: "#FEF3E2", padding: Spacing.md, borderRadius: BorderRadius.md, marginTop: Spacing.md },
