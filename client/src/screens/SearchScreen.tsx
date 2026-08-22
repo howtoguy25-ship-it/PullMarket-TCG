@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Feather } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Shadow, NoWebFocusOutline } from "@/constants/theme";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
@@ -130,49 +131,60 @@ export default function SearchScreen() {
           <Text style={styles.filterLabel}>Condition (select multiple)</Text>
           <MultiSelectRow options={CONDITION_OPTIONS} selected={conditions} onToggle={(k) => toggle(conditions, setConditions, k)} />
 
-          <Text style={styles.filterLabel}>Price range</Text>
-          <View style={styles.priceRow}>
-            <View style={styles.priceInputWrap}>
-              <Text style={styles.priceDollar}>$</Text>
-              <TextInput
-                style={styles.priceInput}
-                placeholder={priceRange?.minCents != null ? (priceRange.minCents / 100).toFixed(0) : "Min"}
-                placeholderTextColor={Colors.textMuted}
-                value={minPriceInput}
-                onChangeText={setMinPriceInput}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            <Text style={styles.priceDash}>–</Text>
-            <View style={styles.priceInputWrap}>
-              <Text style={styles.priceDollar}>$</Text>
-              <TextInput
-                style={styles.priceInput}
-                placeholder={priceRange?.maxCents != null ? (priceRange.maxCents / 100).toFixed(0) : "Max"}
-                placeholderTextColor={Colors.textMuted}
-                value={maxPriceInput}
-                onChangeText={setMaxPriceInput}
-                keyboardType="decimal-pad"
-              />
-            </View>
-            {minPriceInput || maxPriceInput ? (
-              <Pressable
-                onPress={() => {
-                  setMinPriceInput("");
-                  setMaxPriceInput("");
-                }}
-                hitSlop={8}
-              >
-                <Feather name="x-circle" size={18} color={Colors.textMuted} />
-              </Pressable>
-            ) : null}
+          <View style={styles.priceLabelRow}>
+            <Feather name="dollar-sign" size={14} color={Colors.gold} />
+            <Text style={styles.filterLabel}>Price range</Text>
           </View>
-          {priceRange?.minCents != null && priceRange?.maxCents != null ? (
-            <Text style={styles.priceHint}>
-              Available now: ${(priceRange.minCents / 100).toLocaleString()} – ${(priceRange.maxCents / 100).toLocaleString()}
-            </Text>
-          ) : null}
-          {!priceInputsValid ? <Text style={styles.priceError}>Enter a number for min/max price</Text> : null}
+          <LinearGradient colors={[Colors.surfaceAlt, Colors.surface]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.priceCard}>
+            <View style={styles.priceRow}>
+              <View style={styles.priceInputWrap}>
+                <Text style={styles.priceDollar}>$</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  placeholder={priceRange?.minCents != null ? (priceRange.minCents / 100).toFixed(0) : "Min"}
+                  placeholderTextColor={Colors.textMuted}
+                  value={minPriceInput}
+                  onChangeText={setMinPriceInput}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <View style={styles.priceDashWrap}>
+                <Text style={styles.priceDash}>—</Text>
+              </View>
+              <View style={styles.priceInputWrap}>
+                <Text style={styles.priceDollar}>$</Text>
+                <TextInput
+                  style={styles.priceInput}
+                  placeholder={priceRange?.maxCents != null ? (priceRange.maxCents / 100).toFixed(0) : "Max"}
+                  placeholderTextColor={Colors.textMuted}
+                  value={maxPriceInput}
+                  onChangeText={setMaxPriceInput}
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              {minPriceInput || maxPriceInput ? (
+                <Pressable
+                  onPress={() => {
+                    setMinPriceInput("");
+                    setMaxPriceInput("");
+                  }}
+                  hitSlop={8}
+                  style={styles.priceClearBtn}
+                >
+                  <Feather name="x" size={16} color={Colors.white} />
+                </Pressable>
+              ) : null}
+            </View>
+            {priceRange?.minCents != null && priceRange?.maxCents != null ? (
+              <View style={styles.priceHintPill}>
+                <Feather name="trending-up" size={12} color={Colors.primary} />
+                <Text style={styles.priceHint}>
+                  Available now: ${(priceRange.minCents / 100).toLocaleString()} – ${(priceRange.maxCents / 100).toLocaleString()}
+                </Text>
+              </View>
+            ) : null}
+            {!priceInputsValid ? <Text style={styles.priceError}>Enter a number for min/max price</Text> : null}
+          </LinearGradient>
         </View>
       ) : null}
 
@@ -227,22 +239,50 @@ const styles = StyleSheet.create({
   multiRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
   optionChip: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: Spacing.sm, paddingVertical: 6, borderRadius: BorderRadius.pill, borderWidth: 1.5 },
   optionChipText: { ...Typography.small, fontWeight: "600" },
+  priceLabelRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: Spacing.xs },
+  priceCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: Colors.gold,
+    gap: Spacing.sm,
+    ...Shadow.card,
+  },
   priceRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   priceInputWrap: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 2,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 8,
-    backgroundColor: Colors.surfaceAlt,
-    borderRadius: BorderRadius.sm,
-    borderWidth: 1,
+    gap: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 14,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    borderWidth: 2,
     borderColor: Colors.border,
   },
-  priceDollar: { ...Typography.small, color: Colors.textMuted, fontWeight: "700" },
-  priceInput: { flex: 1, color: Colors.text, fontSize: 14, ...NoWebFocusOutline },
-  priceDash: { color: Colors.textMuted, fontWeight: "700" },
-  priceHint: { ...Typography.small, color: Colors.textMuted, fontSize: 11 },
-  priceError: { ...Typography.small, color: Colors.danger, fontSize: 11 },
+  priceDollar: { fontSize: 18, color: Colors.primary, fontWeight: "800" },
+  priceInput: { flex: 1, color: Colors.text, fontSize: 18, fontWeight: "700", ...NoWebFocusOutline },
+  priceDashWrap: { alignItems: "center", justifyContent: "center" },
+  priceDash: { color: Colors.gold, fontWeight: "900", fontSize: 20 },
+  priceClearBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.textMuted,
+  },
+  priceHintPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    alignSelf: "flex-start",
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.pill,
+    backgroundColor: Colors.surface,
+  },
+  priceHint: { ...Typography.small, color: Colors.textSecondary, fontSize: 12, fontWeight: "700" },
+  priceError: { ...Typography.small, color: Colors.danger, fontSize: 12, fontWeight: "700" },
 });
