@@ -8,6 +8,8 @@ import { Feather } from "@expo/vector-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Fonts, NoWebFocusOutline } from "@/constants/theme";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
+import { EbayListingCard, EbayListingSummary } from "@/components/EbayListingCard";
+import { mergeListingsWithEbay } from "@/lib/mergeFeed";
 import { EmptyState } from "@/components/ui";
 import { GalaxyBackground } from "@/components/GalaxyBackground";
 import { OceanBackground } from "@/components/OceanBackground";
@@ -153,7 +155,22 @@ export default function HomeScreen() {
   const { data: favorites } = useQuery<ListingSummary[]>({ queryKey: ["/api/favorites"], enabled: !!user });
   const favoritedIds = useMemo(() => new Set((favorites ?? []).map((f) => f.id)), [favorites]);
 
-  const visibleListings = listings ?? [];
+  const ebayQueryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (franchises.length) params.set("franchise", franchises.join(","));
+    const s = params.toString();
+    return s ? `?${s}` : "";
+  }, [query, franchises]);
+
+  // A 404/503 (not configured) is expected and silent — real eBay listings
+  // are an enhancement on top of the core feed, never a requirement for it.
+  const { data: ebayResponse } = useQuery<{ listings: EbayListingSummary[] }>({
+    queryKey: [`/api/ebay-listings${ebayQueryString}`],
+    retry: false,
+  });
+
+  const feedItems = useMemo(() => mergeListingsWithEbay(listings ?? [], ebayResponse?.listings ?? []), [listings, ebayResponse]);
 
   const toggleFranchise = (key: string) => {
     setFranchises((prev) => (prev.includes(key) ? prev.filter((f) => f !== key) : [...prev, key]));
@@ -246,22 +263,26 @@ export default function HomeScreen() {
         </Animated.View>
 
         <FlatList
-          data={visibleListings}
-          keyExtractor={(item) => item.id}
+          data={feedItems}
+          keyExtractor={(item) => item.key}
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
           onScroll={handleScroll}
           scrollEventThrottle={16}
           contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
-          renderItem={({ item }) => (
-            <ListingCard
-              listing={{ ...item, isFavorited: favoritedIds.has(item.id) }}
-              onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })}
-              onRequireAuth={requireAuth}
-              dark
-            />
-          )}
+          renderItem={({ item }) =>
+            item.kind === "ebay" ? (
+              <EbayListingCard listing={item.data} />
+            ) : (
+              <ListingCard
+                listing={{ ...item.data, isFavorited: favoritedIds.has(item.data.id) }}
+                onPress={() => navigation.navigate("ListingDetail", { listingId: item.data.id })}
+                onRequireAuth={requireAuth}
+                dark
+              />
+            )
+          }
           ListEmptyComponent={
             !isLoading ? (
               <View style={styles.emptyPanel}>

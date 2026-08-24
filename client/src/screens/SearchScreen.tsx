@@ -8,6 +8,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useQuery } from "@tanstack/react-query";
 import { Colors, Spacing, Typography, BorderRadius, Shadow, NoWebFocusOutline } from "@/constants/theme";
 import { ListingCard, ListingSummary } from "@/components/ListingCard";
+import { EbayListingCard, EbayListingSummary } from "@/components/EbayListingCard";
+import { mergeListingsWithEbay } from "@/lib/mergeFeed";
 import { AppThemeBackground } from "@/components/AppThemeBackground";
 import { EmptyState } from "@/components/ui";
 import { RootStackParamList } from "@/navigation/types";
@@ -88,19 +90,37 @@ export default function SearchScreen() {
   }, [query, franchises, conditions, minPrice, maxPrice, priceInputsValid]);
 
   const hasPriceFilter = priceInputsValid && (minPrice !== undefined || maxPrice !== undefined);
+  const hasQuery = query.length > 0 || franchises.length > 0 || conditions.length > 0 || hasPriceFilter;
   const { data: listings, isLoading } = useQuery<ListingSummary[]>({
     queryKey: [`/api/listings${queryString}`],
-    enabled: query.length > 0 || franchises.length > 0 || conditions.length > 0 || hasPriceFilter,
+    enabled: hasQuery,
   });
   const { data: favorites } = useQuery<ListingSummary[]>({ queryKey: ["/api/favorites"], enabled: !!user });
   const favoritedIds = useMemo(() => new Set((favorites ?? []).map((f) => f.id)), [favorites]);
+
+  const ebayQueryString = useMemo(() => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    if (franchises.length) params.set("franchise", franchises.join(","));
+    if (priceInputsValid && minPrice !== undefined) params.set("minPrice", String(minPrice));
+    if (priceInputsValid && maxPrice !== undefined) params.set("maxPrice", String(maxPrice));
+    return params.toString();
+  }, [query, franchises, minPrice, maxPrice, priceInputsValid]);
+  // 404/503 (not configured) is expected and silent — real eBay results are
+  // an enhancement on top of the core search, never a requirement for it.
+  const { data: ebayResponse } = useQuery<{ listings: EbayListingSummary[] }>({
+    queryKey: [`/api/ebay-listings?${ebayQueryString}`],
+    enabled: hasQuery,
+    retry: false,
+  });
+
+  const feedItems = useMemo(() => mergeListingsWithEbay(listings ?? [], ebayResponse?.listings ?? []), [listings, ebayResponse]);
 
   const toggle = (list: string[], setList: (v: string[]) => void, key: string) => {
     setList(list.includes(key) ? list.filter((x) => x !== key) : [...list, key]);
   };
 
   const activeFilterCount = franchises.length + conditions.length + (hasPriceFilter ? 1 : 0);
-  const hasQuery = query.length > 0 || activeFilterCount > 0;
 
   const clearSearch = () => {
     setQuery("");
@@ -190,16 +210,20 @@ export default function SearchScreen() {
 
       {hasQuery ? (
         <FlatList
-          data={listings ?? []}
-          keyExtractor={(item) => item.id}
+          data={feedItems}
+          keyExtractor={(item) => item.key}
           numColumns={2}
           columnWrapperStyle={styles.columnWrapper}
           contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          renderItem={({ item }) => (
-            <ListingCard listing={{ ...item, isFavorited: favoritedIds.has(item.id) }} onPress={() => navigation.navigate("ListingDetail", { listingId: item.id })} />
-          )}
+          renderItem={({ item }) =>
+            item.kind === "ebay" ? (
+              <EbayListingCard listing={item.data} />
+            ) : (
+              <ListingCard listing={{ ...item.data, isFavorited: favoritedIds.has(item.data.id) }} onPress={() => navigation.navigate("ListingDetail", { listingId: item.data.id })} />
+            )
+          }
           ListEmptyComponent={!isLoading ? <EmptyState icon={<Feather name="search" size={40} color={Colors.textMuted} />} title="No matches" subtitle="Try a different search or filters" /> : null}
         />
       ) : (
