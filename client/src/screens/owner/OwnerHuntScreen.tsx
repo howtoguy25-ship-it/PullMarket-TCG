@@ -8,7 +8,7 @@ import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { Colors, Spacing, Typography, BorderRadius, Shadow } from "@/constants/theme";
+import { Colors, Spacing, Typography, BorderRadius, Shadow, Fonts } from "@/constants/theme";
 import { Button } from "@/components/ui";
 import { HuntMap } from "@/components/HuntMap";
 import { RootStackParamList } from "@/navigation/types";
@@ -56,19 +56,64 @@ interface OwnerClaim {
   pointsAwarded: number | null;
 }
 
+function SectionHeading({ icon, color, title }: { icon: keyof typeof Feather.glyphMap; color: string; title: string }) {
+  return (
+    <View style={styles.sectionHeading}>
+      <View style={[styles.sectionBadge, { backgroundColor: `${color}1F` }]}>
+        <Feather name={icon} size={14} color={color} />
+      </View>
+      <Text style={styles.sectionHeadingText}>{title}</Text>
+    </View>
+  );
+}
+
+function GradientButton({
+  title,
+  onPress,
+  loading,
+  disabled,
+  colors,
+  icon,
+}: {
+  title: string;
+  onPress: () => void;
+  loading?: boolean;
+  disabled?: boolean;
+  colors: [string, string, ...string[]];
+  icon?: keyof typeof Feather.glyphMap;
+}) {
+  return (
+    <Pressable onPress={onPress} disabled={disabled || loading} style={({ pressed }) => ({ opacity: disabled ? 0.5 : pressed ? 0.85 : 1 })}>
+      <LinearGradient colors={colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={styles.gradientBtn}>
+        {loading ? (
+          <ActivityIndicator color={Colors.white} />
+        ) : (
+          <>
+            {icon ? <Feather name={icon} size={16} color={Colors.white} /> : null}
+            <Text style={styles.gradientBtnText}>{title}</Text>
+          </>
+        )}
+      </LinearGradient>
+    </Pressable>
+  );
+}
+
 function CreateHuntForm({ onCreated }: { onCreated: () => void }) {
   const [priceCents, setPriceCents] = useState<number>(HUNT_PRICE_TIERS_CENTS[2]);
   const [minutesInput, setMinutesInput] = useState("60");
+  const [secondsInput, setSecondsInput] = useState("0");
   const [cardCount, setCardCount] = useState(1);
   const [basePoints, setBasePoints] = useState(String(HUNT_DEFAULT_BASE_POINTS));
   const [thresholdMinutes, setThresholdMinutes] = useState(String(HUNT_DEFAULT_SPEED_BONUS_THRESHOLD_MINUTES));
   const [bonusPoints, setBonusPoints] = useState(String(HUNT_DEFAULT_SPEED_BONUS_POINTS));
 
+  const totalCountdownSeconds = Math.max(0, Number(minutesInput) || 0) * 60 + Math.max(0, Math.min(59, Number(secondsInput) || 0));
+
   const createMutation = useMutation({
     mutationFn: () =>
       apiJson("POST", "/api/hunt/owner/create", {
         entryPriceCents: priceCents,
-        countdownMinutes: Number(minutesInput),
+        countdownSeconds: totalCountdownSeconds,
         cardCount,
         basePoints: Number(basePoints),
         speedBonusThresholdMinutes: Number(thresholdMinutes),
@@ -79,10 +124,10 @@ function CreateHuntForm({ onCreated }: { onCreated: () => void }) {
   });
 
   return (
-    <View style={[styles.card, Shadow.card]}>
+    <View style={[styles.card, Shadow.card, { borderLeftWidth: 4, borderLeftColor: Colors.gold }]}>
       <Text style={styles.cardTitle}>Schedule a new hunt</Text>
 
-      <Text style={styles.label}>How many cards to find?</Text>
+      <SectionHeading icon="grid" color={Colors.secondary} title="How many cards to find?" />
       <View style={styles.cardCountRow}>
         {Array.from({ length: HUNT_MAX_CARDS }, (_, i) => i + 1).map((n) => (
           <Pressable key={n} onPress={() => setCardCount(n)} style={[styles.countChip, cardCount === n && styles.countChipActive]}>
@@ -91,24 +136,39 @@ function CreateHuntForm({ onCreated }: { onCreated: () => void }) {
         ))}
       </View>
 
-      <Text style={styles.label}>Entry price</Text>
+      <SectionHeading icon="dollar-sign" color={Colors.goldDark} title="Entry price" />
       <View style={styles.priceTierRow}>
         {HUNT_PRICE_TIERS_CENTS.map((cents) => (
           <Pressable key={cents} onPress={() => setPriceCents(cents)} style={[styles.priceChip, priceCents === cents && styles.priceChipActive]}>
+            {priceCents === cents ? <Feather name="check" size={12} color="#3A2A00" style={{ marginRight: 4 }} /> : null}
             <Text style={[styles.priceChipText, priceCents === cents && styles.priceChipTextActive]}>{formatPriceCents(cents)}</Text>
           </Pressable>
         ))}
       </View>
 
-      <Text style={styles.label}>Entry window (minutes shown as a countdown before you reveal)</Text>
-      <TextInput style={[styles.input, styles.inputFull]} value={minutesInput} onChangeText={setMinutesInput} keyboardType="number-pad" />
-
-      <Text style={styles.label}>Points per find</Text>
-      <TextInput style={[styles.input, styles.inputFull]} value={basePoints} onChangeText={setBasePoints} keyboardType="number-pad" />
-
+      <SectionHeading icon="clock" color={Colors.pokemon} title="Entry window (countdown shown before you reveal)" />
       <View style={styles.pointRow}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>Speed bonus if found within (min)</Text>
+          <View style={[styles.inputFull, styles.unitInputWrap]}>
+            <TextInput style={styles.input} value={minutesInput} onChangeText={setMinutesInput} keyboardType="number-pad" />
+            <Text style={styles.unitSuffix}>min</Text>
+          </View>
+        </View>
+        <View style={{ flex: 1 }}>
+          <View style={[styles.inputFull, styles.unitInputWrap]}>
+            <TextInput style={styles.input} value={secondsInput} onChangeText={setSecondsInput} keyboardType="number-pad" maxLength={2} />
+            <Text style={styles.unitSuffix}>sec</Text>
+          </View>
+        </View>
+      </View>
+
+      <SectionHeading icon="star" color={Colors.success} title="Points per find" />
+      <TextInput style={[styles.input, styles.inputFull]} value={basePoints} onChangeText={setBasePoints} keyboardType="number-pad" />
+
+      <SectionHeading icon="zap" color={Colors.primary} title="Speed bonus" />
+      <View style={styles.pointRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.label}>Found within (min)</Text>
           <TextInput style={[styles.input, styles.inputFull]} value={thresholdMinutes} onChangeText={setThresholdMinutes} keyboardType="number-pad" />
         </View>
         <View style={{ flex: 1 }}>
@@ -117,7 +177,16 @@ function CreateHuntForm({ onCreated }: { onCreated: () => void }) {
         </View>
       </View>
 
-      <Button title={createMutation.isPending ? "Creating…" : "Create hunt"} onPress={() => createMutation.mutate()} loading={createMutation.isPending} style={{ marginTop: Spacing.md }} />
+      <View style={{ marginTop: Spacing.lg }}>
+        <GradientButton
+          title={createMutation.isPending ? "Creating…" : "Create hunt"}
+          onPress={() => createMutation.mutate()}
+          loading={createMutation.isPending}
+          disabled={totalCountdownSeconds < 10}
+          colors={[Colors.primary, Colors.goldDark]}
+          icon="compass"
+        />
+      </View>
     </View>
   );
 }
@@ -184,10 +253,15 @@ function TargetSetupCard({
   };
 
   return (
-    <View style={[styles.card, Shadow.card]}>
-      <Text style={styles.cardTitle}>Card {target.index + 1}</Text>
+    <View style={[styles.card, Shadow.card, { borderLeftWidth: 4, borderLeftColor: Colors.secondary }]}>
+      <View style={styles.cardNumBadgeRow}>
+        <View style={styles.cardNumBadge}>
+          <Text style={styles.cardNumBadgeText}>{target.index + 1}</Text>
+        </View>
+        <Text style={styles.cardTitle}>Card {target.index + 1}</Text>
+      </View>
 
-      <Text style={styles.subheading}>Photos (up to {HUNT_MAX_IMAGES})</Text>
+      <SectionHeading icon="camera" color={Colors.pokemon} title={`Photos (up to ${HUNT_MAX_IMAGES})`} />
       <View style={styles.thumbGrid}>
         {images.map((uri, i) => (
           <View key={uri + i} style={styles.thumbSlot}>
@@ -210,19 +284,22 @@ function TargetSetupCard({
       </View>
       <Button title={uploadMutation.isPending ? "Saving…" : "Save photos"} onPress={() => uploadMutation.mutate(images)} loading={uploadMutation.isPending} disabled={images.length === 0} variant="secondary" style={{ marginTop: Spacing.sm }} />
 
-      <Text style={[styles.subheading, { marginTop: Spacing.md }]}>Location</Text>
-      <Button title={locating ? "Getting your location…" : coords ? "Re-capture my location" : "Capture my current location"} onPress={captureLocation} loading={locating} variant="secondary" />
+      <SectionHeading icon="map-pin" color={Colors.success} title="Location" />
+      <Button title={locating ? "Getting your location…" : coords ? "Re-capture my location" : "Capture my current location"} onPress={captureLocation} loading={locating} variant={coords ? "outline" : "secondary"} icon={<Feather name="crosshair" size={16} color={coords ? Colors.primary : Colors.white} />} />
       {coords ? (
         <>
           <Text style={styles.label}>Radius entrants will see (meters)</Text>
-          <TextInput
-            style={[styles.input, styles.inputFull]}
-            value={radiusInput}
-            onChangeText={(v) => onLocationChange({ coords, radiusMeters: Number(v) || 0 })}
-            keyboardType="number-pad"
-          />
-          <View style={{ marginTop: Spacing.sm }}>
-            <HuntMap latitude={coords.latitude} longitude={coords.longitude} radiusMeters={Number(radiusInput) || 500} height={150} />
+          <View style={[styles.inputFull, styles.unitInputWrap]}>
+            <TextInput
+              style={styles.input}
+              value={radiusInput}
+              onChangeText={(v) => onLocationChange({ coords, radiusMeters: Number(v) || 0 })}
+              keyboardType="number-pad"
+            />
+            <Text style={styles.unitSuffix}>m</Text>
+          </View>
+          <View style={styles.mapFrame}>
+            <HuntMap latitude={coords.latitude} longitude={coords.longitude} radiusMeters={Number(radiusInput) || 500} height={160} />
           </View>
         </>
       ) : null}
@@ -253,12 +330,12 @@ function EntriesAndClaimsStep({ game }: { game: HuntGameResponse }) {
   const reviewed = (claims ?? []).filter((c) => c.status !== "pending");
 
   return (
-    <View style={[styles.card, Shadow.card]}>
+    <View style={[styles.card, Shadow.card, { borderLeftWidth: 4, borderLeftColor: Colors.success }]}>
       <Text style={styles.cardTitle}>Claims</Text>
       {pending.length === 0 && reviewed.length === 0 ? <Text style={styles.mutedNote}>No claims yet.</Text> : null}
       {pending.length > 0 ? (
         <>
-          <Text style={styles.subheading}>🔍 Awaiting review</Text>
+          <SectionHeading icon="search" color={Colors.warning} title="Awaiting review" />
           {pending.map((c) => (
             <View key={c.id} style={styles.claimRow}>
               <Image source={{ uri: resolveImageUrl(c.imageUrl) }} style={styles.claimThumb} />
@@ -311,9 +388,11 @@ function BroadcastForm() {
   });
 
   return (
-    <View style={[styles.card, Shadow.card]}>
+    <View style={[styles.card, Shadow.card, { borderLeftWidth: 4, borderLeftColor: Colors.primary }]}>
       <View style={styles.broadcastHeader}>
-        <Feather name="radio" size={18} color={Colors.gold} />
+        <View style={[styles.sectionBadge, { backgroundColor: `${Colors.gold}30` }]}>
+          <Feather name="radio" size={16} color={Colors.goldDark} />
+        </View>
         <Text style={styles.cardTitle}>Broadcast to everyone</Text>
       </View>
       <TextInput style={[styles.input, styles.inputFull]} placeholder="Title" placeholderTextColor={Colors.textMuted} value={title} onChangeText={setTitle} maxLength={80} />
@@ -326,13 +405,16 @@ function BroadcastForm() {
         multiline
         maxLength={300}
       />
-      <Button
-        title={broadcastMutation.isPending ? "Sending…" : "Send to all users"}
-        onPress={() => broadcastMutation.mutate()}
-        loading={broadcastMutation.isPending}
-        disabled={!title.trim() || !body.trim()}
-        style={{ marginTop: Spacing.md }}
-      />
+      <View style={{ marginTop: Spacing.md }}>
+        <GradientButton
+          title={broadcastMutation.isPending ? "Sending…" : "Send to all users"}
+          onPress={() => broadcastMutation.mutate()}
+          loading={broadcastMutation.isPending}
+          disabled={!title.trim() || !body.trim()}
+          colors={[Colors.secondary, Colors.pokemon]}
+          icon="send"
+        />
+      </View>
     </View>
   );
 }
@@ -353,8 +435,11 @@ export default function OwnerHuntScreen() {
   const [locations, setLocations] = useState<Record<number, TargetLocation>>({});
   const locationFor = (index: number): TargetLocation => locations[index] ?? { coords: null, radiusMeters: 500 };
 
-  const allTargetsHaveImages = game?.targets.every((t) => t.images.length > 0) ?? false;
-  const allTargetsHaveLocation = game?.targets.every((t) => !!locationFor(t.index).coords) ?? false;
+  // `.every()` on an empty array is vacuously true — guard with a length
+  // check so a not-yet-loaded or unexpectedly empty targets list can never
+  // silently green-light "reveal" with nothing actually set up.
+  const allTargetsHaveImages = (game?.targets.length ?? 0) > 0 && game!.targets.every((t) => t.images.length > 0);
+  const allTargetsHaveLocation = (game?.targets.length ?? 0) > 0 && game!.targets.every((t) => !!locationFor(t.index).coords);
 
   const revealMutation = useMutation({
     mutationFn: () =>
@@ -387,8 +472,9 @@ export default function OwnerHuntScreen() {
         <CreateHuntForm onCreated={invalidate} />
       ) : (
         <>
-          <View style={styles.statusPill}>
-            <Text style={styles.statusPillText}>
+          <View style={[styles.statusPill, game.status === "revealed" && styles.statusPillLive]}>
+            {game.status === "revealed" ? <View style={styles.liveDot} /> : null}
+            <Text style={[styles.statusPillText, game.status === "revealed" && styles.statusPillTextLive]}>
               {game.status === "entry_open" ? "Collecting entries" : game.status === "revealed" ? "Live — searching" : "Ended"} · {formatPriceCents(game.entryPriceCents)} entry · {game.cardCount} card{game.cardCount > 1 ? "s" : ""}
             </Text>
           </View>
@@ -405,14 +491,16 @@ export default function OwnerHuntScreen() {
                   onLocationChange={(next) => setLocations((prev) => ({ ...prev, [target.index]: next }))}
                 />
               ))}
-              <View style={[styles.card, Shadow.card]}>
+              <View style={[styles.card, Shadow.card, { borderLeftWidth: 4, borderLeftColor: Colors.primary }]}>
                 {!allTargetsHaveImages ? <Text style={styles.warnText}>Every card needs at least one saved photo first.</Text> : null}
                 {!allTargetsHaveLocation ? <Text style={styles.warnText}>Every card needs a captured location first.</Text> : null}
-                <Button
-                  title={revealMutation.isPending ? "Sending…" : "🚀 Send — reveal to entrants now"}
+                <GradientButton
+                  title={revealMutation.isPending ? "Sending…" : "Send — reveal to entrants now"}
                   onPress={() => revealMutation.mutate()}
                   loading={revealMutation.isPending}
                   disabled={!allTargetsHaveImages || !allTargetsHaveLocation}
+                  colors={[Colors.primary, Colors.goldDark]}
+                  icon="send"
                 />
               </View>
             </>
@@ -443,17 +531,31 @@ const styles = StyleSheet.create({
   inputMultiline: { minHeight: 70, textAlignVertical: "top", marginTop: Spacing.sm },
   pointRow: { flexDirection: "row", gap: Spacing.sm },
   cardCountRow: { flexDirection: "row", gap: Spacing.sm },
-  countChip: { flex: 1, alignItems: "center", paddingVertical: 10, borderRadius: BorderRadius.md, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surfaceAlt },
-  countChipActive: { borderColor: Colors.primary, backgroundColor: `${Colors.primary}18` },
+  countChip: { flex: 1, alignItems: "center", paddingVertical: 12, borderRadius: BorderRadius.md, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surfaceAlt },
+  countChipActive: { borderColor: Colors.secondary, backgroundColor: Colors.secondary, ...Shadow.card },
   countChipText: { ...Typography.small, color: Colors.text, fontWeight: "700" },
-  countChipTextActive: { color: Colors.primary },
+  countChipTextActive: { color: Colors.white },
   priceTierRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
-  priceChip: { paddingVertical: 8, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.pill, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surfaceAlt },
-  priceChipActive: { borderColor: Colors.gold, backgroundColor: "rgba(255,203,5,0.12)" },
+  priceChip: { flexDirection: "row", alignItems: "center", paddingVertical: 9, paddingHorizontal: Spacing.md, borderRadius: BorderRadius.pill, borderWidth: 1.5, borderColor: Colors.border, backgroundColor: Colors.surfaceAlt },
+  priceChipActive: { borderColor: Colors.gold, backgroundColor: Colors.gold, ...Shadow.card },
   priceChipText: { ...Typography.small, color: Colors.text, fontWeight: "700" },
-  priceChipTextActive: { color: "#8B6A00" },
-  statusPill: { alignSelf: "flex-start", backgroundColor: Colors.surfaceAlt, borderRadius: BorderRadius.pill, paddingVertical: 6, paddingHorizontal: Spacing.md, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.gold },
+  priceChipTextActive: { color: "#3A2A00" },
+  unitInputWrap: { flexDirection: "row", alignItems: "center" },
+  unitSuffix: { ...Typography.small, color: Colors.textMuted, fontWeight: "700", paddingRight: Spacing.sm },
+  sectionHeading: { flexDirection: "row", alignItems: "center", gap: Spacing.xs, marginTop: Spacing.md, marginBottom: Spacing.xs },
+  sectionBadge: { width: 24, height: 24, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+  sectionHeadingText: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", flexShrink: 1 },
+  gradientBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: BorderRadius.pill, paddingVertical: 14, ...Shadow.card },
+  gradientBtnText: { color: Colors.white, fontFamily: Fonts.bodyBold, fontSize: 16, fontWeight: "700" },
+  mapFrame: { marginTop: Spacing.sm, borderRadius: BorderRadius.md, overflow: "hidden", borderWidth: 2, borderColor: Colors.gold },
+  cardNumBadgeRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, marginBottom: Spacing.sm },
+  cardNumBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: Colors.secondary, alignItems: "center", justifyContent: "center" },
+  cardNumBadgeText: { color: Colors.white, fontSize: 13, fontWeight: "800" },
+  statusPill: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: Colors.surfaceAlt, borderRadius: BorderRadius.pill, paddingVertical: 6, paddingHorizontal: Spacing.md, marginBottom: Spacing.md, borderWidth: 1, borderColor: Colors.gold },
+  statusPillLive: { backgroundColor: `${Colors.success}18`, borderColor: Colors.success },
   statusPillText: { ...Typography.small, color: Colors.text, fontWeight: "700" },
+  statusPillTextLive: { color: Colors.success },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: Colors.success },
   subheading: { ...Typography.small, color: Colors.textSecondary, fontWeight: "700", marginBottom: Spacing.xs },
   thumbGrid: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
   thumbSlot: { width: 72, height: 72, borderRadius: BorderRadius.sm, overflow: "hidden", position: "relative" },

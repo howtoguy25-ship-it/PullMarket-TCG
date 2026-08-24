@@ -62,7 +62,7 @@ ownerRouter.use(authenticateToken, requireOwner);
 ownerRouter.post("/create", async (req, res) => {
   const schema = z.object({
     entryPriceCents: z.coerce.number().int().refine((v) => (HUNT_PRICE_TIERS_CENTS as readonly number[]).includes(v), "Pick a valid entry price tier"),
-    countdownMinutes: z.coerce.number().int().min(1).max(7 * 24 * 60),
+    countdownSeconds: z.coerce.number().int().min(10).max(7 * 24 * 60 * 60),
     cardCount: z.coerce.number().int().min(1).max(HUNT_MAX_CARDS).default(1),
     basePoints: z.coerce.number().int().min(1).max(10_000).default(HUNT_DEFAULT_BASE_POINTS),
     speedBonusThresholdMinutes: z.coerce.number().int().min(0).max(1440).default(HUNT_DEFAULT_SPEED_BONUS_THRESHOLD_MINUTES),
@@ -81,7 +81,7 @@ ownerRouter.post("/create", async (req, res) => {
       basePoints: parsed.data.basePoints,
       speedBonusThresholdMinutes: parsed.data.speedBonusThresholdMinutes,
       speedBonusPoints: parsed.data.speedBonusPoints,
-      countdownEndsAt: new Date(Date.now() + parsed.data.countdownMinutes * 60 * 1000),
+      countdownEndsAt: new Date(Date.now() + parsed.data.countdownSeconds * 1000),
     })
     .returning();
 
@@ -297,7 +297,11 @@ router.get("/current", async (req, res) => {
 
   const [myEntry] = await db.select().from(huntEntries).where(and(eq(huntEntries.gameId, game.id), eq(huntEntries.userId, req.user!.id)));
   const hasPaidEntry = !!myEntry?.paidAt;
-  const revealGated = game.status !== "entry_open" && (hasPaidEntry || game.status === "ended");
+  // The owner manages their own hunt's photos/location/radius through this
+  // same endpoint (OwnerHuntScreen), including while it's still entry_open
+  // and nobody has paid yet — gating that data away from entrants until
+  // reveal must never gate it away from the owner viewing their own game.
+  const revealGated = req.user!.isOwner || (game.status !== "entry_open" && (hasPaidEntry || game.status === "ended"));
 
   const targetsRaw = revealGated ? await getTargetsWithImages(game.id) : [];
   const winnerIds = targetsRaw.filter((t) => t.winnerUserId).map((t) => t.winnerUserId!);
