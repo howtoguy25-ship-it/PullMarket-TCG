@@ -101,6 +101,23 @@ export function formatBoostDuration(durationHours: number): string {
   return `${daysLabel} ${hours} hour${hours === 1 ? "" : "s"}`;
 }
 
+// ─── Card Hunt ────────────────────────────────────────────────────────────
+export const HUNT_ENTRY_PRICE_MIN_CENTS = 500; // $5
+export const HUNT_ENTRY_PRICE_MAX_CENTS = 3000; // $30
+export const HUNT_MAX_IMAGES = 3;
+// A winner's leaderboard row (and everyone's reaction messages) stays
+// visible for this long after the game ends, then is gone for good — see
+// leaderboardExpiresAt in shared/schema.ts.
+export const HUNT_LEADERBOARD_VISIBLE_MS = 15 * 60 * 1000;
+
+export const HUNT_REACTION_LABELS: Record<string, string> = {
+  good_game: "Good game",
+  almost_there: "I was almost there!!",
+  ill_be_back: "I'll be back better",
+  youre_lucky: "You're lucky",
+  congratulations: "Congratulations",
+};
+
 /**
  * Single source of truth for "is this user's Pro membership currently
  * active" — used both server-side (gating follow/boost/search-ranking) and

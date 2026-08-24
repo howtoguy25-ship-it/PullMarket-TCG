@@ -10,6 +10,7 @@ import {
   index,
   primaryKey,
   unique,
+  doublePrecision,
   type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -232,6 +233,67 @@ export const ebayListings = pgTable(
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [index("idx_ebay_listings_franchise").on(table.franchise), index("idx_ebay_listings_last_seen").on(table.lastSeenAt)],
+);
+
+// ─── Card Hunt (paid real-world geo-hunt game) ───────────────────────────
+// The owner hides a real physical card, sells paid entries, then reveals a
+// photo + a radius circle around their real captured GPS location. First
+// entrant whose "I found it" claim the owner approves wins; only one game
+// is ever live at a time.
+export const HUNT_GAME_STATUSES = ["entry_open", "revealed", "ended"] as const;
+export const HUNT_CLAIM_STATUSES = ["none", "pending", "approved", "rejected"] as const;
+export const HUNT_REACTION_MESSAGES = ["good_game", "almost_there", "ill_be_back", "youre_lucky", "congratulations"] as const;
+
+export const huntGames = pgTable("hunt_games", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  status: text("status").notNull().default("entry_open"), // one of HUNT_GAME_STATUSES
+  entryPriceCents: integer("entry_price_cents").notNull(), // 500-3000 ($5-$30), enforced server-side
+  // Display-only deadline shown to entrants as "reveal coming soon"
+  // pressure — the owner's own Send action is what actually reveals (see
+  // revealedAt), not this timestamp, so a late owner never auto-breaks the
+  // game and an early owner isn't blocked from revealing sooner.
+  countdownEndsAt: timestamp("countdown_ends_at").notNull(),
+  revealedAt: timestamp("revealed_at"),
+  latitude: doublePrecision("latitude"), // owner's real captured GPS location, set at reveal
+  longitude: doublePrecision("longitude"),
+  radiusMeters: integer("radius_meters"), // owner-chosen "near" radius drawn as a circle for entrants
+  winnerUserId: varchar("winner_user_id").references(() => users.id),
+  endedAt: timestamp("ended_at"), // set the moment the owner approves a winning claim
+  // endedAt + 15 minutes — the leaderboard is only ever fetchable up to
+  // this instant; computed at read time (see routes/hunt.ts), not swept by
+  // a background job, since there's nothing destructive to clean up.
+  leaderboardExpiresAt: timestamp("leaderboard_expires_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const huntGameImages = pgTable("hunt_game_images", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  gameId: varchar("game_id").notNull().references(() => huntGames.id, { onDelete: "cascade" }),
+  url: text("url").notNull(),
+  position: integer("position").notNull().default(0), // 0-2, max 3 images
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const huntEntries = pgTable(
+  "hunt_entries",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    gameId: varchar("game_id").notNull().references(() => huntGames.id, { onDelete: "cascade" }),
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    priceCentsPaid: integer("price_cents_paid").notNull(),
+    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    paidAt: timestamp("paid_at"), // null until the webhook confirms payment
+    claimStatus: text("claim_status").notNull().default("none"), // one of HUNT_CLAIM_STATUSES
+    claimImageUrl: text("claim_image_url"),
+    claimedAt: timestamp("claimed_at"),
+    // One canned reaction a losing entrant can send to the winner once the
+    // game has ended — see HUNT_REACTION_MESSAGES. Null until sent; each
+    // entrant can only send one, ever, for a given game.
+    reactionMessage: text("reaction_message"),
+    reactionSentAt: timestamp("reaction_sent_at"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [unique("uq_hunt_entry_game_user").on(table.gameId, table.userId), index("idx_hunt_entries_game").on(table.gameId)],
 );
 
 export const listingImages = pgTable(

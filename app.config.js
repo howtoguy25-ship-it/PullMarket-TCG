@@ -46,6 +46,10 @@ module.exports = () => {
           NSCameraUsageDescription: "PullMarket needs camera access to scan and photograph cards you're listing for sale.",
           NSPhotoLibraryUsageDescription: "PullMarket needs photo library access so you can upload card photos from your library.",
           NSMotionUsageDescription: "PullMarket checks that your phone is steady so it can automatically capture card photos while scanning.",
+          // Only the owner ever captures a real location (setting up a Card
+          // Hunt game) — regular users just view the resulting radius on a
+          // map, never share their own location.
+          NSLocationWhenInUseUsageDescription: "PullMarket needs your location to set where a Card Hunt game is hidden.",
           ITSAppUsesNonExemptEncryption: false,
         },
       },
@@ -56,7 +60,18 @@ module.exports = () => {
           foregroundImage: "./client/assets/adaptive-icon-foreground.png",
           backgroundColor: "#0B0716",
         },
-        permissions: ["android.permission.CAMERA", "android.permission.READ_EXTERNAL_STORAGE"],
+        // Card Hunt's map (radius circle around the owner-set location) uses
+        // react-native-maps, which needs a real Google Maps API key on
+        // Android specifically (iOS uses Apple Maps, no key required). Get
+        // one at console.cloud.google.com (enable "Maps SDK for Android")
+        // and set EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY — until then, the
+        // map renders blank on Android (nothing else breaks).
+        config: {
+          googleMaps: {
+            apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY || "",
+          },
+        },
+        permissions: ["android.permission.CAMERA", "android.permission.READ_EXTERNAL_STORAGE", "android.permission.ACCESS_FINE_LOCATION", "android.permission.ACCESS_COARSE_LOCATION"],
         // expo-sensors bundles Pedometer support and unconditionally
         // declares ACTIVITY_RECOGNITION in its manifest, even though this
         // app only uses Accelerometer (see CardScannerModal.tsx) and never

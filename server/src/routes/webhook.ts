@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../db";
-import { orders, listings, orderItems, users } from "@shared/schema";
-import { eq, inArray, sql } from "drizzle-orm";
+import { orders, listings, orderItems, users, huntEntries } from "@shared/schema";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { getStripe } from "../lib/stripeClient";
 import { addBusinessDays, getBoostTierById, boostPriceCentsForUser } from "@shared/validation";
 import { SHIPPING_DEADLINE_BUSINESS_DAYS } from "@shared/validation";
@@ -40,6 +40,8 @@ router.post("/", async (req, res) => {
         await markAdsRemoved(session.metadata.userId, session.payment_intent as string | null);
       } else if (session.metadata?.kind === "listing_boost" && session.metadata.listingId) {
         await markListingBoosted(session.metadata, session.payment_intent as string | null);
+      } else if (session.metadata?.kind === "hunt_entry" && session.metadata.gameId && session.metadata.userId) {
+        await markHuntEntryPaid(session.metadata.gameId, session.metadata.userId);
       }
     } else if (event.type === "payment_intent.succeeded") {
       // The custom in-app checkout (native) creates and confirms a
@@ -59,6 +61,8 @@ router.post("/", async (req, res) => {
         await markAdsRemoved(paymentIntent.metadata.userId, paymentIntent.id);
       } else if (paymentIntent.metadata?.kind === "listing_boost" && paymentIntent.metadata.listingId) {
         await markListingBoosted(paymentIntent.metadata, paymentIntent.id);
+      } else if (paymentIntent.metadata?.kind === "hunt_entry" && paymentIntent.metadata.gameId && paymentIntent.metadata.userId) {
+        await markHuntEntryPaid(paymentIntent.metadata.gameId, paymentIntent.metadata.userId);
       }
     } else if (event.type.startsWith("identity.verification_session.")) {
       const session = event.data.object as Stripe.Identity.VerificationSession;
@@ -189,6 +193,15 @@ async function handleIdentitySessionEvent(eventType: string, session: Stripe.Ide
       body: session.last_error?.reason || "We couldn't verify your identity. You can try again from your profile.",
     });
   }
+}
+
+// Idempotent by nature (only sets paidAt if it isn't already set), same as
+// markOrderPaid — safe to run once for a native PaymentIntent confirm and
+// again for the same underlying intent via a web Checkout Session.
+async function markHuntEntryPaid(gameId: string, userId: string) {
+  const [entry] = await db.select().from(huntEntries).where(and(eq(huntEntries.gameId, gameId), eq(huntEntries.userId, userId)));
+  if (!entry || entry.paidAt) return;
+  await db.update(huntEntries).set({ paidAt: new Date() }).where(eq(huntEntries.id, entry.id));
 }
 
 async function markAdsRemoved(userId: string, stripePaymentIntentId: string | null) {
