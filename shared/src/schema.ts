@@ -710,6 +710,58 @@ export const followsRelations = relations(follows, ({ one }) => ({
   following: one(users, { fields: [follows.followingId], references: [users.id], relationName: "followFollowing" }),
 }));
 
+// ─── Status (Instagram/WhatsApp-style ephemeral stories) ─────────────────
+// A real photo or video, visible for real for 24 hours then gone —
+// expiresAt is set at creation time and every read query filters on it, so
+// nothing extra has to run for a story to stop being visible the moment it
+// expires; a periodic sweep (see lib/storyExpiry.ts) just cleans up the
+// now-pointless rows/files afterward.
+export const STORY_PRIVACY_LEVELS = ["everyone", "friends", "custom"] as const;
+export const STORY_MEDIA_TYPES = ["image", "video"] as const;
+
+export const stories = pgTable(
+  "stories",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    mediaType: text("media_type").notNull(), // one of STORY_MEDIA_TYPES
+    mediaUrl: text("media_url").notNull(),
+    // Real user-entered text overlaid on the media — not a caption shown
+    // separately, rendered directly over the photo/video like a real
+    // Instagram/WhatsApp status caption.
+    caption: text("caption"),
+    privacy: text("privacy").notNull().default("everyone"), // one of STORY_PRIVACY_LEVELS
+    createdAt: timestamp("created_at").defaultNow(),
+    expiresAt: timestamp("expires_at").notNull(),
+  },
+  (table) => [index("idx_stories_user").on(table.userId), index("idx_stories_expires").on(table.expiresAt)],
+);
+
+// Only populated when privacy === "custom" — the exact set of people the
+// owner picked (by name search, from their real friends + people they've
+// actually messaged), rather than a size limit or anything approximate.
+export const storyCustomViewers = pgTable(
+  "story_custom_viewers",
+  {
+    storyId: varchar("story_id").notNull().references(() => stories.id, { onDelete: "cascade" }),
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.storyId, table.userId] }), index("idx_story_custom_viewers_user").on(table.userId)],
+);
+
+// One row per (story, viewer) the instant that viewer actually opens it —
+// powers both "seen" ring state on the tray and the real viewer list the
+// story's owner can see.
+export const storyViews = pgTable(
+  "story_views",
+  {
+    storyId: varchar("story_id").notNull().references(() => stories.id, { onDelete: "cascade" }),
+    viewerId: varchar("viewer_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    viewedAt: timestamp("viewed_at").defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.storyId, table.viewerId] })],
+);
+
 // ─── Chat: conversations, messages, attachments ─────────────────────────
 // A 1:1 conversation is created the first time either user messages the
 // other. `userAId`/`userBId` are stored in a normalized order (userAId is

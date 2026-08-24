@@ -52,6 +52,8 @@ import HuntEntryReturnScreen from "@/screens/HuntEntryReturnScreen";
 import HuntUserStatsScreen from "@/screens/HuntUserStatsScreen";
 import OwnerHuntScreen from "@/screens/owner/OwnerHuntScreen";
 import OwnerHuntNotifyScreen from "@/screens/owner/OwnerHuntNotifyScreen";
+import CreateStoryScreen from "@/screens/CreateStoryScreen";
+import StoryViewerScreen from "@/screens/StoryViewerScreen";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -131,6 +133,8 @@ function MainNavigator() {
       <RootStack.Screen name="HuntUserStats" component={HuntUserStatsScreen} options={({ route }) => ({ title: `@${route.params.username}` })} />
       <RootStack.Screen name="OwnerHunt" component={OwnerHuntScreen} options={{ title: "Card Hunt" }} />
       <RootStack.Screen name="OwnerHuntNotify" component={OwnerHuntNotifyScreen} options={{ title: "Notify Users" }} />
+      <RootStack.Screen name="StoryCreate" component={CreateStoryScreen} options={{ headerShown: false, presentation: "fullScreenModal" }} />
+      <RootStack.Screen name="StoryViewer" component={StoryViewerScreen} options={{ headerShown: false, presentation: "fullScreenModal" }} />
     </RootStack.Navigator>
   );
 }

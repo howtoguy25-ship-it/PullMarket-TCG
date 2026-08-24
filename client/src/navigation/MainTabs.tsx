@@ -12,6 +12,7 @@ import HomeScreen from "@/screens/HomeScreen";
 import SearchScreen from "@/screens/SearchScreen";
 import SellScreen from "@/screens/SellScreen";
 import PricesScreen from "@/screens/PricesScreen";
+import StatusScreen from "@/screens/StatusScreen";
 import ChatListScreen from "@/screens/ChatListScreen";
 import FavoritesScreen from "@/screens/FavoritesScreen";
 import ProfileScreen from "@/screens/ProfileScreen";
@@ -23,13 +24,14 @@ const ICONS: Record<keyof MainTabsParamList, keyof typeof Feather.glyphMap> = {
   Search: "search",
   Sell: "camera",
   Prices: "trending-up",
+  Status: "disc",
   Messages: "message-circle",
   Favorites: "star",
   Profile: "user",
 };
 
 // Each tab gets its own brand-palette accent instead of one flat color for
-// all seven — matching the colored-barrier language used throughout Boost,
+// all eight — matching the colored-barrier language used throughout Boost,
 // Profile, Search, Favorites and Chat, so the tab bar reads as the same
 // design system rather than a plain gray/red default.
 const TAB_COLORS: Record<keyof MainTabsParamList, string> = {
@@ -37,6 +39,7 @@ const TAB_COLORS: Record<keyof MainTabsParamList, string> = {
   Search: Colors.pokemon,
   Sell: Colors.goldDark,
   Prices: Colors.success,
+  Status: Colors.onePiece,
   Messages: Colors.secondary,
   Favorites: Colors.gold,
   Profile: "#7C3AED",
@@ -114,8 +117,9 @@ export function MainTabs() {
         <Tab.Screen name="Search" component={SearchScreen} />
         <Tab.Screen name="Sell" component={SellScreen} />
         <Tab.Screen name="Prices" component={PricesScreen} />
+        <Tab.Screen name="Status" component={StatusScreen} />
         {/* Label shortened to "Chat" — "Messages" was the one label long
-           enough to get ellipsized/crowded in a 7-tab bar on web; the route
+           enough to get ellipsized/crowded in an 8-tab bar on web; the route
            name (used for navigation, badges, deep links) is unchanged. */}
         <Tab.Screen name="Messages" component={ChatListScreen} options={{ tabBarLabel: "Chat" }} />
         <Tab.Screen name="Favorites" component={FavoritesScreen} />

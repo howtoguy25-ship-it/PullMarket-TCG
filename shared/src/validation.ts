@@ -276,3 +276,13 @@ export const SHIPPING_COUNTRY_LABELS: Record<string, string> = {
   SG: "Singapore",
   HK: "Hong Kong",
 };
+
+// ─── Status (stories) ─────────────────────────────────────────────────
+export const STORY_EXPIRY_HOURS = 24;
+export const STORY_MAX_CAPTION_LENGTH = 200;
+export const STORY_IMAGE_DURATION_MS = 5000;
+export const STORY_PRIVACY_LABELS: Record<string, string> = {
+  everyone: "Everyone",
+  friends: "Friends",
+  custom: "Custom",
+};

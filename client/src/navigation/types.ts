@@ -68,6 +68,8 @@ export type RootStackParamList = {
   HuntUserStats: { userId: string; username: string };
   OwnerHunt: undefined;
   OwnerHuntNotify: undefined;
+  StoryCreate: undefined;
+  StoryViewer: { startUserId: string };
 };
 
 export type MainTabsParamList = {
@@ -75,6 +77,7 @@ export type MainTabsParamList = {
   Search: undefined;
   Sell: undefined;
   Prices: undefined;
+  Status: undefined;
   Messages: undefined;
   Favorites: undefined;
   Profile: undefined;

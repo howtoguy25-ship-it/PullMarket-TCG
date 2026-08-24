@@ -256,6 +256,32 @@ const STATEMENTS = [
    );`,
   `CREATE INDEX IF NOT EXISTS idx_hunt_claims_target ON hunt_claims (target_id);`,
   `CREATE INDEX IF NOT EXISTS idx_hunt_claims_user ON hunt_claims (user_id);`,
+
+  // Status: real 24h-expiring photo/video stories (see shared/src/schema.ts).
+  `CREATE TABLE IF NOT EXISTS stories (
+     id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+     user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     media_type text NOT NULL,
+     media_url text NOT NULL,
+     caption text,
+     privacy text NOT NULL DEFAULT 'everyone',
+     created_at timestamp DEFAULT now(),
+     expires_at timestamp NOT NULL
+   );`,
+  `CREATE INDEX IF NOT EXISTS idx_stories_user ON stories (user_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_stories_expires ON stories (expires_at);`,
+  `CREATE TABLE IF NOT EXISTS story_custom_viewers (
+     story_id varchar NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+     user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     PRIMARY KEY (story_id, user_id)
+   );`,
+  `CREATE INDEX IF NOT EXISTS idx_story_custom_viewers_user ON story_custom_viewers (user_id);`,
+  `CREATE TABLE IF NOT EXISTS story_views (
+     story_id varchar NOT NULL REFERENCES stories(id) ON DELETE CASCADE,
+     viewer_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     viewed_at timestamp DEFAULT now(),
+     PRIMARY KEY (story_id, viewer_id)
+   );`,
 ];
 
 async function main() {

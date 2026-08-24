@@ -24,6 +24,7 @@ import helpRoutes from "./help";
 import boostRoutes from "./boost";
 import ebayListingsRoutes from "./ebayListings";
 import huntRoutes from "./hunt";
+import storiesRoutes from "./stories";
 import { UPLOAD_DIR_PATH } from "../lib/upload";
 import { BACKGROUNDS_DIR } from "../lib/cardBackgrounds";
 import { COURIER_LABELS, CONDITION_LABELS, REPORT_REASON_LABELS } from "@shared/validation";
@@ -59,6 +60,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api/boost", boostRoutes);
   app.use("/api/ebay-listings", ebayListingsRoutes);
   app.use("/api/hunt", huntRoutes);
+  app.use("/api/stories", storiesRoutes);
 
   return createServer(app);
 }
