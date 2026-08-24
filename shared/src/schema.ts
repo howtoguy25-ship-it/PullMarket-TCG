@@ -201,6 +201,39 @@ export const listingsRelations = relations(listings, ({ one, many }) => ({
   images: many(listingImages),
 }));
 
+// ─── eBay-sourced listings ───────────────────────────────────────────────
+// Real live eBay inventory, synced periodically via lib/ebay.ts. Kept in
+// its own table — never merged into `listings` at the storage level — so a
+// user's own listing data is never mixed with third-party eBay data; the
+// two are only interleaved at feed-render time (see routes/listings.ts).
+// "Buying" one of these hands the user off to eBay's own checkout via an
+// affiliate link built fresh at read time — this app never touches the
+// payment or holds any eBay item in its own inventory.
+export const ebayListings = pgTable(
+  "ebay_listings",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    ebayItemId: text("ebay_item_id").notNull().unique(),
+    title: text("title").notNull(),
+    franchise: text("franchise").notNull(), // one of FRANCHISES
+    priceCents: integer("price_cents").notNull(),
+    currency: text("currency").notNull(),
+    condition: text("condition"),
+    imageUrl: text("image_url"),
+    // eBay's own item page — deliberately NOT affiliate-tagged here, so a
+    // Campaign ID arriving later (or ever changing) applies retroactively
+    // to every already-synced row without a re-sync.
+    itemWebUrl: text("item_web_url").notNull(),
+    sellerUsername: text("seller_username"),
+    // Updated on every sync pass that still finds this item; a row not
+    // touched in a while is a listing that's ended/sold on eBay itself —
+    // see sweepStaleEbayListings in lib/ebay.ts.
+    lastSeenAt: timestamp("last_seen_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => [index("idx_ebay_listings_franchise").on(table.franchise), index("idx_ebay_listings_last_seen").on(table.lastSeenAt)],
+);
+
 export const listingImages = pgTable(
   "listing_images",
   {

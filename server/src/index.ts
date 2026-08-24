@@ -13,6 +13,7 @@ import webhookRoutes from "./routes/webhook";
 import { setupCallSignaling } from "./lib/callSignaling";
 import { startAutoUnlistScheduler } from "./lib/autoUnlist";
 import { startShippingDeadlineScheduler } from "./lib/shippingDeadlineSweeper";
+import { startEbaySyncScheduler } from "./lib/ebay";
 import { privacyPolicyHtml, supportHtml, deleteAccountHtml } from "./lib/staticPages";
 
 const app = express();
@@ -108,6 +109,7 @@ function setupErrorHandler(app: express.Application) {
   setupCallSignaling(server);
   startAutoUnlistScheduler();
   startShippingDeadlineScheduler();
+  startEbaySyncScheduler();
 
   if (process.env.NODE_ENV === "production") {
     serveWebBuildInProduction(app);

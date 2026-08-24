@@ -132,3 +132,15 @@ services:
       # a clear "not configured" message instead of failing.
       - key: JUSTTCG_API_KEY
         sync: false
+      # Optional — real eBay-sourced listings (Buy Browse API) interleaved
+      # into Home/Search, monetized via eBay Partner Network affiliate
+      # links. PRODUCTION keys from developer.ebay.com, not Sandbox. Without
+      # EBAY_APP_ID/EBAY_CERT_ID the sync simply doesn't run. Without
+      # EBAY_EPN_CAMPAIGN_ID, listings still show with real working links,
+      # just without commission tracking — see .env.example.
+      - key: EBAY_APP_ID
+        sync: false
+      - key: EBAY_CERT_ID
+        sync: false
+      - key: EBAY_EPN_CAMPAIGN_ID
+        sync: false
