@@ -47,6 +47,9 @@ import ChatThreadScreen from "@/screens/ChatThreadScreen";
 import ArchivedChatsScreen from "@/screens/ArchivedChatsScreen";
 import HelpChatScreen from "@/screens/HelpChatScreen";
 import PriceCardDetailScreen from "@/screens/PriceCardDetailScreen";
+import HuntScreen from "@/screens/HuntScreen";
+import HuntEntryReturnScreen from "@/screens/HuntEntryReturnScreen";
+import OwnerHuntScreen from "@/screens/owner/OwnerHuntScreen";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -121,6 +124,9 @@ function MainNavigator() {
       <RootStack.Screen name="HelpChat" component={HelpChatScreen} options={{ title: "Help Assistant" }} />
       <RootStack.Screen name="ChatThread" component={ChatThreadScreen} options={{ title: "" }} />
       <RootStack.Screen name="PriceCardDetail" component={PriceCardDetailScreen} options={{ title: "" }} />
+      <RootStack.Screen name="Hunt" component={HuntScreen} options={{ title: "Card Hunt" }} />
+      <RootStack.Screen name="HuntEntryReturn" component={HuntEntryReturnScreen} options={{ title: "", headerBackVisible: false }} />
+      <RootStack.Screen name="OwnerHunt" component={OwnerHuntScreen} options={{ title: "Card Hunt" }} />
     </RootStack.Navigator>
   );
 }
@@ -141,6 +147,7 @@ const linking: LinkingOptions<RootStackParamList> = {
       SubscriptionReturn: "subscription-return",
       RemoveAdsReturn: "remove-ads-return",
       BoostReturn: "boost-return",
+      HuntEntryReturn: "hunt-entry-return",
     },
   },
 };

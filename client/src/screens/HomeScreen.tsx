@@ -199,6 +199,9 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>PullMarket TCG</Text>
           <View style={styles.headerIcons}>
+            <Pressable onPress={() => navigation.navigate("Hunt")} style={styles.iconButton} hitSlop={8} testID="home-hunt-button">
+              <Feather name="compass" size={20} color={Colors.gold} />
+            </Pressable>
             <Pressable onPress={() => setBackgroundPickerVisible(true)} style={styles.iconButton} hitSlop={8} testID="home-background-button">
               <Feather name="image" size={20} color={Colors.white} />
             </Pressable>

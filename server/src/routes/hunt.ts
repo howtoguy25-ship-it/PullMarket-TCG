@@ -211,6 +211,7 @@ router.get("/current", async (req, res) => {
     status: game.status,
     entryPriceCents: game.entryPriceCents,
     countdownEndsAt: game.countdownEndsAt,
+    leaderboardExpiresAt: game.leaderboardExpiresAt,
     myEntry: myEntry
       ? { id: myEntry.id, paid: hasPaidEntry, claimStatus: myEntry.claimStatus, reactionMessage: myEntry.reactionMessage }
       : null,

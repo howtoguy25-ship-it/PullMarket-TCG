@@ -100,6 +100,12 @@ export default function OwnerPanelScreen() {
         <Feather name="chevron-right" size={16} color={Colors.textMuted} />
       </Pressable>
 
+      <Pressable style={styles.usersLink} onPress={() => navigation.navigate("OwnerHunt")}>
+        <Feather name="compass" size={16} color={Colors.gold} />
+        <Text style={styles.usersLinkText}>Card Hunt control</Text>
+        <Feather name="chevron-right" size={16} color={Colors.textMuted} />
+      </Pressable>
+
       <ReviewBypassToggle />
 
       <View style={styles.tabs}>

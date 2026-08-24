@@ -63,6 +63,9 @@ export type RootStackParamList = {
     franchiseLabel: string;
     color: string;
   };
+  Hunt: undefined;
+  HuntEntryReturn: { status?: string; gameId?: string };
+  OwnerHunt: undefined;
 };
 
 export type MainTabsParamList = {
