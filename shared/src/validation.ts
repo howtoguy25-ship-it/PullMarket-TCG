@@ -102,13 +102,29 @@ export function formatBoostDuration(durationHours: number): string {
 }
 
 // ─── Card Hunt ────────────────────────────────────────────────────────────
-export const HUNT_ENTRY_PRICE_MIN_CENTS = 500; // $5
-export const HUNT_ENTRY_PRICE_MAX_CENTS = 3000; // $30
+// The only entry prices an owner can set — $4.99 up to $29.99 in real $5
+// steps, not a freeform amount.
+export const HUNT_PRICE_TIERS_CENTS = [499, 999, 1499, 1999, 2499, 2999] as const;
+export const HUNT_ENTRY_PRICE_MIN_CENTS = HUNT_PRICE_TIERS_CENTS[0];
+export const HUNT_ENTRY_PRICE_MAX_CENTS = HUNT_PRICE_TIERS_CENTS[HUNT_PRICE_TIERS_CENTS.length - 1];
 export const HUNT_MAX_IMAGES = 3;
+export const HUNT_MAX_CARDS = 2;
+export const HUNT_DEFAULT_BASE_POINTS = 100;
+export const HUNT_DEFAULT_SPEED_BONUS_THRESHOLD_MINUTES = 5;
+export const HUNT_DEFAULT_SPEED_BONUS_POINTS = 50;
 // A winner's leaderboard row (and everyone's reaction messages) stays
 // visible for this long after the game ends, then is gone for good — see
 // leaderboardExpiresAt in shared/schema.ts.
 export const HUNT_LEADERBOARD_VISIBLE_MS = 15 * 60 * 1000;
+
+/** Real points for an approved find: the game's base points, plus its full
+ * speed bonus if the claim's photo was submitted within the game's speed
+ * threshold of the target's reveal — never estimated, always computed from
+ * the two real timestamps involved. */
+export function computeHuntPoints(basePoints: number, speedBonusThresholdMinutes: number, speedBonusPoints: number, revealedAt: Date, claimedAt: Date): number {
+  const minutesElapsed = (claimedAt.getTime() - revealedAt.getTime()) / 60_000;
+  return basePoints + (minutesElapsed <= speedBonusThresholdMinutes ? speedBonusPoints : 0);
+}
 
 export const HUNT_REACTION_LABELS: Record<string, string> = {
   good_game: "Good game",

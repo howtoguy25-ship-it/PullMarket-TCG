@@ -199,9 +199,6 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <Text style={styles.headerTitle}>PullMarket TCG</Text>
           <View style={styles.headerIcons}>
-            <Pressable onPress={() => navigation.navigate("Hunt")} style={styles.iconButton} hitSlop={8} testID="home-hunt-button">
-              <Feather name="compass" size={20} color={Colors.gold} />
-            </Pressable>
             <Pressable onPress={() => setBackgroundPickerVisible(true)} style={styles.iconButton} hitSlop={8} testID="home-background-button">
               <Feather name="image" size={20} color={Colors.white} />
             </Pressable>
@@ -274,6 +271,18 @@ export default function HomeScreen() {
           scrollEventThrottle={16}
           contentContainerStyle={{ padding: Spacing.sm, paddingBottom: insets.bottom + Spacing.xl }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+          ListHeaderComponent={
+            <Pressable onPress={() => navigation.navigate("Hunt")} style={styles.huntBanner}>
+              <View style={styles.huntBannerRing}>
+                <Feather name="compass" size={22} color={Colors.gold} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.huntBannerTitle}>Card Hunt</Text>
+                <Text style={styles.huntBannerSubtitle}>A real card, hidden somewhere real — tap to join</Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={Colors.gold} />
+            </Pressable>
+          }
           renderItem={({ item }) =>
             item.kind === "ebay" ? (
               <EbayListingCard listing={item.data} />
@@ -328,4 +337,19 @@ const styles = StyleSheet.create({
   chip: { flex: 1, alignItems: "center", paddingVertical: 14, borderRadius: BorderRadius.lg, borderWidth: 2 },
   chipText: { fontFamily: Fonts.displayBold, fontSize: 16 },
   emptyPanel: { margin: Spacing.lg, marginTop: Spacing.xxl, backgroundColor: "rgba(255,255,255,0.92)", borderRadius: BorderRadius.lg, paddingVertical: Spacing.lg },
+  huntBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+    margin: Spacing.sm,
+    marginBottom: Spacing.md,
+    padding: Spacing.md,
+    backgroundColor: "rgba(255,203,5,0.1)",
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1.5,
+    borderColor: Colors.gold,
+  },
+  huntBannerRing: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, borderColor: Colors.gold, borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
+  huntBannerTitle: { color: Colors.gold, fontWeight: "800", fontSize: 16, letterSpacing: 0.5 },
+  huntBannerSubtitle: { color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 2 },
 });

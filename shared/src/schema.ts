@@ -76,6 +76,10 @@ export const users = pgTable(
     adsRemovedAppleOriginalTransactionId: text("ads_removed_apple_original_transaction_id"),
 
     isOwner: boolean("is_owner").default(false),
+    // Lifetime Card Hunt points — real points credited the moment the
+    // owner approves a find (see huntClaims.pointsAwarded), never
+    // recomputed or estimated; this column is just the running sum.
+    points: integer("points").notNull().default(0),
     isSuspended: boolean("is_suspended").default(false),
     suspendedAt: timestamp("suspended_at"),
     suspensionReason: text("suspension_reason"),
@@ -236,29 +240,35 @@ export const ebayListings = pgTable(
 );
 
 // ─── Card Hunt (paid real-world geo-hunt game) ───────────────────────────
-// The owner hides a real physical card, sells paid entries, then reveals a
-// photo + a radius circle around their real captured GPS location. First
-// entrant whose "I found it" claim the owner approves wins; only one game
-// is ever live at a time.
+// The owner hides 1 or 2 real physical cards, sells paid entries, then
+// reveals real photos + a radius circle per card around a real captured
+// GPS location. Each card is its own "target" with its own winner — a
+// 2-card game can have two different winners. A claim only counts once
+// the owner approves it (self-declared wins would be trivially
+// game-able); approving one awards real points (see users.points) with a
+// speed bonus for a fast find. Only one game is ever live at a time.
 export const HUNT_GAME_STATUSES = ["entry_open", "revealed", "ended"] as const;
-export const HUNT_CLAIM_STATUSES = ["none", "pending", "approved", "rejected"] as const;
+export const HUNT_CLAIM_STATUSES = ["pending", "approved", "rejected"] as const;
 export const HUNT_REACTION_MESSAGES = ["good_game", "almost_there", "ill_be_back", "youre_lucky", "congratulations"] as const;
 
 export const huntGames = pgTable("hunt_games", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   status: text("status").notNull().default("entry_open"), // one of HUNT_GAME_STATUSES
-  entryPriceCents: integer("entry_price_cents").notNull(), // 500-3000 ($5-$30), enforced server-side
+  entryPriceCents: integer("entry_price_cents").notNull(), // one of HUNT_PRICE_TIERS_CENTS, enforced server-side
+  cardCount: integer("card_count").notNull().default(1), // 1 or 2 — how many separate hunt_targets this game has
+  // Point rules the owner sets per game (prefilled from the last game's
+  // values, same reuse pattern as price) — a real find is never a fixed
+  // number regardless of what the owner wants this game to be worth.
+  basePoints: integer("base_points").notNull().default(100),
+  speedBonusThresholdMinutes: integer("speed_bonus_threshold_minutes").notNull().default(5),
+  speedBonusPoints: integer("speed_bonus_points").notNull().default(50),
   // Display-only deadline shown to entrants as "reveal coming soon"
   // pressure — the owner's own Send action is what actually reveals (see
   // revealedAt), not this timestamp, so a late owner never auto-breaks the
   // game and an early owner isn't blocked from revealing sooner.
   countdownEndsAt: timestamp("countdown_ends_at").notNull(),
   revealedAt: timestamp("revealed_at"),
-  latitude: doublePrecision("latitude"), // owner's real captured GPS location, set at reveal
-  longitude: doublePrecision("longitude"),
-  radiusMeters: integer("radius_meters"), // owner-chosen "near" radius drawn as a circle for entrants
-  winnerUserId: varchar("winner_user_id").references(() => users.id),
-  endedAt: timestamp("ended_at"), // set the moment the owner approves a winning claim
+  endedAt: timestamp("ended_at"), // set once every target has an approved winner
   // endedAt + 15 minutes — the leaderboard is only ever fetchable up to
   // this instant; computed at read time (see routes/hunt.ts), not swept by
   // a background job, since there's nothing destructive to clean up.
@@ -266,11 +276,28 @@ export const huntGames = pgTable("hunt_games", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const huntGameImages = pgTable("hunt_game_images", {
+// One row per hidden card within a game (1 or 2, per huntGames.cardCount)
+// — its own photos, its own real GPS location + radius, its own winner.
+export const huntTargets = pgTable(
+  "hunt_targets",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    gameId: varchar("game_id").notNull().references(() => huntGames.id, { onDelete: "cascade" }),
+    index: integer("index").notNull(), // 0 or 1 — which of the game's cards this is
+    latitude: doublePrecision("latitude"), // set at reveal
+    longitude: doublePrecision("longitude"),
+    radiusMeters: integer("radius_meters"),
+    winnerUserId: varchar("winner_user_id").references(() => users.id),
+    wonAt: timestamp("won_at"),
+  },
+  (table) => [unique("uq_hunt_target_game_index").on(table.gameId, table.index)],
+);
+
+export const huntTargetImages = pgTable("hunt_target_images", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  gameId: varchar("game_id").notNull().references(() => huntGames.id, { onDelete: "cascade" }),
+  targetId: varchar("target_id").notNull().references(() => huntTargets.id, { onDelete: "cascade" }),
   url: text("url").notNull(),
-  position: integer("position").notNull().default(0), // 0-2, max 3 images
+  position: integer("position").notNull().default(0), // 0-2, max 3 images per card
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -283,17 +310,36 @@ export const huntEntries = pgTable(
     priceCentsPaid: integer("price_cents_paid").notNull(),
     stripePaymentIntentId: text("stripe_payment_intent_id"),
     paidAt: timestamp("paid_at"), // null until the webhook confirms payment
-    claimStatus: text("claim_status").notNull().default("none"), // one of HUNT_CLAIM_STATUSES
-    claimImageUrl: text("claim_image_url"),
-    claimedAt: timestamp("claimed_at"),
-    // One canned reaction a losing entrant can send to the winner once the
+    // One canned reaction a losing entrant can send to a winner once the
     // game has ended — see HUNT_REACTION_MESSAGES. Null until sent; each
-    // entrant can only send one, ever, for a given game.
+    // entrant can only send one, ever, for a given game (not per-target).
     reactionMessage: text("reaction_message"),
     reactionSentAt: timestamp("reaction_sent_at"),
     createdAt: timestamp("created_at").defaultNow(),
   },
   (table) => [unique("uq_hunt_entry_game_user").on(table.gameId, table.userId), index("idx_hunt_entries_game").on(table.gameId)],
+);
+
+// A "found it" claim against one specific target — a user can have at
+// most one non-rejected claim per target at a time (see the partial
+// index below), but can resubmit after a rejection.
+export const huntClaims = pgTable(
+  "hunt_claims",
+  {
+    id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+    targetId: varchar("target_id").notNull().references(() => huntTargets.id, { onDelete: "cascade" }),
+    userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    imageUrl: text("image_url").notNull(),
+    status: text("status").notNull().default("pending"), // one of HUNT_CLAIM_STATUSES
+    claimedAt: timestamp("claimed_at").defaultNow(),
+    reviewedAt: timestamp("reviewed_at"),
+    // Real points actually credited to the user when this claim was
+    // approved — recorded on the claim itself (not just summed live) so a
+    // user's hunt history can show exactly what each win was worth, even
+    // if the game's point rules changed for later games.
+    pointsAwarded: integer("points_awarded"),
+  },
+  (table) => [index("idx_hunt_claims_target").on(table.targetId), index("idx_hunt_claims_user").on(table.userId)],
 );
 
 export const listingImages = pgTable(

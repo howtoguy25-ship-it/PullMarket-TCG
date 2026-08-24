@@ -65,7 +65,9 @@ export type RootStackParamList = {
   };
   Hunt: undefined;
   HuntEntryReturn: { status?: string; gameId?: string };
+  HuntUserStats: { userId: string; username: string };
   OwnerHunt: undefined;
+  OwnerHuntNotify: undefined;
 };
 
 export type MainTabsParamList = {

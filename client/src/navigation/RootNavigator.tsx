@@ -49,7 +49,9 @@ import HelpChatScreen from "@/screens/HelpChatScreen";
 import PriceCardDetailScreen from "@/screens/PriceCardDetailScreen";
 import HuntScreen from "@/screens/HuntScreen";
 import HuntEntryReturnScreen from "@/screens/HuntEntryReturnScreen";
+import HuntUserStatsScreen from "@/screens/HuntUserStatsScreen";
 import OwnerHuntScreen from "@/screens/owner/OwnerHuntScreen";
+import OwnerHuntNotifyScreen from "@/screens/owner/OwnerHuntNotifyScreen";
 
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 const RootStack = createNativeStackNavigator<RootStackParamList>();
@@ -126,7 +128,9 @@ function MainNavigator() {
       <RootStack.Screen name="PriceCardDetail" component={PriceCardDetailScreen} options={{ title: "" }} />
       <RootStack.Screen name="Hunt" component={HuntScreen} options={{ title: "Card Hunt" }} />
       <RootStack.Screen name="HuntEntryReturn" component={HuntEntryReturnScreen} options={{ title: "", headerBackVisible: false }} />
+      <RootStack.Screen name="HuntUserStats" component={HuntUserStatsScreen} options={({ route }) => ({ title: `@${route.params.username}` })} />
       <RootStack.Screen name="OwnerHunt" component={OwnerHuntScreen} options={{ title: "Card Hunt" }} />
+      <RootStack.Screen name="OwnerHuntNotify" component={OwnerHuntNotifyScreen} options={{ title: "Notify Users" }} />
     </RootStack.Navigator>
   );
 }
