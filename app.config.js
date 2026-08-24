@@ -26,7 +26,7 @@ module.exports = () => {
       name: "PullMarket TCG",
       slug: "pullmarket-tcg",
       owner: "adhams",
-      version: "1.0.0",
+      version: "1.0.1",
       orientation: "portrait",
       icon: "./client/assets/icon.png",
       scheme: "pullmarket",
