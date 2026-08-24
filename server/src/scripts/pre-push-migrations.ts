@@ -166,6 +166,96 @@ const STATEMENTS = [
      ALTER TABLE listing_boosts ADD CONSTRAINT listing_boosts_apple_transaction_id_unique UNIQUE (apple_transaction_id);
    EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
    END $$;`,
+
+  // users: real lifetime Card Hunt points balance — this is the column
+  // whose absence broke every sign-in method in production (auth routes
+  // all do a plain `db.select().from(users)...`, which selects every
+  // column declared in shared/src/schema.ts, `points` included, regardless
+  // of whether that route has anything to do with Card Hunt).
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS points integer NOT NULL DEFAULT 0;`,
+
+  // listings: owner-only internal note (see the header comment — this one
+  // already caused a real production outage on its own before this file
+  // covered it).
+  `ALTER TABLE listings ADD COLUMN IF NOT EXISTS owner_note text;`,
+
+  // ebay_listings: real eBay-sourced listings synced via the Buy Browse API
+  `CREATE TABLE IF NOT EXISTS ebay_listings (
+     id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+     ebay_item_id text NOT NULL UNIQUE,
+     title text NOT NULL,
+     franchise text NOT NULL,
+     price_cents integer NOT NULL,
+     currency text NOT NULL,
+     condition text,
+     image_url text,
+     item_web_url text NOT NULL,
+     seller_username text,
+     last_seen_at timestamp NOT NULL DEFAULT now(),
+     created_at timestamp DEFAULT now()
+   );`,
+  `CREATE INDEX IF NOT EXISTS idx_ebay_listings_franchise ON ebay_listings (franchise);`,
+  `CREATE INDEX IF NOT EXISTS idx_ebay_listings_last_seen ON ebay_listings (last_seen_at);`,
+
+  // Card Hunt: real-money, real-location geo-hunt game tables (see
+  // shared/src/schema.ts for the full explanation of each).
+  `CREATE TABLE IF NOT EXISTS hunt_games (
+     id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+     status text NOT NULL DEFAULT 'entry_open',
+     entry_price_cents integer NOT NULL,
+     card_count integer NOT NULL DEFAULT 1,
+     base_points integer NOT NULL DEFAULT 100,
+     speed_bonus_threshold_minutes integer NOT NULL DEFAULT 5,
+     speed_bonus_points integer NOT NULL DEFAULT 50,
+     countdown_ends_at timestamp NOT NULL,
+     revealed_at timestamp,
+     ended_at timestamp,
+     leaderboard_expires_at timestamp,
+     created_at timestamp DEFAULT now()
+   );`,
+  `CREATE TABLE IF NOT EXISTS hunt_targets (
+     id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+     game_id varchar NOT NULL REFERENCES hunt_games(id) ON DELETE CASCADE,
+     index integer NOT NULL,
+     latitude double precision,
+     longitude double precision,
+     radius_meters integer,
+     winner_user_id varchar REFERENCES users(id),
+     won_at timestamp,
+     CONSTRAINT uq_hunt_target_game_index UNIQUE (game_id, index)
+   );`,
+  `CREATE TABLE IF NOT EXISTS hunt_target_images (
+     id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+     target_id varchar NOT NULL REFERENCES hunt_targets(id) ON DELETE CASCADE,
+     url text NOT NULL,
+     position integer NOT NULL DEFAULT 0,
+     created_at timestamp DEFAULT now()
+   );`,
+  `CREATE TABLE IF NOT EXISTS hunt_entries (
+     id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+     game_id varchar NOT NULL REFERENCES hunt_games(id) ON DELETE CASCADE,
+     user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     price_cents_paid integer NOT NULL,
+     stripe_payment_intent_id text,
+     paid_at timestamp,
+     reaction_message text,
+     reaction_sent_at timestamp,
+     created_at timestamp DEFAULT now(),
+     CONSTRAINT uq_hunt_entry_game_user UNIQUE (game_id, user_id)
+   );`,
+  `CREATE INDEX IF NOT EXISTS idx_hunt_entries_game ON hunt_entries (game_id);`,
+  `CREATE TABLE IF NOT EXISTS hunt_claims (
+     id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+     target_id varchar NOT NULL REFERENCES hunt_targets(id) ON DELETE CASCADE,
+     user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+     image_url text NOT NULL,
+     status text NOT NULL DEFAULT 'pending',
+     claimed_at timestamp DEFAULT now(),
+     reviewed_at timestamp,
+     points_awarded integer
+   );`,
+  `CREATE INDEX IF NOT EXISTS idx_hunt_claims_target ON hunt_claims (target_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_hunt_claims_user ON hunt_claims (user_id);`,
 ];
 
 async function main() {
