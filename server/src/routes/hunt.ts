@@ -9,7 +9,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { huntGames, huntTargets, huntTargetImages, huntEntries, huntClaims, users, HUNT_REACTION_MESSAGES } from "@shared/schema";
+import { huntGames, huntTargets, huntTargetImages, huntEntries, huntClaims, users, reports, HUNT_REACTION_MESSAGES } from "@shared/schema";
 import { and, desc, eq, inArray, isNotNull, ilike, ne, sql } from "drizzle-orm";
 import { authenticateToken, requireOwner } from "../middleware/auth";
 import { upload, saveUploadedFile, deleteUploadedFile } from "../lib/upload";
@@ -474,6 +474,34 @@ router.post("/:gameId/react", async (req, res) => {
   await Promise.all(winnerIds.map((id) => notifyUser(id, { type: "hunt_reaction", title: "New message on your win 🏆", body: `@${req.user!.username} sent you a message.`, data: { gameId: game.id } })));
 
   res.json({ sent: true });
+});
+
+// Log that an entrant screenshotted the reveal map — Android genuinely
+// blocks the screenshot itself (see HuntMap's usePreventScreenCapture,
+// FLAG_SECURE), but iOS gives no API to block or blank a screenshot after
+// it's taken, so on iOS the client detects it via the OS's
+// screenshot-taken notification and reports it here, same pattern as
+// buyer shipping-info protection (routes/orders.ts). Surfaces straight
+// into the existing owner Reports inbox — real anti-cheat here means the
+// owner seeing who to disqualify, not a cosmetic effect on an image that
+// already exists in that user's photo library.
+router.post("/:gameId/screenshot-detected", async (req, res) => {
+  const [game] = await db.select().from(huntGames).where(eq(huntGames.id, req.params.gameId));
+  if (!game) return res.status(404).json({ message: "Hunt not found" });
+
+  const [entry] = await db.select().from(huntEntries).where(and(eq(huntEntries.gameId, game.id), eq(huntEntries.userId, req.user!.id)));
+  if (!entry?.paidAt) return res.status(403).json({ message: "You haven't entered this hunt." });
+
+  await db.insert(reports).values({
+    reporterId: null,
+    source: "system",
+    reportedUserId: req.user!.id,
+    reason: "screenshot_detected",
+    description: `@${req.user!.username} took a screenshot of the Card Hunt reveal map (game ${game.id.slice(0, 8).toUpperCase()}) — possible attempt to share the hidden location with someone who hasn't paid to enter.`,
+    aiReasoning: "Detected via the OS screenshot-taken notification while the hunt map was on screen. This is detection, not prevention — iOS provides no API to block screenshots outright.",
+  });
+
+  res.status(201).json({ logged: true });
 });
 
 // A user's real, public Card Hunt profile — reachable by tapping their name

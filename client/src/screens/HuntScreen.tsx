@@ -18,6 +18,7 @@ import { formatPriceCents } from "@/lib/format";
 import { HUNT_REACTION_LABELS } from "@shared/validation";
 import { HUNT_REACTION_MESSAGES } from "@shared/schema";
 import { useAuth } from "@/contexts/AuthContext";
+import { useHuntMapScreenCapture } from "@/hooks/useHuntMapScreenCapture";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -160,6 +161,11 @@ export default function HuntScreen() {
 
   const { data, isLoading } = useQuery<{ game: HuntGameResponse | null }>({ queryKey: ["/api/hunt/current"], refetchInterval: 15_000 });
   const game = data?.game ?? null;
+
+  // Anti-cheat: blocks/reports screenshots of the reveal map so entrants
+  // can't share the hidden card's real location with people who haven't
+  // paid to enter. Only matters once the map is actually on screen.
+  useHuntMapScreenCapture(game?.id, game?.status === "revealed");
 
   const countdown = useCountdown(game?.status === "entry_open" ? game.countdownEndsAt : null);
   const leaderboardCountdown = useCountdown(game?.status === "ended" ? game.leaderboardExpiresAt : null);
