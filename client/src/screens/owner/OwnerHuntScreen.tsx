@@ -390,21 +390,39 @@ function BroadcastForm() {
   return (
     <View style={[styles.card, Shadow.card, { borderLeftWidth: 4, borderLeftColor: Colors.primary }]}>
       <View style={styles.broadcastHeader}>
-        <View style={[styles.sectionBadge, { backgroundColor: `${Colors.gold}30` }]}>
-          <Feather name="radio" size={16} color={Colors.goldDark} />
+        <View style={[styles.sectionBadgeLg, { backgroundColor: `${Colors.gold}30` }]}>
+          <Feather name="radio" size={20} color={Colors.goldDark} />
         </View>
-        <Text style={styles.cardTitle}>Broadcast to everyone</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.broadcastTitle}>Broadcast to everyone</Text>
+          <Text style={styles.broadcastSubtitle}>Every user with an account gets this as a push notification, instantly.</Text>
+        </View>
       </View>
-      <TextInput style={[styles.input, styles.inputFull]} placeholder="Title" placeholderTextColor={Colors.textMuted} value={title} onChangeText={setTitle} maxLength={80} />
-      <TextInput
-        style={[styles.input, styles.inputFull, styles.inputMultiline]}
-        placeholder="What's the update?"
-        placeholderTextColor={Colors.textMuted}
-        value={body}
-        onChangeText={setBody}
-        multiline
-        maxLength={300}
-      />
+
+      <View style={styles.fieldGroup}>
+        <View style={styles.fieldLabelRow}>
+          <Text style={styles.fieldLabel}>Notification title</Text>
+          <Text style={styles.fieldCounter}>{title.length}/80</Text>
+        </View>
+        <TextInput style={styles.composeTitleInput} placeholder="e.g. New hunt starting soon!" placeholderTextColor={Colors.textMuted} value={title} onChangeText={setTitle} maxLength={80} />
+      </View>
+
+      <View style={styles.fieldGroup}>
+        <View style={styles.fieldLabelRow}>
+          <Text style={styles.fieldLabel}>Message</Text>
+          <Text style={styles.fieldCounter}>{body.length}/300</Text>
+        </View>
+        <TextInput
+          style={styles.composeBodyInput}
+          placeholder="Write the update you want every user to see…"
+          placeholderTextColor={Colors.textMuted}
+          value={body}
+          onChangeText={setBody}
+          multiline
+          maxLength={300}
+        />
+      </View>
+
       <View style={{ marginTop: Spacing.md }}>
         <GradientButton
           title={broadcastMutation.isPending ? "Sending…" : "Send to all users"}
@@ -579,5 +597,37 @@ const styles = StyleSheet.create({
   wonPillText: { color: Colors.white, fontSize: 10, fontWeight: "700" },
   rejectedNote: { ...Typography.small, color: Colors.danger },
   doneNote: { ...Typography.small, color: Colors.textMuted, marginBottom: Spacing.md },
-  broadcastHeader: { flexDirection: "row", alignItems: "center", gap: 8 },
+  broadcastHeader: { flexDirection: "row", alignItems: "flex-start", gap: Spacing.sm, marginBottom: Spacing.md },
+  sectionBadgeLg: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  broadcastTitle: { fontSize: 19, fontFamily: Fonts.displayBold, color: Colors.text },
+  broadcastSubtitle: { ...Typography.small, color: Colors.textSecondary, marginTop: 2, lineHeight: 18 },
+  fieldGroup: { marginTop: Spacing.md },
+  fieldLabelRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
+  fieldLabel: { fontSize: 14, fontFamily: Fonts.bodyBold, color: Colors.text },
+  fieldCounter: { ...Typography.small, color: Colors.textMuted, fontSize: 11 },
+  composeTitleInput: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 14,
+    color: Colors.text,
+    fontSize: 18,
+    fontFamily: Fonts.bodyBold,
+  },
+  composeBodyInput: {
+    backgroundColor: Colors.surfaceAlt,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    color: Colors.text,
+    fontSize: 16,
+    fontFamily: Fonts.body,
+    minHeight: 90,
+    textAlignVertical: "top",
+    lineHeight: 22,
+  },
 });
