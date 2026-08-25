@@ -196,6 +196,20 @@ const STATEMENTS = [
    );`,
   `CREATE INDEX IF NOT EXISTS idx_ebay_listings_franchise ON ebay_listings (franchise);`,
   `CREATE INDEX IF NOT EXISTS idx_ebay_listings_last_seen ON ebay_listings (last_seen_at);`,
+  // Defends against the exact case this file's header comment describes:
+  // if ebay_listings already existed from an earlier deploy (this table
+  // predates this file covering it) without the unique constraint on
+  // ebay_item_id, `CREATE TABLE IF NOT EXISTS` above is a no-op and can't
+  // retroactively add it — and lib/ebay.ts's sync uses
+  // `ON CONFLICT (ebay_item_id)`, which throws on every single insert
+  // without a matching unique constraint/index, silently failing the
+  // whole sync (caught and only logged server-side, never surfaced to a
+  // request). Real symptom this fixes: EBAY_APP_ID/EBAY_CERT_ID configured
+  // and valid, the route returns 200, and yet zero listings ever appear.
+  `DO $$ BEGIN
+     ALTER TABLE ebay_listings ADD CONSTRAINT ebay_listings_ebay_item_id_unique UNIQUE (ebay_item_id);
+   EXCEPTION WHEN duplicate_object OR duplicate_table THEN NULL;
+   END $$;`,
 
   // Card Hunt: real-money, real-location geo-hunt game tables (see
   // shared/src/schema.ts for the full explanation of each).
