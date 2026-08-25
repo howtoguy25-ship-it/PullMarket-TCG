@@ -45,6 +45,12 @@ router.post("/", chatUpload.single("media"), async (req, res) => {
     caption: z.string().max(STORY_MAX_CAPTION_LENGTH).optional(),
     privacy: z.enum(STORY_PRIVACY_LEVELS).default("everyone"),
     customViewerIds: z.string().optional(), // JSON-encoded string[], only when privacy === "custom"
+    // Real natural pixel dimensions of the picked asset, so every viewer can
+    // render the same real 16:9/9:16 frame the creator saw instead of
+    // guessing. rotation is 0/90/180/270 — see shared/src/schema.ts.
+    mediaWidth: z.coerce.number().int().positive().optional(),
+    mediaHeight: z.coerce.number().int().positive().optional(),
+    rotation: z.coerce.number().int().refine((v) => [0, 90, 180, 270].includes(v), "Invalid rotation").default(0),
   });
   const parsed = schema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: parsed.error.issues[0]?.message || "Invalid story" });
@@ -68,7 +74,17 @@ router.post("/", chatUpload.single("media"), async (req, res) => {
 
   const [story] = await db
     .insert(stories)
-    .values({ userId: req.user!.id, mediaType, mediaUrl, caption: parsed.data.caption || null, privacy: parsed.data.privacy, expiresAt })
+    .values({
+      userId: req.user!.id,
+      mediaType,
+      mediaUrl,
+      mediaWidth: parsed.data.mediaWidth ?? null,
+      mediaHeight: parsed.data.mediaHeight ?? null,
+      rotation: parsed.data.rotation,
+      caption: parsed.data.caption || null,
+      privacy: parsed.data.privacy,
+      expiresAt,
+    })
     .returning();
 
   if (customViewerIds.length > 0) {
@@ -120,7 +136,17 @@ router.get("/feed", async (req, res) => {
 
   const groups = Array.from(byUser.entries()).map(([userId, list]) => ({
     user: peopleById.get(userId) ?? null,
-    stories: list.map((s) => ({ id: s.id, mediaType: s.mediaType, mediaUrl: s.mediaUrl, caption: s.caption, createdAt: s.createdAt, seen: seenIds.has(s.id) })),
+    stories: list.map((s) => ({
+      id: s.id,
+      mediaType: s.mediaType,
+      mediaUrl: s.mediaUrl,
+      mediaWidth: s.mediaWidth,
+      mediaHeight: s.mediaHeight,
+      rotation: s.rotation,
+      caption: s.caption,
+      createdAt: s.createdAt,
+      seen: seenIds.has(s.id),
+    })),
     hasUnseen: list.some((s) => !seenIds.has(s.id)),
     latestAt: list[0].createdAt,
   }));

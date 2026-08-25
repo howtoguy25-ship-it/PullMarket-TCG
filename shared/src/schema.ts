@@ -726,6 +726,19 @@ export const stories = pgTable(
     userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     mediaType: text("media_type").notNull(), // one of STORY_MEDIA_TYPES
     mediaUrl: text("media_url").notNull(),
+    // Real natural pixel dimensions of the uploaded file (as decoded from
+    // the actual picked asset), used to pick the real display frame —
+    // 16:9 for images, and 16:9 vs 9:16 for video depending on whether the
+    // real source was shot landscape or portrait — instead of forcing every
+    // story into one fixed ratio.
+    mediaWidth: integer("media_width"),
+    mediaHeight: integer("media_height"),
+    // Real rotation (0/90/180/270) applied on top of the natural
+    // width/height above. Images are always 0 here because a rotate on a
+    // photo is baked into the file itself before upload; video can't be
+    // re-encoded client-side without a heavy transcode, so its rotation is
+    // stored and replayed as a real transform by every viewer.
+    rotation: integer("rotation").notNull().default(0),
     // Real user-entered text overlaid on the media — not a caption shown
     // separately, rendered directly over the photo/video like a real
     // Instagram/WhatsApp status caption.

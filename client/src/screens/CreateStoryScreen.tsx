@@ -5,12 +5,14 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { Video, ResizeMode } from "expo-av";
 import { Feather } from "@expo/vector-icons";
 import { Colors, Spacing, Typography, BorderRadius, Fonts } from "@/constants/theme";
 import { Button } from "@/components/ui";
+import RotatedMedia from "@/components/RotatedMedia";
 import { RootStackParamList } from "@/navigation/types";
-import { resolveImageUrl } from "@/lib/media";
+import { resolveImageUrl, effectiveStoryAspectRatio } from "@/lib/media";
 import { apiRequest, ApiError } from "@/lib/api";
 import { appendMediaToFormData } from "@/lib/formDataImage";
 import { STORY_PRIVACY_LEVELS } from "@shared/schema";
@@ -29,6 +31,8 @@ interface Asset {
   type?: string;
   mimeType?: string;
   fileName?: string | null;
+  width?: number;
+  height?: number;
 }
 interface Candidate {
   id: string;
@@ -94,12 +98,14 @@ export default function CreateStoryScreen() {
   const queryClient = useQueryClient();
 
   const [asset, setAsset] = useState<Asset | null>(null);
+  const [rotation, setRotation] = useState(0); // real 0/90/180/270 — see RotatedMedia
   const [caption, setCaption] = useState("");
   const [privacy, setPrivacy] = useState<Privacy>("everyone");
   const [customSelected, setCustomSelected] = useState<Set<string>>(new Set());
   const [audienceModalOpen, setAudienceModalOpen] = useState(false);
 
   const isVideo = asset?.type === "video" || !!asset?.mimeType?.startsWith("video/");
+  const aspectRatio = isVideo ? effectiveStoryAspectRatio(asset?.width, asset?.height, rotation) : 16 / 9;
 
   const pickFromLibrary = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -107,7 +113,8 @@ export default function CreateStoryScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 0.85 });
     if (!result.canceled && result.assets[0]) {
       const a = result.assets[0];
-      setAsset({ uri: a.uri, type: a.type ?? undefined, mimeType: a.mimeType, fileName: a.fileName });
+      setRotation(0);
+      setAsset({ uri: a.uri, type: a.type ?? undefined, mimeType: a.mimeType, fileName: a.fileName, width: a.width || undefined, height: a.height || undefined });
     }
   };
 
@@ -117,8 +124,51 @@ export default function CreateStoryScreen() {
     const result = await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 0.85 });
     if (!result.canceled && result.assets[0]) {
       const a = result.assets[0];
-      setAsset({ uri: a.uri, type: a.type ?? undefined, mimeType: a.mimeType, fileName: a.fileName });
+      setRotation(0);
+      setAsset({ uri: a.uri, type: a.type ?? undefined, mimeType: a.mimeType, fileName: a.fileName, width: a.width || undefined, height: a.height || undefined });
     }
+  };
+
+  // Real rotate: a photo gets physically re-encoded 90° via
+  // expo-image-manipulator (the file itself changes, so no rotation value
+  // needs to travel with it). A video can't be re-encoded cheaply client
+  // side, so its rotation is tracked and sent to the server, then replayed
+  // as the same real transform by every viewer (see RotatedMedia).
+  const rotateAsset = async () => {
+    if (!asset) return;
+    if (isVideo) {
+      setRotation((r) => (r + 90) % 360);
+      return;
+    }
+    try {
+      const result = await ImageManipulator.manipulateAsync(asset.uri, [{ rotate: 90 }], { compress: 1, format: ImageManipulator.SaveFormat.JPEG });
+      setAsset((prev) => (prev ? { ...prev, uri: result.uri, width: result.width, height: result.height } : prev));
+    } catch {
+      showAlert("Couldn't rotate", "Please try again.");
+    }
+  };
+
+  // Real native trim editor (react-native-video-trim) — a native module, so
+  // it's required lazily and only off the web bundle, which has no native
+  // modules to link against.
+  const openTrimEditor = () => {
+    if (!asset || Platform.OS === "web") return;
+    const VideoTrim = require("react-native-video-trim");
+    const cleanup = () => {
+      onFinish.remove();
+      onCancel.remove();
+      onErr.remove();
+    };
+    const onFinish = VideoTrim.default.onFinishTrimming(({ outputPath }: { outputPath: string }) => {
+      setAsset((prev) => (prev ? { ...prev, uri: outputPath } : prev));
+      cleanup();
+    });
+    const onCancel = VideoTrim.default.onCancel(() => cleanup());
+    const onErr = VideoTrim.default.onError(({ message }: { message: string }) => {
+      showAlert("Trim failed", message || "Please try again.");
+      cleanup();
+    });
+    VideoTrim.showEditor(asset.uri, { enableEditTools: true });
   };
 
   const shareMutation = useMutation({
@@ -128,6 +178,9 @@ export default function CreateStoryScreen() {
       if (caption.trim()) form.append("caption", caption.trim());
       form.append("privacy", privacy);
       if (privacy === "custom") form.append("customViewerIds", JSON.stringify(Array.from(customSelected)));
+      if (asset!.width) form.append("mediaWidth", String(asset!.width));
+      if (asset!.height) form.append("mediaHeight", String(asset!.height));
+      form.append("rotation", String(isVideo ? rotation : 0));
       return apiRequest("POST", "/api/stories", form, true);
     },
     onSuccess: () => {
@@ -160,17 +213,38 @@ export default function CreateStoryScreen() {
 
   return (
     <View style={styles.previewContainer}>
-      <Pressable style={[styles.closeTop, { top: insets.top + Spacing.sm }]} onPress={() => setAsset(null)} hitSlop={10}>
+      <Pressable
+        style={[styles.closeTop, { top: insets.top + Spacing.sm }]}
+        onPress={() => {
+          setAsset(null);
+          setRotation(0);
+        }}
+        hitSlop={10}
+      >
         <Feather name="x" size={24} color={Colors.white} />
       </Pressable>
 
       <View style={styles.mediaFrameWrap}>
-        <View style={styles.mediaFrame}>
-          {isVideo ? (
-            <Video source={{ uri: asset.uri }} style={styles.media} resizeMode={ResizeMode.COVER} isLooping shouldPlay isMuted />
-          ) : (
-            <Image source={{ uri: asset.uri }} style={styles.media} resizeMode="cover" />
-          )}
+        <View style={[styles.mediaFrame, { aspectRatio }]}>
+          <RotatedMedia rotation={isVideo ? rotation : 0}>
+            {isVideo ? (
+              <Video source={{ uri: asset.uri }} style={styles.media} resizeMode={ResizeMode.COVER} isLooping shouldPlay isMuted />
+            ) : (
+              <Image source={{ uri: asset.uri }} style={styles.media} resizeMode="cover" />
+            )}
+          </RotatedMedia>
+
+          <View style={styles.mediaToolbar}>
+            <Pressable style={styles.toolBtn} onPress={rotateAsset} hitSlop={8}>
+              <Feather name="rotate-cw" size={18} color={Colors.white} />
+            </Pressable>
+            {isVideo && Platform.OS !== "web" ? (
+              <Pressable style={styles.toolBtn} onPress={openTrimEditor} hitSlop={8}>
+                <Feather name="scissors" size={18} color={Colors.white} />
+              </Pressable>
+            ) : null}
+          </View>
+
           {caption ? (
             <View style={styles.captionOverlay}>
               <Text style={styles.captionOverlayText}>{caption}</Text>
@@ -241,8 +315,10 @@ const styles = StyleSheet.create({
   pickerBtnText: { color: Colors.white, fontFamily: Fonts.bodyBold, fontSize: 16 },
   previewContainer: { flex: 1, backgroundColor: "#000" },
   mediaFrameWrap: { flex: 1, justifyContent: "center" },
-  mediaFrame: { width: "100%", aspectRatio: 16 / 9, alignSelf: "center" },
+  mediaFrame: { width: "100%", alignSelf: "center" },
   media: { width: "100%", height: "100%" },
+  mediaToolbar: { position: "absolute", top: Spacing.sm, right: Spacing.sm, flexDirection: "row", gap: Spacing.sm },
+  toolBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },
   captionOverlay: { position: "absolute", bottom: Spacing.lg, left: Spacing.lg, right: Spacing.lg, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: BorderRadius.md, padding: Spacing.sm },
   captionOverlayText: { color: Colors.white, fontSize: 16, fontFamily: Fonts.bodyBold, textAlign: "center" },
   bottomPanel: { backgroundColor: Colors.surface, borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl, padding: Spacing.lg, gap: Spacing.sm },

@@ -277,11 +277,21 @@ const STATEMENTS = [
      user_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
      media_type text NOT NULL,
      media_url text NOT NULL,
+     media_width integer,
+     media_height integer,
+     rotation integer NOT NULL DEFAULT 0,
      caption text,
      privacy text NOT NULL DEFAULT 'everyone',
      created_at timestamp DEFAULT now(),
      expires_at timestamp NOT NULL
    );`,
+  // CREATE TABLE IF NOT EXISTS above is a no-op against a stories table that
+  // already existed before this file covered mediaWidth/mediaHeight/rotation
+  // (same class of gap the ebay_listings unique-constraint fix above
+  // defends against) — these ADD COLUMNs retroactively bring it current.
+  `ALTER TABLE stories ADD COLUMN IF NOT EXISTS media_width integer;`,
+  `ALTER TABLE stories ADD COLUMN IF NOT EXISTS media_height integer;`,
+  `ALTER TABLE stories ADD COLUMN IF NOT EXISTS rotation integer NOT NULL DEFAULT 0;`,
   `CREATE INDEX IF NOT EXISTS idx_stories_user ON stories (user_id);`,
   `CREATE INDEX IF NOT EXISTS idx_stories_expires ON stories (expires_at);`,
   `CREATE TABLE IF NOT EXISTS story_custom_viewers (

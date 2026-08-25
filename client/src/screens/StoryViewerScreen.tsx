@@ -8,7 +8,8 @@ import { Video, ResizeMode, AVPlaybackStatus } from "expo-av";
 import { Feather } from "@expo/vector-icons";
 import { Colors, Spacing, Typography, BorderRadius, Fonts } from "@/constants/theme";
 import { RootStackParamList } from "@/navigation/types";
-import { resolveImageUrl } from "@/lib/media";
+import { resolveImageUrl, effectiveStoryAspectRatio } from "@/lib/media";
+import RotatedMedia from "@/components/RotatedMedia";
 import { apiRequest, apiJson, ApiError } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { STORY_IMAGE_DURATION_MS } from "@shared/validation";
@@ -27,6 +28,9 @@ interface StoryItem {
   id: string;
   mediaType: "image" | "video";
   mediaUrl: string;
+  mediaWidth: number | null;
+  mediaHeight: number | null;
+  rotation: number;
   caption: string | null;
   createdAt: string;
   seen: boolean;
@@ -147,25 +151,30 @@ function UserStoryPage({
 
   if (!current) return null;
 
+  const isVideo = current.mediaType === "video";
+  const aspectRatio = isVideo ? effectiveStoryAspectRatio(current.mediaWidth, current.mediaHeight, current.rotation) : 16 / 9;
+
   return (
     <View style={{ width, height, justifyContent: "center" }}>
-      <View style={styles.mediaFrame}>
-        {current.mediaType === "video" ? (
-          <Video
-            source={{ uri: resolveImageUrl(current.mediaUrl)! }}
-            style={styles.media}
-            resizeMode={ResizeMode.COVER}
-            shouldPlay={active}
-            isMuted={!active}
-            onPlaybackStatusUpdate={(status: AVPlaybackStatus) => {
-              if (!status.isLoaded) return;
-              if (status.durationMillis) setProgress(status.positionMillis / status.durationMillis);
-              if (status.didJustFinish) advanceStory(1);
-            }}
-          />
-        ) : (
-          <Image source={{ uri: resolveImageUrl(current.mediaUrl) }} style={styles.media} resizeMode="cover" />
-        )}
+      <View style={[styles.mediaFrame, { aspectRatio }]}>
+        <RotatedMedia rotation={isVideo ? current.rotation : 0}>
+          {isVideo ? (
+            <Video
+              source={{ uri: resolveImageUrl(current.mediaUrl)! }}
+              style={styles.media}
+              resizeMode={ResizeMode.COVER}
+              shouldPlay={active}
+              isMuted={!active}
+              onPlaybackStatusUpdate={(status: AVPlaybackStatus) => {
+                if (!status.isLoaded) return;
+                if (status.durationMillis) setProgress(status.positionMillis / status.durationMillis);
+                if (status.didJustFinish) advanceStory(1);
+              }}
+            />
+          ) : (
+            <Image source={{ uri: resolveImageUrl(current.mediaUrl) }} style={styles.media} resizeMode="cover" />
+          )}
+        </RotatedMedia>
       </View>
 
       <View style={[styles.progressRow, { top: insets.top + Spacing.sm }]}>
@@ -271,7 +280,7 @@ export default function StoryViewerScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#000" },
-  mediaFrame: { width: "100%", aspectRatio: 16 / 9, alignSelf: "center" },
+  mediaFrame: { width: "100%", alignSelf: "center" },
   media: { width: "100%", height: "100%" },
   progressRow: { position: "absolute", left: Spacing.sm, right: Spacing.sm, flexDirection: "row", gap: 4 },
   progressTrack: { flex: 1, height: 3, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.3)", overflow: "hidden" },
