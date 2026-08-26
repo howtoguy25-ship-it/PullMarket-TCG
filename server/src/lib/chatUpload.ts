@@ -6,7 +6,10 @@ import multer from "multer";
 // videos, unlike listing photos which are images-only.
 export const chatUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024, files: 4 },
+  // 200MB — real, unedited phone/camera-roll video (a minute-plus 4K clip
+  // easily runs past the old 50MB cap with nothing wrong with it) needs
+  // real headroom, not a limit tuned for compressed web uploads.
+  limits: { fileSize: 200 * 1024 * 1024, files: 4 },
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith("image/") && !file.mimetype.startsWith("video/")) {
       cb(new Error("Only photo or video attachments are allowed"));

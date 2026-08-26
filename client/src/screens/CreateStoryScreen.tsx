@@ -6,6 +6,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
 import * as ImageManipulator from "expo-image-manipulator";
+import { Asset as ExpoAsset } from "expo-asset";
 import { Video, ResizeMode } from "expo-av";
 import { Feather } from "@expo/vector-icons";
 import { Colors, Spacing, Typography, BorderRadius, Fonts } from "@/constants/theme";
@@ -13,6 +14,8 @@ import { Button } from "@/components/ui";
 import RotatedMedia from "@/components/RotatedMedia";
 import { RootStackParamList } from "@/navigation/types";
 import { resolveImageUrl, effectiveStoryAspectRatio } from "@/lib/media";
+import { AMBIENT_SOUNDS } from "@/lib/ambientSounds";
+import { useAmbientSound } from "@/contexts/AmbientSoundContext";
 import { apiRequest, ApiError } from "@/lib/api";
 import { appendMediaToFormData } from "@/lib/formDataImage";
 import { STORY_PRIVACY_LEVELS } from "@shared/schema";
@@ -97,8 +100,13 @@ export default function CreateStoryScreen() {
   const navigation = useNavigation<Nav>();
   const queryClient = useQueryClient();
 
+  const { preview: previewSound, previewingId } = useAmbientSound();
   const [asset, setAsset] = useState<Asset | null>(null);
   const [rotation, setRotation] = useState(0); // real 0/90/180/270 — see RotatedMedia
+  const [soundId, setSoundId] = useState<string | null>(null);
+  const [soundModalOpen, setSoundModalOpen] = useState(false);
+  const [soundApplying, setSoundApplying] = useState(false);
+  const [cropModalOpen, setCropModalOpen] = useState(false);
   const [caption, setCaption] = useState("");
   const [privacy, setPrivacy] = useState<Privacy>("everyone");
   const [customSelected, setCustomSelected] = useState<Set<string>>(new Set());
@@ -114,6 +122,7 @@ export default function CreateStoryScreen() {
     if (!result.canceled && result.assets[0]) {
       const a = result.assets[0];
       setRotation(0);
+      setSoundId(null);
       setAsset({ uri: a.uri, type: a.type ?? undefined, mimeType: a.mimeType, fileName: a.fileName, width: a.width || undefined, height: a.height || undefined });
     }
   };
@@ -125,6 +134,7 @@ export default function CreateStoryScreen() {
     if (!result.canceled && result.assets[0]) {
       const a = result.assets[0];
       setRotation(0);
+      setSoundId(null);
       setAsset({ uri: a.uri, type: a.type ?? undefined, mimeType: a.mimeType, fileName: a.fileName, width: a.width || undefined, height: a.height || undefined });
     }
   };
@@ -150,25 +160,94 @@ export default function CreateStoryScreen() {
 
   // Real native trim editor (react-native-video-trim) — a native module, so
   // it's required lazily and only off the web bundle, which has no native
-  // modules to link against.
+  // modules to link against. Its own edit-tools toolbar (enableEditTools)
+  // covers real crop/flip/rotate/speed/mute for video too, on top of trim,
+  // so video doesn't need a second, separate crop UI the way images do
+  // below.
   const openTrimEditor = () => {
     if (!asset || Platform.OS === "web") return;
-    const VideoTrim = require("react-native-video-trim");
-    const cleanup = () => {
-      onFinish.remove();
-      onCancel.remove();
-      onErr.remove();
-    };
-    const onFinish = VideoTrim.default.onFinishTrimming(({ outputPath }: { outputPath: string }) => {
-      setAsset((prev) => (prev ? { ...prev, uri: outputPath } : prev));
-      cleanup();
-    });
-    const onCancel = VideoTrim.default.onCancel(() => cleanup());
-    const onErr = VideoTrim.default.onError(({ message }: { message: string }) => {
-      showAlert("Trim failed", message || "Please try again.");
-      cleanup();
-    });
-    VideoTrim.showEditor(asset.uri, { enableEditTools: true });
+    try {
+      const VideoTrim = require("react-native-video-trim");
+      const cleanup = () => {
+        onFinish.remove();
+        onCancel.remove();
+        onErr.remove();
+      };
+      const onFinish = VideoTrim.default.onFinishTrimming(({ outputPath }: { outputPath: string }) => {
+        setAsset((prev) => (prev ? { ...prev, uri: outputPath } : prev));
+        cleanup();
+      });
+      const onCancel = VideoTrim.default.onCancel(() => cleanup());
+      const onErr = VideoTrim.default.onError(({ message }: { message: string }) => {
+        showAlert("Trim failed", message || "Please try again.");
+        cleanup();
+      });
+      VideoTrim.showEditor(asset.uri, { enableEditTools: true, headerText: "Trim your video" });
+    } catch (err) {
+      showAlert("Trim unavailable", err instanceof Error ? err.message : "Please try again.");
+    }
+  };
+
+  // Real sound: bakes one of the app's own in-house background tracks into
+  // the video via react-native-video-trim's headless mixAudio — a genuine
+  // re-encode of the file (not a client-side-only overlay that would be
+  // lost the moment someone else's device plays the uploaded clip).
+  const applySound = async (id: string) => {
+    if (!asset) return;
+    const option = AMBIENT_SOUNDS.find((s) => s.id === id);
+    if (!option) return;
+    setSoundApplying(true);
+    try {
+      const audioAsset = await ExpoAsset.fromModule(option.source).downloadAsync();
+      const audioPath = audioAsset.localUri;
+      if (!audioPath) throw new Error("Couldn't load that sound.");
+      const VideoTrim = require("react-native-video-trim");
+      const result = await VideoTrim.mixAudio(asset.uri, audioPath, {
+        originalAudioVolume: 0,
+        backgroundAudioVolume: 1.0,
+        loopAudio: true,
+        outputExt: "mp4",
+      });
+      setAsset((prev) => (prev ? { ...prev, uri: result.outputPath } : prev));
+      setSoundId(id);
+      setSoundModalOpen(false);
+    } catch (err) {
+      showAlert("Couldn't add sound", err instanceof Error ? err.message : "Please try again.");
+    } finally {
+      setSoundApplying(false);
+    }
+  };
+
+  // Real crop for photos: an actual pixel crop via expo-image-manipulator
+  // (not a visual-only overlay), centered on the real picked dimensions.
+  const cropImage = async (target: "square" | "portrait" | "landscape") => {
+    if (!asset || !asset.width || !asset.height) return;
+    const { width: w, height: h } = asset;
+    let cropW = w;
+    let cropH = h;
+    if (target === "square") {
+      cropW = cropH = Math.min(w, h);
+    } else if (target === "portrait") {
+      cropH = h;
+      cropW = Math.min(w, Math.round((h * 9) / 16));
+      if (cropW === w) cropH = Math.round((w * 16) / 9);
+    } else {
+      cropW = w;
+      cropH = Math.min(h, Math.round((w * 9) / 16));
+      if (cropH === h) cropW = Math.round((h * 16) / 9);
+    }
+    const originX = Math.round((w - cropW) / 2);
+    const originY = Math.round((h - cropH) / 2);
+    try {
+      const result = await ImageManipulator.manipulateAsync(asset.uri, [{ crop: { originX, originY, width: cropW, height: cropH } }], {
+        compress: 1,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
+      setAsset((prev) => (prev ? { ...prev, uri: result.uri, width: result.width, height: result.height } : prev));
+      setCropModalOpen(false);
+    } catch (err) {
+      showAlert("Couldn't crop", err instanceof Error ? err.message : "Please try again.");
+    }
   };
 
   const shareMutation = useMutation({
@@ -214,14 +293,15 @@ export default function CreateStoryScreen() {
   return (
     <View style={styles.previewContainer}>
       <Pressable
-        style={[styles.closeTop, { top: insets.top + Spacing.sm }]}
+        style={[styles.closeTop, styles.closeCircle, { top: insets.top + Spacing.sm }]}
         onPress={() => {
           setAsset(null);
           setRotation(0);
+          setSoundId(null);
         }}
         hitSlop={10}
       >
-        <Feather name="x" size={24} color={Colors.white} />
+        <Feather name="x" size={22} color={Colors.white} />
       </Pressable>
 
       <View style={styles.mediaFrameWrap}>
@@ -237,11 +317,25 @@ export default function CreateStoryScreen() {
           <View style={styles.mediaToolbar}>
             <Pressable style={styles.toolBtn} onPress={rotateAsset} hitSlop={8}>
               <Feather name="rotate-cw" size={18} color={Colors.white} />
+              <Text style={styles.toolBtnLabel}>Rotate</Text>
             </Pressable>
-            {isVideo && Platform.OS !== "web" ? (
-              <Pressable style={styles.toolBtn} onPress={openTrimEditor} hitSlop={8}>
-                <Feather name="scissors" size={18} color={Colors.white} />
+            {!isVideo ? (
+              <Pressable style={styles.toolBtn} onPress={() => setCropModalOpen(true)} hitSlop={8}>
+                <Feather name="crop" size={18} color={Colors.white} />
+                <Text style={styles.toolBtnLabel}>Crop</Text>
               </Pressable>
+            ) : null}
+            {isVideo && Platform.OS !== "web" ? (
+              <>
+                <Pressable style={styles.toolBtn} onPress={openTrimEditor} hitSlop={8}>
+                  <Feather name="scissors" size={18} color={Colors.white} />
+                  <Text style={styles.toolBtnLabel}>Trim / Crop</Text>
+                </Pressable>
+                <Pressable style={[styles.toolBtn, soundId && styles.toolBtnActive]} onPress={() => setSoundModalOpen(true)} hitSlop={8}>
+                  <Feather name="music" size={18} color={Colors.white} />
+                  <Text style={styles.toolBtnLabel}>{soundId ? "Sound ✓" : "Sound"}</Text>
+                </Pressable>
+              </>
             ) : null}
           </View>
 
@@ -301,6 +395,64 @@ export default function CreateStoryScreen() {
       </View>
 
       <AudienceModal visible={audienceModalOpen} selected={customSelected} onChange={setCustomSelected} onClose={() => setAudienceModalOpen(false)} />
+
+      <Modal visible={soundModalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSoundModalOpen(false)}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Add a sound</Text>
+            <Pressable onPress={() => setSoundModalOpen(false)} hitSlop={10}>
+              <Feather name="x" size={22} color={Colors.text} />
+            </Pressable>
+          </View>
+          <Text style={styles.modalHint}>Real in-house background tracks — tap to preview, then apply to bake it into your video.</Text>
+          <View style={{ paddingHorizontal: Spacing.lg }}>
+            {AMBIENT_SOUNDS.map((s) => {
+              const isPreviewing = previewingId === s.id;
+              const isApplied = soundId === s.id;
+              return (
+                <View key={s.id} style={[styles.candidateRow, isApplied && styles.candidateRowSelected]}>
+                  <Pressable onPress={() => previewSound(s.id)} hitSlop={8} style={styles.soundPreviewBtn}>
+                    <Feather name={isPreviewing ? "pause" : "play"} size={16} color={Colors.primary} />
+                  </Pressable>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.candidateName}>{s.label}</Text>
+                    <Text style={styles.soundDescription}>{s.description}</Text>
+                  </View>
+                  <Pressable onPress={() => applySound(s.id)} disabled={soundApplying} style={styles.soundUseBtn}>
+                    <Text style={styles.soundUseBtnText}>{isApplied ? "Applied ✓" : soundApplying ? "…" : "Use"}</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={cropModalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setCropModalOpen(false)}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Crop photo</Text>
+            <Pressable onPress={() => setCropModalOpen(false)} hitSlop={10}>
+              <Feather name="x" size={22} color={Colors.text} />
+            </Pressable>
+          </View>
+          <Text style={styles.modalHint}>A real crop of the actual photo, centered on your pick.</Text>
+          <View style={{ paddingHorizontal: Spacing.lg, gap: Spacing.sm }}>
+            <Pressable style={styles.cropOptionBtn} onPress={() => cropImage("square")}>
+              <Feather name="square" size={18} color={Colors.primary} />
+              <Text style={styles.cropOptionText}>Square (1:1)</Text>
+            </Pressable>
+            <Pressable style={styles.cropOptionBtn} onPress={() => cropImage("portrait")}>
+              <Feather name="smartphone" size={18} color={Colors.primary} />
+              <Text style={styles.cropOptionText}>Portrait (9:16)</Text>
+            </Pressable>
+            <Pressable style={styles.cropOptionBtn} onPress={() => cropImage("landscape")}>
+              <Feather name="image" size={18} color={Colors.primary} />
+              <Text style={styles.cropOptionText}>Landscape (16:9)</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -308,6 +460,7 @@ export default function CreateStoryScreen() {
 const styles = StyleSheet.create({
   pickerContainer: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.xl, alignItems: "center", justifyContent: "center", gap: Spacing.md },
   closeTop: { position: "absolute", top: Spacing.xl, left: Spacing.lg, zIndex: 10 },
+  closeCircle: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.45)", alignItems: "center", justifyContent: "center" },
   pickerTitle: { fontSize: 24, fontFamily: Fonts.display, color: Colors.text, textAlign: "center" },
   pickerSubtitle: { ...Typography.body, color: Colors.textSecondary, textAlign: "center", marginBottom: Spacing.lg },
   pickerBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: Spacing.sm, backgroundColor: Colors.primary, borderRadius: BorderRadius.pill, paddingVertical: 16, width: "100%" },
@@ -317,8 +470,18 @@ const styles = StyleSheet.create({
   mediaFrameWrap: { flex: 1, justifyContent: "center" },
   mediaFrame: { width: "100%", alignSelf: "center" },
   media: { width: "100%", height: "100%" },
-  mediaToolbar: { position: "absolute", top: Spacing.sm, right: Spacing.sm, flexDirection: "row", gap: Spacing.sm },
-  toolBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center" },
+  mediaToolbar: { position: "absolute", top: Spacing.md, right: Spacing.md, gap: Spacing.sm, alignItems: "flex-end" },
+  toolBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: BorderRadius.pill,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+  toolBtnActive: { backgroundColor: Colors.primary },
+  toolBtnLabel: { color: Colors.white, fontSize: 13, fontFamily: Fonts.bodyBold },
   captionOverlay: { position: "absolute", bottom: Spacing.lg, left: Spacing.lg, right: Spacing.lg, backgroundColor: "rgba(0,0,0,0.55)", borderRadius: BorderRadius.md, padding: Spacing.sm },
   captionOverlayText: { color: Colors.white, fontSize: 16, fontFamily: Fonts.bodyBold, textAlign: "center" },
   bottomPanel: { backgroundColor: Colors.surface, borderTopLeftRadius: BorderRadius.xl, borderTopRightRadius: BorderRadius.xl, padding: Spacing.lg, gap: Spacing.sm },
@@ -347,4 +510,10 @@ const styles = StyleSheet.create({
   friendTag: { ...Typography.small, color: Colors.success, fontWeight: "700", fontSize: 10 },
   emptyText: { ...Typography.small, color: Colors.textMuted, textAlign: "center", marginTop: Spacing.xl },
   modalFooter: { padding: Spacing.lg, borderTopWidth: 1, borderTopColor: Colors.border },
+  soundPreviewBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: `${Colors.primary}1A`, alignItems: "center", justifyContent: "center" },
+  soundDescription: { ...Typography.small, color: Colors.textMuted },
+  soundUseBtn: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: BorderRadius.pill, backgroundColor: Colors.primary },
+  soundUseBtnText: { color: Colors.white, fontFamily: Fonts.bodyBold, fontSize: 13 },
+  cropOptionBtn: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, paddingVertical: 14, paddingHorizontal: Spacing.md, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border },
+  cropOptionText: { ...Typography.body, color: Colors.text, fontFamily: Fonts.bodyBold },
 });
