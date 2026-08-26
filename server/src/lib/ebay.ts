@@ -17,8 +17,30 @@ const BROWSE_URL = "https://api.ebay.com/buy/browse/v1/item_summary/search";
 const CCG_INDIVIDUAL_CARDS_CATEGORY_ID = "183454";
 
 const FRANCHISE_QUERIES: Record<"pokemon" | "one_piece", string[]> = {
-  pokemon: ["pokemon card", "pokemon card psa", "charizard pokemon card", "pikachu pokemon card"],
-  one_piece: ["one piece card game", "one piece tcg psa", "luffy one piece card", "one piece card game op"],
+  pokemon: [
+    "pokemon card",
+    "pokemon card psa",
+    "charizard pokemon card",
+    "pikachu pokemon card",
+    "pokemon card holo",
+    "pokemon card vmax",
+    "pokemon card graded",
+    "umbreon pokemon card",
+    "mewtwo pokemon card",
+    "eevee pokemon card",
+  ],
+  one_piece: [
+    "one piece card game",
+    "one piece tcg psa",
+    "luffy one piece card",
+    "one piece card game op",
+    "one piece card alternate art",
+    "one piece card sec",
+    "zoro one piece card",
+    "nami one piece card",
+    "one piece card game booster",
+    "shanks one piece card",
+  ],
 };
 
 export function isEbayConfigured(): boolean {
@@ -84,11 +106,13 @@ async function searchEbayItems(query: string, offset: number, limit: number): Pr
 }
 
 // Pulls a real, current page of listings per query for each franchise and
-// upserts them — deliberately a bounded sample (a handful of high-signal
-// queries × a couple pages each), refreshed on every sync pass, not a
-// literal import of eBay's entire catalog (hundreds of thousands of items,
-// most irrelevant junk) — this keeps what's shown fresh, real, and
-// actually browsable rather than one enormous stale dump.
+// upserts them — deliberately a bounded sample (ten character/set-varied
+// queries per franchise × a couple pages each, ~1000 raw pulls per
+// franchise before dedup), refreshed on every sync pass, not a literal
+// import of eBay's entire catalog (hundreds of thousands of items, most
+// irrelevant junk) — this keeps what's shown fresh, real, varied across
+// characters/sets, and actually browsable rather than one enormous stale
+// dump.
 const PAGES_PER_QUERY = 2;
 const ITEMS_PER_PAGE = 50;
 
