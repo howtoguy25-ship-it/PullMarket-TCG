@@ -1,0 +1,73 @@
+<title>NexaAi Credits</title>
+<link rel="stylesheet" href="./style.css" />
+<div class="wrap">
+  <div class="nav">
+    <span class="brand">✦ NexaAi</span>
+    <a class="active" href="./credits.html">Credits</a>
+    <a href="./settings.html">Settings</a>
+    <a href="#" id="logout">Log out</a>
+  </div>
+
+  <div class="card">
+    <h1>Balance</h1>
+    <div class="balance" id="balance">…</div>
+  </div>
+
+  <div class="card">
+    <h1>Add credits</h1>
+    <h2>Same packs as the app — pick one or enter a custom amount.</h2>
+    <div class="pack-grid" id="packGrid"></div>
+    <label>Custom amount ($)</label>
+    <input id="customAmount" type="number" min="5" placeholder="50" />
+    <button id="customBuy">Add custom amount</button>
+    <p class="error" id="error" style="display:none"></p>
+  </div>
+</div>
+<script src="./api.js"></script>
+<script>
+  requireLoginOrRedirect();
+
+  async function loadBalance() {
+    const { balanceCents, packs } = await api("/api/credits");
+    document.getElementById("balance").textContent = `$${(balanceCents / 100).toFixed(2)}`;
+    const grid = document.getElementById("packGrid");
+    grid.innerHTML = "";
+    packs.forEach((pack) => {
+      const el = document.createElement("div");
+      el.className = "pack";
+      el.innerHTML =
+        `<div class="amount">${pack.label}</div>` +
+        (pack.bonusCents > 0 ? `<div class="bonus">+$${(pack.bonusCents / 100).toFixed(2)} bonus</div>` : "");
+      el.addEventListener("click", () => buy({ packLabel: pack.label }));
+      grid.appendChild(el);
+    });
+  }
+
+  async function buy(body) {
+    const errorEl = document.getElementById("error");
+    errorEl.style.display = "none";
+    try {
+      const { checkoutUrl } = await api("/api/credits/checkout", { method: "POST", body: JSON.stringify(body) });
+      window.location.href = checkoutUrl;
+    } catch (err) {
+      errorEl.textContent =
+        err.status === 503
+          ? "Credit top-ups aren't live yet — the app owner needs to connect a Paddle account (see README)."
+          : err.message;
+      errorEl.style.display = "block";
+    }
+  }
+
+  document.getElementById("customBuy").addEventListener("click", () => {
+    const amount = parseFloat(document.getElementById("customAmount").value);
+    if (amount > 0) buy({ customAmountCents: Math.round(amount * 100) });
+  });
+
+  document.getElementById("logout").addEventListener("click", (e) => {
+    e.preventDefault();
+    clearToken();
+    window.location.href = "./index.html";
+  });
+
+  loadBalance();
+</script>

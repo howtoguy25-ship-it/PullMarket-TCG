@@ -1,0 +1,83 @@
+import { Router } from "express";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+import bcrypt from "bcryptjs";
+import { db } from "../db";
+import { users, usageWindows } from "@shared/schema";
+import { signUserToken, requireAuth, type AuthedRequest } from "../middleware/auth";
+import { grantCredits } from "../lib/credits";
+
+export const authRouter = Router();
+
+const TRIAL_DAYS = 2;
+const TRIAL_GRANT_CENTS = 500; // free credit to actually exercise the app during the 2-day trial
+
+const signupSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  displayName: z.string().min(1).max(60),
+  timezone: z.string().default("Australia/Sydney"),
+});
+
+authRouter.post("/signup", async (req, res) => {
+  const parsed = signupSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const { email, password, displayName, timezone } = parsed.data;
+
+  const [existing] = await db.select().from(users).where(eq(users.email, email));
+  if (existing) return res.status(409).json({ error: "Email already registered" });
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+
+  const [user] = await db
+    .insert(users)
+    .values({ email, passwordHash, displayName, timezone, trialEndsAt })
+    .returning();
+
+  await db.insert(usageWindows).values({
+    userId: user.id,
+    weekStartAt: new Date(),
+    dayStartAt: new Date(),
+  });
+  await grantCredits(db, user.id, TRIAL_GRANT_CENTS, { kind: "trial_grant", note: "2-day free trial grant" });
+
+  res.status(201).json({ token: signUserToken(user.id), user: publicUser(user) });
+});
+
+const loginSchema = z.object({ email: z.string().email(), password: z.string() });
+authRouter.post("/login", async (req, res) => {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email));
+  if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+    return res.status(401).json({ error: "Invalid email or password" });
+  }
+  res.json({ token: signUserToken(user.id), user: publicUser(user) });
+});
+
+authRouter.get("/me", requireAuth, async (req: AuthedRequest, res) => {
+  const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+  if (!user) return res.status(404).json({ error: "User not found" });
+  res.json({ user: publicUser(user) });
+});
+
+const settingsSchema = z.object({
+  preferredMapsApp: z.enum(["apple", "google", "trackline"]).optional(),
+  voiceCharacterId: z.string().optional(),
+  proactiveCheckInEnabled: z.boolean().optional(),
+  cameraPermissionGranted: z.boolean().optional(),
+  micPermissionGranted: z.boolean().optional(),
+});
+authRouter.patch("/settings", requireAuth, async (req: AuthedRequest, res) => {
+  const parsed = settingsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const [user] = await db.update(users).set(parsed.data).where(eq(users.id, req.userId!)).returning();
+  res.json({ user: publicUser(user) });
+});
+
+function publicUser(user: typeof users.$inferSelect) {
+  const { passwordHash, ...rest } = user;
+  return rest;
+}

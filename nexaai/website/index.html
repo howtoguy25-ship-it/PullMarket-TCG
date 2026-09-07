@@ -1,0 +1,57 @@
+<title>NexaAi Account</title>
+<link rel="stylesheet" href="./style.css" />
+<div class="wrap">
+  <div class="nav"><span class="brand">✦ NexaAi</span></div>
+  <div class="card">
+    <h1>Sign in</h1>
+    <h2>Manage your credits, plan, and settings from the web.</h2>
+    <label>Email</label>
+    <input id="email" type="email" autocomplete="username" />
+    <label>Password</label>
+    <input id="password" type="password" autocomplete="current-password" />
+    <button id="loginBtn">Log in</button>
+    <button id="signupBtn" class="secondary">Create account instead</button>
+    <p class="error" id="error" style="display:none"></p>
+  </div>
+  <p class="muted">This website only manages your account, credits, and settings — the full AI chat/voice experience lives in the NexaAi mobile app.</p>
+</div>
+<script src="./api.js"></script>
+<script>
+  document.getElementById("loginBtn").addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const errorEl = document.getElementById("error");
+    errorEl.style.display = "none";
+    try {
+      const { token } = await api("/api/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
+      setToken(token);
+      window.location.href = "./credits.html";
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
+  });
+
+  document.getElementById("signupBtn").addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    const password = document.getElementById("password").value;
+    const errorEl = document.getElementById("error");
+    errorEl.style.display = "none";
+    try {
+      const { token } = await api("/api/auth/signup", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          password,
+          displayName: email.split("@")[0],
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
+      });
+      setToken(token);
+      window.location.href = "./credits.html";
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
+  });
+</script>

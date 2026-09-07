@@ -1,0 +1,84 @@
+<title>NexaAi Settings</title>
+<link rel="stylesheet" href="./style.css" />
+<div class="wrap">
+  <div class="nav">
+    <span class="brand">✦ NexaAi</span>
+    <a href="./credits.html">Credits</a>
+    <a class="active" href="./settings.html">Settings</a>
+    <a href="#" id="logout">Log out</a>
+  </div>
+
+  <div class="card">
+    <h1>Answer style</h1>
+    <h2>How many answers should NexaAi give per question?</h2>
+    <select id="answerMode">
+      <option value="strong">1 · Strong, straight to the point</option>
+      <option value="extra">2 · Extra info</option>
+      <option value="normal">3 · Normal</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <h1>Directions app</h1>
+    <select id="mapsApp">
+      <option value="apple">Apple Maps</option>
+      <option value="google">Google Maps</option>
+      <option value="trackline">TrackLine</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <h1>Proactive check-ins</h1>
+    <div class="toggle-row">
+      <span>Ask if I need help, even off the app</span>
+      <input type="checkbox" id="proactive" />
+    </div>
+    <p class="muted">
+      This only controls whether NexaAi may send a push notification check-in. Real camera-based emotion/eye-tracking
+      detection isn't built yet — see the project README for what's real vs. stubbed.
+    </p>
+  </div>
+
+  <button id="save">Save settings</button>
+  <p class="error" id="error" style="display:none"></p>
+</div>
+<script src="./api.js"></script>
+<script>
+  requireLoginOrRedirect();
+
+  async function load() {
+    const { user } = await api("/api/auth/me");
+    document.getElementById("answerMode").value = user.answerMode;
+    document.getElementById("mapsApp").value = user.preferredMapsApp;
+    document.getElementById("proactive").checked = user.proactiveCheckInEnabled;
+  }
+
+  document.getElementById("save").addEventListener("click", async () => {
+    const errorEl = document.getElementById("error");
+    errorEl.style.display = "none";
+    try {
+      await api("/api/chat/answer-mode", {
+        method: "PATCH",
+        body: JSON.stringify({ mode: document.getElementById("answerMode").value }),
+      });
+      await api("/api/auth/settings", {
+        method: "PATCH",
+        body: JSON.stringify({
+          preferredMapsApp: document.getElementById("mapsApp").value,
+          proactiveCheckInEnabled: document.getElementById("proactive").checked,
+        }),
+      });
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
+  });
+
+  document.getElementById("logout").addEventListener("click", (e) => {
+    e.preventDefault();
+    clearToken();
+    window.location.href = "./index.html";
+  });
+
+  load();
+</script>
