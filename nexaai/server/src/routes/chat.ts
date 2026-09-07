@@ -5,7 +5,7 @@ import { db } from "../db";
 import { chatSessions, messages, users } from "@shared/schema";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
 import { checkUsageWindow, recordSessionStart, recordUsageSeconds } from "../middleware/usage";
-import { askNexaAi } from "../lib/anthropic";
+import { askNexaAi, streamNexaAi } from "../lib/anthropic";
 import { PLAN_DEFINITIONS, ANSWER_MODE_DEFINITIONS, resolveAnswerCount, type AnswerMode } from "../lib/plans";
 import { spendCredits } from "../lib/credits";
 import { findNearestBusinesses } from "../lib/businessLookup";
@@ -30,18 +30,25 @@ const sendMessageSchema = z.object({
 // should meter this off the Anthropic response's actual usage.output_tokens.
 const CENTS_PER_ANSWER_SET = 2;
 
-chatRouter.post("/messages", async (req: AuthedRequest, res) => {
-  const parsed = sendMessageSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const body = parsed.data;
-  const userId = req.userId!;
+type SendMessageBody = z.infer<typeof sendMessageSchema>;
 
+/**
+ * Everything both the plain and streaming send-message routes need to do
+ * before calling the model: usage-limit check, session bookkeeping, credit
+ * spend, chat history, and the assistance/who-is context injection. Kept as
+ * one function so the two routes can't drift out of sync.
+ */
+async function prepareTurn(userId: string, body: SendMessageBody) {
   const [user] = await db.select().from(users).where(eq(users.id, userId));
-  if (!user) return res.status(404).json({ error: "User not found" });
+  if (!user) return { ok: false, status: 404, body: { error: "User not found" } } as const;
 
   const usageCheck = await checkUsageWindow(userId, user.planTier, user.timezone);
   if (!usageCheck.ok) {
-    return res.status(429).json({ error: usageCheck.reason, message: usageCheck.message, resetAt: usageCheck.resetAt });
+    return {
+      ok: false,
+      status: 429,
+      body: { error: usageCheck.reason, message: usageCheck.message, resetAt: usageCheck.resetAt },
+    } as const;
   }
 
   let sessionId = body.sessionId;
@@ -53,7 +60,11 @@ chatRouter.post("/messages", async (req: AuthedRequest, res) => {
 
   const spend = await spendCredits(db, userId, CENTS_PER_ANSWER_SET, `chat:${body.kind}`);
   if (!spend.allowed) {
-    return res.status(402).json({ error: "insufficient_credit", message: "You're out of credit. Top up to keep chatting." });
+    return {
+      ok: false,
+      status: 402,
+      body: { error: "insufficient_credit", message: "You're out of credit. Top up to keep chatting." },
+    } as const;
   }
 
   await db.insert(messages).values({ sessionId, role: "user", kind: body.kind, content: body.text });
@@ -83,30 +94,73 @@ chatRouter.post("/messages", async (req: AuthedRequest, res) => {
     }
   }
 
-  const result = await askNexaAi({
-    plan,
-    answerCount,
-    userMessage: body.text + assistanceContext,
-    imageBase64: body.imageBase64 && body.imageMediaType ? { data: body.imageBase64, mediaType: body.imageMediaType } : undefined,
-    history: orderedHistory,
-    mode: body.kind === "who_is_lookup" ? "who_is" : body.kind === "assistance_request" ? "assistance_request" : "chat",
-  });
-
-  const [assistantMsg] = await db
-    .insert(messages)
-    .values({ sessionId, role: "assistant", kind: "text", content: result.text })
-    .returning();
-
-  const pace = (body.paceHintMsSinceLastMessage ?? 5000) < 1500 ? "forced" : "smooth";
-  await recordUsageSeconds(userId, 15, pace);
-
-  res.json({
+  return {
+    ok: true,
     sessionId,
-    message: assistantMsg,
-    answerCount,
-    creditBalanceAfterCents: spend.balanceAfterCents,
-    usedGraceOverage: spend.usedGraceOverage,
-  });
+    askParams: {
+      plan,
+      answerCount,
+      userMessage: body.text + assistanceContext,
+      imageBase64: body.imageBase64 && body.imageMediaType ? { data: body.imageBase64, mediaType: body.imageMediaType } : undefined,
+      history: orderedHistory,
+      mode: (body.kind === "who_is_lookup" ? "who_is" : body.kind === "assistance_request" ? "assistance_request" : "chat") as
+        | "chat"
+        | "who_is"
+        | "assistance_request",
+    },
+    finish: async (text: string) => {
+      const [assistantMsg] = await db
+        .insert(messages)
+        .values({ sessionId, role: "assistant", kind: "text", content: text })
+        .returning();
+      const pace = (body.paceHintMsSinceLastMessage ?? 5000) < 1500 ? "forced" : "smooth";
+      await recordUsageSeconds(userId, 15, pace);
+      return { assistantMsg, answerCount, creditBalanceAfterCents: spend.balanceAfterCents, usedGraceOverage: spend.usedGraceOverage };
+    },
+  } as const;
+}
+
+chatRouter.post("/messages", async (req: AuthedRequest, res) => {
+  const parsed = sendMessageSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const turn = await prepareTurn(req.userId!, parsed.data);
+  if (!turn.ok) return res.status(turn.status).json(turn.body);
+
+  const result = await askNexaAi(turn.askParams);
+  const outcome = await turn.finish(result.text);
+
+  res.json({ sessionId: turn.sessionId, ...outcome });
+});
+
+// Real token-by-token streaming over Server-Sent Events, so the client can
+// render NexaAi "typing" live instead of waiting for the whole answer.
+// Event shapes: `data: {"delta": "..."}`, then a final
+// `data: {"done": true, "sessionId": ..., "message": {...}, ...}`, or
+// `data: {"error": "..."}` if something goes wrong mid-stream.
+chatRouter.post("/messages/stream", async (req: AuthedRequest, res) => {
+  const parsed = sendMessageSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const turn = await prepareTurn(req.userId!, parsed.data);
+  if (!turn.ok) return res.status(turn.status).json(turn.body);
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders?.();
+
+  const send = (payload: Record<string, unknown>) => res.write(`data: ${JSON.stringify(payload)}\n\n`);
+
+  try {
+    const result = await streamNexaAi(turn.askParams, (delta) => send({ delta }));
+    const outcome = await turn.finish(result.text);
+    send({ done: true, sessionId: turn.sessionId, ...outcome });
+  } catch (err) {
+    send({ error: err instanceof Error ? err.message : "Something went wrong." });
+  } finally {
+    res.end();
+  }
 });
 
 chatRouter.get("/sessions", async (req: AuthedRequest, res) => {

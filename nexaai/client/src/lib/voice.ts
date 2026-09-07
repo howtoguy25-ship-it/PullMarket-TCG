@@ -18,8 +18,20 @@ export const VOICE_CHARACTERS: VoiceCharacter[] = [
   { id: "sol-male-calm", displayName: "Sol", gender: "male", tone: "calm", ttsVoiceId: "com.apple.voice.compact.en-US.Fred" },
 ];
 
-/** Real on-device text-to-speech (expo-speech) using the selected character's voice + a pitch/rate tuned to its "tone". */
-export function speak(text: string, characterId: string) {
+export interface SpeakCallbacks {
+  onStart?: () => void;
+  onDone?: () => void;
+  onStopped?: () => void;
+  onError?: () => void;
+}
+
+/**
+ * Real on-device text-to-speech (expo-speech) using the selected character's
+ * voice + a pitch/rate tuned to its "tone". `onStart`/`onDone` are expo-speech's
+ * own real playback-lifecycle callbacks — wire the bot avatar's "talking"
+ * animation to them so the mouth only moves while audio is actually playing.
+ */
+export function speak(text: string, characterId: string, callbacks: SpeakCallbacks = {}) {
   const character = VOICE_CHARACTERS.find((c) => c.id === characterId) ?? VOICE_CHARACTERS[0];
   const toneSettings: Record<string, { pitch: number; rate: number }> = {
     warm: { pitch: 1.0, rate: 0.98 },
@@ -29,7 +41,15 @@ export function speak(text: string, characterId: string) {
   };
   const settings = toneSettings[character.tone] ?? { pitch: 1, rate: 1 };
   Speech.stop();
-  Speech.speak(text, { voice: character.ttsVoiceId, pitch: settings.pitch, rate: settings.rate });
+  Speech.speak(text, {
+    voice: character.ttsVoiceId,
+    pitch: settings.pitch,
+    rate: settings.rate,
+    onStart: callbacks.onStart,
+    onDone: callbacks.onDone,
+    onStopped: callbacks.onStopped,
+    onError: callbacks.onError,
+  });
 }
 
 export function stopSpeaking() {

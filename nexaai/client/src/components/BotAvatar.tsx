@@ -3,19 +3,29 @@ import { Animated, Easing } from "react-native";
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Stop } from "react-native-svg";
 import { colors } from "../theme/colors";
 
+const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
+
 interface BotAvatarProps {
   size?: number;
-  mood?: "idle" | "thinking" | "happy";
+  mood?: "idle" | "thinking" | "happy" | "talking";
   glowColor?: string;
 }
 
 /**
  * NexaAi's mascot — a small rounded "star-core" bot, drawn entirely in SVG
- * (no external character asset). Two antennae + a soft glowing core that
- * pulses while "thinking".
+ * (no external character asset, no video/gif loop). Two antennae + a soft
+ * glowing core. Three real, state-driven animations:
+ *  - "thinking": the whole body pulses gently while waiting on a reply.
+ *  - "talking": the mouth genuinely opens/closes in an irregular loop,
+ *    driven by whoever renders this (live token streaming or TTS playback
+ *    actually happening) — not a fixed decorative loop.
+ *  - idle blink: a small periodic blink regardless of mood, so the bot
+ *    reads as alive rather than static.
  */
 export function BotAvatar({ size = 72, mood = "idle", glowColor = colors.accent }: BotAvatarProps) {
   const pulse = useRef(new Animated.Value(1)).current;
+  const mouthOpen = useRef(new Animated.Value(0)).current;
+  const blink = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (mood !== "thinking") {
@@ -32,7 +42,40 @@ export function BotAvatar({ size = 72, mood = "idle", glowColor = colors.accent 
     return () => loop.stop();
   }, [mood, pulse]);
 
-  const eyeHeight = mood === "happy" ? 4 : mood === "thinking" ? 10 : 8;
+  useEffect(() => {
+    if (mood !== "talking") {
+      Animated.timing(mouthOpen, { toValue: 0, duration: 120, useNativeDriver: false }).start();
+      return;
+    }
+    // An irregular open/close cadence (varied durations + a "closed" beat
+    // now and then) reads far more like real talking than a clean sine wave.
+    const beats = [0.15, 0.9, 0.35, 1, 0.1, 0.7, 0.5, 0.95, 0.2];
+    const sequence = beats.map((v) =>
+      Animated.timing(mouthOpen, { toValue: v, duration: 90 + Math.random() * 70, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+    );
+    const loop = Animated.loop(Animated.sequence(sequence));
+    loop.start();
+    return () => loop.stop();
+  }, [mood, mouthOpen]);
+
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+    const scheduleBlink = () => {
+      timeout = setTimeout(() => {
+        Animated.sequence([
+          Animated.timing(blink, { toValue: 0.08, duration: 70, useNativeDriver: false }),
+          Animated.timing(blink, { toValue: 1, duration: 90, useNativeDriver: false }),
+        ]).start(scheduleBlink);
+      }, 2200 + Math.random() * 2600);
+    };
+    scheduleBlink();
+    return () => clearTimeout(timeout);
+  }, [blink]);
+
+  const baseEyeHeight = mood === "happy" ? 4 : mood === "thinking" ? 10 : 8;
+  const eyeHeight = Animated.multiply(baseEyeHeight, blink);
+  const mouthRy = mouthOpen.interpolate({ inputRange: [0, 1], outputRange: [2, 9] });
+  const mouthRx = mouthOpen.interpolate({ inputRange: [0, 1], outputRange: [7, 10] });
 
   return (
     <Animated.View style={{ width: size, height: size, transform: [{ scale: pulse }] }}>
@@ -60,12 +103,14 @@ export function BotAvatar({ size = 72, mood = "idle", glowColor = colors.accent 
         {/* glowing core visor */}
         <Ellipse cx={50} cy={56} rx={26} ry={20} fill="url(#botGlow)" opacity={0.28} />
 
-        {/* eyes */}
-        <Ellipse cx={38} cy={56} rx={5} ry={eyeHeight} fill={colors.starBright} />
-        <Ellipse cx={62} cy={56} rx={5} ry={eyeHeight} fill={colors.starBright} />
+        {/* eyes — blink via a scaled ry, driven by an Animated value */}
+        <AnimatedEllipse cx={38} cy={56} rx={5} ry={eyeHeight as unknown as number} fill={colors.starBright} />
+        <AnimatedEllipse cx={62} cy={56} rx={5} ry={eyeHeight as unknown as number} fill={colors.starBright} />
 
         {/* mouth */}
-        {mood === "happy" ? (
+        {mood === "talking" ? (
+          <AnimatedEllipse cx={50} cy={72} rx={mouthRx as unknown as number} ry={mouthRy as unknown as number} fill={colors.starBright} />
+        ) : mood === "happy" ? (
           <Path d="M40 70 Q50 78 60 70" stroke={colors.starBright} strokeWidth={3} fill="none" strokeLinecap="round" />
         ) : (
           <Path d="M42 71 L58 71" stroke={colors.starBright} strokeWidth={3} strokeLinecap="round" />

@@ -12,14 +12,17 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import { GalaxyBackground } from "../components/GalaxyBackground";
+import { BotAvatar } from "../components/BotAvatar";
 import { MessageBubble, type ChatMessageVM } from "../components/MessageBubble";
 import { ThinkingIndicator } from "../components/ThinkingIndicator";
 import { AnswerModeToggle, type AnswerMode } from "../components/AnswerModeToggle";
 import { UsageBanner } from "../components/UsageBanner";
 import { colors, radii, spacing, typography } from "../theme/colors";
-import { api, ApiError } from "../lib/api";
+import { api, streamChatMessage } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { speak, transcribeVoiceMemo } from "../lib/voice";
+
+type BotMood = "idle" | "thinking" | "talking";
 
 export function ChatScreen() {
   const { user, refreshUser } = useAuth();
@@ -27,6 +30,8 @@ export function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessageVM[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
+  const [botMood, setBotMood] = useState<BotMood>("idle");
   const [limitBanner, setLimitBanner] = useState<{ message: string; resetAt: string } | null>(null);
   const [answerMode, setAnswerMode] = useState<AnswerMode>(user?.answerMode ?? "normal");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
@@ -48,28 +53,55 @@ export function ChatScreen() {
       setMessages((prev) => [...prev, userMsg]);
       setInput("");
       setSending(true);
+      setBotMood("thinking");
       setLimitBanner(null);
 
-      try {
-        const result = await api<{ sessionId: string; message: ChatMessageVM }>("/api/chat/messages", {
-          method: "POST",
-          body: JSON.stringify({ sessionId, text, kind, paceHintMsSinceLastMessage: gapMs }),
-        });
-        setSessionId(result.sessionId);
-        setMessages((prev) => [...prev, result.message]);
-        speak(result.message.content.replace(/[*_[\]]/g, ""), user?.voiceCharacterId ?? "nova-neutral");
-        refreshUser();
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 429) {
-          setLimitBanner({ message: err.body.message, resetAt: err.body.resetAt });
-        } else if (err instanceof ApiError && err.status === 402) {
-          setLimitBanner({ message: err.message, resetAt: new Date().toISOString() });
-        } else {
-          setMessages((prev) => [...prev, { id: `err-${now}`, role: "assistant", content: "Something went wrong reaching NexaAi. Try again in a moment." }]);
-        }
-      } finally {
-        setSending(false);
-      }
+      const assistantId = `stream-${now}`;
+      let placeholderCreated = false;
+
+      await streamChatMessage(
+        { sessionId, text, kind, paceHintMsSinceLastMessage: gapMs },
+        {
+          onDelta: (delta) => {
+            setBotMood("talking");
+            setMessages((prev) => {
+              if (!placeholderCreated) {
+                placeholderCreated = true;
+                setStreamingMessageId(assistantId);
+                return [...prev, { id: assistantId, role: "assistant", content: delta }];
+              }
+              return prev.map((m) => (m.id === assistantId ? { ...m, content: m.content + delta } : m));
+            });
+          },
+          onDone: (final) => {
+            setSessionId(final.sessionId);
+            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...final.message } : m)));
+            setStreamingMessageId(null);
+            setSending(false);
+            setBotMood("idle");
+            refreshUser();
+            speak(final.message.content.replace(/[*_[\]]/g, ""), user?.voiceCharacterId ?? "nova-neutral", {
+              onStart: () => setBotMood("talking"),
+              onDone: () => setBotMood("idle"),
+              onStopped: () => setBotMood("idle"),
+              onError: () => setBotMood("idle"),
+            });
+          },
+          onError: (message, status, errorBody) => {
+            setSending(false);
+            setBotMood("idle");
+            setStreamingMessageId(null);
+            if (status === 429 || status === 402) {
+              setLimitBanner({ message, resetAt: errorBody?.resetAt ?? new Date().toISOString() });
+            } else {
+              setMessages((prev) => [
+                ...prev,
+                { id: `err-${now}`, role: "assistant", content: "Something went wrong reaching NexaAi. Try again in a moment." },
+              ]);
+            }
+          },
+        },
+      );
     },
     [sessionId, sending, user, refreshUser],
   );
@@ -108,6 +140,16 @@ export function ChatScreen() {
   return (
     <GalaxyBackground>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={styles.header}>
+          <BotAvatar size={36} mood={botMood} />
+          <View style={styles.headerText}>
+            <Text style={styles.headerTitle}>NexaAi</Text>
+            {botMood !== "idle" && (
+              <Text style={styles.headerStatus}>{botMood === "thinking" ? "thinking…" : "speaking…"}</Text>
+            )}
+          </View>
+        </View>
+
         <View style={styles.toolbar}>
           <AnswerModeToggle value={answerMode} onChange={changeAnswerMode} />
         </View>
@@ -118,8 +160,14 @@ export function ChatScreen() {
           data={messages}
           keyExtractor={(m) => m.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => <MessageBubble message={item} />}
-          ListFooterComponent={sending ? <ThinkingIndicator /> : null}
+          renderItem={({ item }) => (
+            <MessageBubble
+              message={item}
+              isStreaming={item.id === streamingMessageId}
+              avatarMood={item.id === streamingMessageId ? "talking" : "happy"}
+            />
+          )}
+          ListFooterComponent={sending && !streamingMessageId ? <ThinkingIndicator /> : null}
         />
 
         <View style={styles.inputRow}>
@@ -148,6 +196,16 @@ export function ChatScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+  },
+  headerText: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
+  headerTitle: { ...typography.h2, color: colors.textPrimary },
+  headerStatus: { ...typography.caption, color: colors.accentBright, fontStyle: "italic" },
   toolbar: { padding: spacing.md, alignItems: "flex-start" },
   list: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
   inputRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md },

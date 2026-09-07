@@ -54,17 +54,12 @@ function buildSystemPrompt(params: AskParams): string {
   return BASE_PERSONA.replace("{{ANSWER_COUNT}}", String(params.answerCount)) + MODE_ADDENDUM[params.mode];
 }
 
-export async function askNexaAi(params: AskParams): Promise<AskResult> {
-  const anthropic = getClient();
-  if (!anthropic) {
-    return {
-      text:
-        "_NexaAi's brain isn't connected yet._\n\n**Server not configured**\nSet `ANTHROPIC_API_KEY` in the server " +
-        "environment to enable real answers (see nexaai/.env.example). Until then this is a placeholder response so " +
-        "the rest of the app (credits, session limits, UI) can still be exercised.",
-    };
-  }
+const NOT_CONFIGURED_TEXT =
+  "_NexaAi's brain isn't connected yet._\n\n**Server not configured**\nSet `ANTHROPIC_API_KEY` in the server " +
+  "environment to enable real answers (see nexaai/.env.example). Until then this is a placeholder response so " +
+  "the rest of the app (credits, session limits, UI) can still be exercised.";
 
+function buildMessagesRequest(params: AskParams) {
   const userContent: Anthropic.MessageParam["content"] = params.imageBase64
     ? [
         { type: "image", source: { type: "base64", media_type: params.imageBase64.mediaType, data: params.imageBase64.data } },
@@ -72,7 +67,7 @@ export async function askNexaAi(params: AskParams): Promise<AskResult> {
       ]
     : params.userMessage;
 
-  const response = await anthropic.messages.create({
+  return {
     model: params.plan.model,
     max_tokens: params.plan.maxOutputTokens,
     system: buildSystemPrompt(params),
@@ -80,9 +75,39 @@ export async function askNexaAi(params: AskParams): Promise<AskResult> {
       ...params.history.map((m) => ({ role: m.role, content: m.content })),
       { role: "user" as const, content: userContent },
     ],
-  });
+  };
+}
 
+export async function askNexaAi(params: AskParams): Promise<AskResult> {
+  const anthropic = getClient();
+  if (!anthropic) return { text: NOT_CONFIGURED_TEXT };
+
+  const response = await anthropic.messages.create(buildMessagesRequest(params));
   const text = response.content
+    .map((block) => (block.type === "text" ? block.text : ""))
+    .join("")
+    .trim();
+
+  return { text };
+}
+
+/**
+ * Real token-by-token streaming (Anthropic's actual streaming API, not a
+ * simulated typing effect) — `onDelta` fires for each text chunk as the
+ * model generates it, so the app can render NexaAi "typing" live instead of
+ * waiting for the full answer.
+ */
+export async function streamNexaAi(params: AskParams, onDelta: (deltaText: string) => void): Promise<AskResult> {
+  const anthropic = getClient();
+  if (!anthropic) {
+    onDelta(NOT_CONFIGURED_TEXT);
+    return { text: NOT_CONFIGURED_TEXT };
+  }
+
+  const stream = anthropic.messages.stream(buildMessagesRequest(params));
+  stream.on("text", (delta) => onDelta(delta));
+  const final = await stream.finalMessage();
+  const text = final.content
     .map((block) => (block.type === "text" ? block.text : ""))
     .join("")
     .trim();
