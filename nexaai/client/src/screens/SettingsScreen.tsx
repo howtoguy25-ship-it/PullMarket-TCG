@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
-import { Camera } from "expo-camera";
-import { Audio } from "expo-av";
+import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { colors, radii, spacing, typography } from "../theme/colors";
 import { useAuth } from "../lib/AuthContext";
@@ -17,20 +17,12 @@ const MAPS_OPTIONS: { id: MapsApp; label: string }[] = [
 
 export function SettingsScreen() {
   const { user, logout, refreshUser } = useAuth();
+  const navigation = useNavigation<any>();
   const [proactive, setProactive] = useState(user?.proactiveCheckInEnabled ?? true);
 
   const patch = async (body: Record<string, unknown>) => {
     await api("/api/auth/settings", { method: "PATCH", body: JSON.stringify(body) });
     await refreshUser();
-  };
-
-  const requestCamera = async () => {
-    const { granted } = await Camera.requestCameraPermissionsAsync();
-    await patch({ cameraPermissionGranted: granted });
-  };
-  const requestMic = async () => {
-    const { granted } = await Audio.requestPermissionsAsync();
-    await patch({ micPermissionGranted: granted });
   };
 
   const toggleProactive = async (value: boolean) => {
@@ -76,14 +68,18 @@ export function SettingsScreen() {
           ))}
         </Section>
 
-        <Section title="Permissions">
-          <TouchableOpacity style={styles.row} onPress={requestCamera}>
-            <Text style={styles.rowLabel}>Camera access</Text>
-            <Text style={styles.rowValue}>Tap to grant</Text>
+        <Section title="Access & control">
+          <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("Permissions")}>
+            <Text style={styles.rowLabel}>Permissions</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.row} onPress={requestMic}>
-            <Text style={styles.rowLabel}>Microphone access</Text>
-            <Text style={styles.rowValue}>Tap to grant</Text>
+          <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("Capabilities")}>
+            <Text style={styles.rowLabel}>Capabilities & memory</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("Connectors")}>
+            <Text style={styles.rowLabel}>Connectors</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
           </TouchableOpacity>
         </Section>
 

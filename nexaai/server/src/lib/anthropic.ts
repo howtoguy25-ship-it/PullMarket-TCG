@@ -19,6 +19,8 @@ export interface AskParams {
   imageBase64?: { data: string; mediaType: "image/jpeg" | "image/png" | "image/webp" };
   history: Array<{ role: "user" | "assistant"; content: string }>;
   mode: "chat" | "who_is" | "assistance_request";
+  /** Formatted memory-recall block from lib/memory.ts's getMemoryContext, or "" if memory/reference is off. */
+  memoryContext?: string;
 }
 
 export interface AskResult {
@@ -51,7 +53,11 @@ const MODE_ADDENDUM: Record<AskParams["mode"], string> = {
 };
 
 function buildSystemPrompt(params: AskParams): string {
-  return BASE_PERSONA.replace("{{ANSWER_COUNT}}", String(params.answerCount)) + MODE_ADDENDUM[params.mode];
+  return (
+    BASE_PERSONA.replace("{{ANSWER_COUNT}}", String(params.answerCount)) +
+    MODE_ADDENDUM[params.mode] +
+    (params.memoryContext ?? "")
+  );
 }
 
 const NOT_CONFIGURED_TEXT =

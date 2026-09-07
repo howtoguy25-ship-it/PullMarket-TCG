@@ -6,6 +6,7 @@ import { db } from "../db";
 import { users, usageWindows } from "@shared/schema";
 import { signUserToken, requireAuth, type AuthedRequest } from "../middleware/auth";
 import { grantCredits } from "../lib/credits";
+import { resolveCapabilities } from "../lib/capabilities";
 
 export const authRouter = Router();
 
@@ -69,6 +70,9 @@ const settingsSchema = z.object({
   proactiveCheckInEnabled: z.boolean().optional(),
   cameraPermissionGranted: z.boolean().optional(),
   micPermissionGranted: z.boolean().optional(),
+  memoryEnabled: z.boolean().optional(),
+  referenceChatsEnabled: z.boolean().optional(),
+  includeSensitiveInMemory: z.boolean().optional(),
 });
 authRouter.patch("/settings", requireAuth, async (req: AuthedRequest, res) => {
   const parsed = settingsSchema.safeParse(req.body);
@@ -77,7 +81,35 @@ authRouter.patch("/settings", requireAuth, async (req: AuthedRequest, res) => {
   res.json({ user: publicUser(user) });
 });
 
+// Capabilities are stored as one jsonb blob, so a patch must read-merge-write
+// rather than overwrite the column (else toggling one feature would silently
+// reset every other one to its default).
+const capabilitiesPatchSchema = z.object({
+  cameraAsk: z.boolean().optional(),
+  webLookup: z.boolean().optional(),
+  whoIsLookup: z.boolean().optional(),
+  agentBuilder: z.boolean().optional(),
+  autoSpeak: z.boolean().optional(),
+  liveTyping: z.boolean().optional(),
+});
+authRouter.patch("/capabilities", requireAuth, async (req: AuthedRequest, res) => {
+  const parsed = capabilitiesPatchSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const [existing] = await db.select().from(users).where(eq(users.id, req.userId!));
+  if (!existing) return res.status(404).json({ error: "User not found" });
+
+  const merged = { ...resolveCapabilities(existing.capabilities), ...parsed.data };
+  const [user] = await db.update(users).set({ capabilities: merged }).where(eq(users.id, req.userId!)).returning();
+  res.json({ user: publicUser(user) });
+});
+
+authRouter.post("/onboarding-complete", requireAuth, async (req: AuthedRequest, res) => {
+  const [user] = await db.update(users).set({ onboardingCompletedAt: new Date() }).where(eq(users.id, req.userId!)).returning();
+  res.json({ user: publicUser(user) });
+});
+
 function publicUser(user: typeof users.$inferSelect) {
   const { passwordHash, ...rest } = user;
-  return rest;
+  return { ...rest, capabilities: resolveCapabilities(user.capabilities) };
 }

@@ -8,7 +8,10 @@ import { creditsRouter } from "./routes/credits";
 import { plansRouter } from "./routes/plans";
 import { agentsRouter } from "./routes/agents";
 import { businessesRouter } from "./routes/businesses";
+import { memoryRouter } from "./routes/memory";
+import { connectorsRouter } from "./routes/connectors";
 import { paddleWebhookRouter } from "./routes/webhooks/paddle";
+import { googleConnectorCallbackRouter } from "./lib/connectors/google";
 import { isChatConfigured } from "./lib/anthropic";
 
 const app = express();
@@ -34,7 +37,10 @@ app.use("/api/credits", creditsRouter);
 app.use("/api/plans", plansRouter);
 app.use("/api/agents", agentsRouter);
 app.use("/api/businesses", businessesRouter);
+app.use("/api/memory", memoryRouter);
+app.use("/api/connectors", connectorsRouter);
 app.use("/api/webhooks/paddle", paddleWebhookRouter);
+app.use("/api/connectors/google/callback", googleConnectorCallbackRouter);
 
 // The website (credits top-up + settings) is a small static site — see nexaai/website.
 app.use("/account", express.static(path.join(__dirname, "../../website")));

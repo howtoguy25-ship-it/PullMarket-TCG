@@ -2,12 +2,22 @@ import { Router } from "express";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
-import { agents } from "@shared/schema";
+import { agents, users } from "@shared/schema";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
 import { dryRunAgent, type AgentConfig } from "../lib/agents/agentRunner";
+import { resolveCapabilities } from "../lib/capabilities";
 
 export const agentsRouter = Router();
 agentsRouter.use(requireAuth);
+
+async function requireAgentBuilderCapability(req: AuthedRequest, res: import("express").Response, next: import("express").NextFunction) {
+  const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+  if (!user) return res.status(404).json({ error: "User not found" });
+  if (!resolveCapabilities(user.capabilities).agentBuilder) {
+    return res.status(403).json({ error: "capability_disabled", message: "Agent builder is turned off in Capabilities settings." });
+  }
+  next();
+}
 
 agentsRouter.get("/", async (req: AuthedRequest, res) => {
   const rows = await db.select().from(agents).where(eq(agents.userId, req.userId!));
@@ -20,7 +30,7 @@ const createSchema = z.object({
   instructions: z.string().min(1).max(2000),
   autoSend: z.boolean().default(false),
 });
-agentsRouter.post("/", async (req: AuthedRequest, res) => {
+agentsRouter.post("/", requireAgentBuilderCapability, async (req: AuthedRequest, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { name, kind, instructions, autoSend } = parsed.data;
@@ -66,7 +76,7 @@ agentsRouter.delete("/:id", async (req: AuthedRequest, res) => {
 });
 
 const dryRunSchema = z.object({ incomingMessage: z.string().min(1).max(2000) });
-agentsRouter.post("/:id/dry-run", async (req: AuthedRequest, res) => {
+agentsRouter.post("/:id/dry-run", requireAgentBuilderCapability, async (req: AuthedRequest, res) => {
   const parsed = dryRunSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 

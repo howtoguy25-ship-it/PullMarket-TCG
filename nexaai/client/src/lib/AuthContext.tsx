@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import type { NexaCapabilities } from "@shared/schema";
 import { api, setToken, clearToken, getToken } from "./api";
+
+export type { NexaCapabilities };
 
 export interface NexaUser {
   id: string;
@@ -12,6 +15,11 @@ export interface NexaUser {
   proactiveCheckInEnabled: boolean;
   trialEndsAt: string;
   timezone: string;
+  capabilities: NexaCapabilities;
+  memoryEnabled: boolean;
+  referenceChatsEnabled: boolean;
+  includeSensitiveInMemory: boolean;
+  onboardingCompletedAt: string | null;
 }
 
 interface AuthState {

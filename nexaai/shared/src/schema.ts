@@ -41,9 +41,39 @@ export const agentKindEnum = pgEnum("agent_kind", [
 ]);
 export const mapsAppEnum = pgEnum("maps_app", ["apple", "google", "trackline"]);
 export const voiceGenderEnum = pgEnum("voice_gender", ["female", "male", "neutral"]);
+export const connectorProviderEnum = pgEnum("connector_provider", [
+  "google",
+  "notion",
+  "slack",
+  "instagram",
+  "whatsapp",
+]);
+export const connectorStatusEnum = pgEnum("connector_status", ["disconnected", "connected", "not_configured"]);
 
 export type AgentKind = (typeof agentKindEnum.enumValues)[number];
 export type MapsAppKind = (typeof mapsAppEnum.enumValues)[number];
+export type ConnectorProvider = (typeof connectorProviderEnum.enumValues)[number];
+
+// The real, toggleable features on the "Capabilities" screen — each one
+// gates an actual code path server-side (see middleware/capabilities.ts),
+// not just a cosmetic switch.
+export interface NexaCapabilities {
+  cameraAsk: boolean;
+  webLookup: boolean;
+  whoIsLookup: boolean;
+  agentBuilder: boolean;
+  autoSpeak: boolean;
+  liveTyping: boolean;
+}
+
+export const DEFAULT_CAPABILITIES: NexaCapabilities = {
+  cameraAsk: true,
+  webLookup: true,
+  whoIsLookup: true,
+  agentBuilder: true,
+  autoSpeak: true,
+  liveTyping: true,
+};
 
 // ---------------------------------------------------------------------------
 // Users & settings
@@ -72,6 +102,20 @@ export const users = pgTable("nexaai_users", {
   cameraPermissionGranted: boolean("camera_permission_granted").notNull().default(false),
   micPermissionGranted: boolean("mic_permission_granted").notNull().default(false),
 
+  // Real, per-feature on/off switches — see NexaCapabilities above.
+  capabilities: jsonb("capabilities").notNull().default({}),
+
+  // Memory: NexaAi can save durable facts about a user across chats. Off by
+  // default in the strictest sense — `memoryEnabled` gates whether anything
+  // is ever written; `referenceChatsEnabled` gates whether saved memory is
+  // read back into future conversations; `includeSensitiveInMemory` gates
+  // whether health/religion/etc-adjacent facts are eligible to be saved at all.
+  memoryEnabled: boolean("memory_enabled").notNull().default(true),
+  referenceChatsEnabled: boolean("reference_chats_enabled").notNull().default(true),
+  includeSensitiveInMemory: boolean("include_sensitive_in_memory").notNull().default(false),
+
+  onboardingCompletedAt: timestamp("onboarding_completed_at"),
+
   timezone: text("timezone").notNull().default("Australia/Sydney"),
 });
 
@@ -80,6 +124,8 @@ export const usersRelations = relations(users, ({ many }) => ({
   creditTransactions: many(creditTransactions),
   agents: many(agents),
   usageWindows: many(usageWindows),
+  memoryEntries: many(memoryEntries),
+  connectors: many(connectors),
 }));
 
 // ---------------------------------------------------------------------------
@@ -215,3 +261,53 @@ export const voiceCharacters = pgTable("nexaai_voice_characters", {
   tone: text("tone").notNull(), // "warm", "energetic", "calm", "direct"
   ttsVoiceId: text("tts_voice_id").notNull(), // maps to on-device expo-speech voice identifier
 });
+
+// ---------------------------------------------------------------------------
+// Memory core — durable facts NexaAi has learned about a user from past
+// chats (e.g. "prefers metric units", "owns a 2019 Mazda 3"), written by
+// lib/memory.ts after a turn and optionally read back into future system
+// prompts. Each row is independently deletable from the Memory Files screen.
+// ---------------------------------------------------------------------------
+
+export const memoryEntries = pgTable("nexaai_memory_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  content: text("content").notNull(),
+  isSensitive: boolean("is_sensitive").notNull().default(false),
+  sourceSessionId: uuid("source_session_id").references(() => chatSessions.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const memoryEntriesRelations = relations(memoryEntries, ({ one }) => ({
+  user: one(users, { fields: [memoryEntries.userId], references: [users.id] }),
+}));
+
+// ---------------------------------------------------------------------------
+// Connectors — links a user's NexaAi account to another platform so NexaAi
+// can pull real data in (e.g. Google Calendar events) or an agent can act on
+// it. Google is wired to a real OAuth Authorization Code flow (see
+// lib/connectors/google.ts); the rest are honest "not configured" stubs
+// until an admin adds that platform's own developer credentials.
+//
+// NOTE ON TOKEN STORAGE: access/refresh tokens are stored as plain text here
+// to keep this scaffold's schema readable. A real production deployment
+// MUST encrypt these at rest (e.g. pgcrypto or an application-level KMS)
+// before going live with real user accounts.
+// ---------------------------------------------------------------------------
+
+export const connectors = pgTable("nexaai_connectors", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  provider: connectorProviderEnum("provider").notNull(),
+  status: connectorStatusEnum("status").notNull().default("disconnected"),
+  externalAccountLabel: text("external_account_label"),
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  connectedAt: timestamp("connected_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const connectorsRelations = relations(connectors, ({ one }) => ({
+  user: one(users, { fields: [connectors.userId], references: [users.id] }),
+}));

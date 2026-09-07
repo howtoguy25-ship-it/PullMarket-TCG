@@ -21,10 +21,15 @@ website/   Small static site for account/credits/settings (no chat here — see 
 
 ## Real, working end-to-end
 
-- Email/password signup + login, 2-day free trial with a starter credit grant
+- Email/password signup + login, 2-day free trial with a starter credit grant, and a one-time animated onboarding
+  walkthrough (real typewriter-style text reveal) the first time a new account opens the app
 - Real-time chat with NexaAi (a custom SVG-drawn bot character, not a stock asset) backed by the real Anthropic
-  Claude API — text in, formatted answer out (bold headings, numbered steps, image-hint callouts), with an
+  Claude API, streamed token-by-token over Server-Sent Events (Anthropic's real streaming API, not a client-side
+  reveal effect) — text in, formatted answer out (bold headings, numbered steps, image-hint callouts), with an
   animated "thinking… tinkering… gathering info…" state while waiting
+- A bot avatar that actually talks: its mouth opens/closes in an irregular loop while tokens are streaming in, and
+  again while `expo-speech`'s own playback callbacks confirm audio is actually sounding out — not a decorative loop
+  that runs regardless of state
 - Answer-count toggle: 1 ("strong, straight to the point"), 2 ("extra info"), or 3 (normal) answers per question —
   and if you explicitly ask for a specific number in the message itself, that overrides the toggle for that message
 - Camera "ask about this photo": snap a photo, ask a question, the photo + question go to Claude together
@@ -43,6 +48,22 @@ website/   Small static site for account/credits/settings (no chat here — see 
   safely preview what it would reply via a real Claude-generated draft — before connecting it to any real account
 - A companion account website (`/website`) for logging in, buying credit packs or a custom amount, and changing
   settings — separate from the chat experience, which lives in the app, per the product spec
+- **Permissions screen** (Settings → Permissions): real OS permission status for Camera, Microphone, Location,
+  Calendar, and (iOS) Reminders, using each platform's actual permission API. Toggling on requests it for real;
+  toggling off an already-granted permission opens the system Settings app, since no app can revoke its own
+  permission grant — only iOS/Android can do that.
+- **Capabilities screen** (Settings → Capabilities & memory): six real feature toggles (camera-ask, nearest-business
+  lookup, who-is lookups, agent builder, auto-speak, live typing) that are enforced **server-side** — turning one off
+  makes the matching API endpoint refuse the request with a clear message, not just hide a button.
+- **Real memory core**: after each turn, a cheap/fast Claude call decides whether anything durable and safe is worth
+  remembering (a preference, an ongoing project) and saves it — gated by the "Generate memory from chats" toggle, with
+  a separate "Reference past chats" toggle for whether saved memory is read back into future conversations, and an
+  "Include sensitive topics" toggle (off by default) for health/religion/political/etc-adjacent facts. A dedicated
+  "Memory files" screen lists everything saved, individually deletable or clearable all at once.
+- **Connectors screen** (Settings → Connectors): links a user's account to other platforms. Google is wired
+  end-to-end with a real OAuth 2.0 Authorization Code flow (Calendar read access); Notion/Slack/Instagram/WhatsApp
+  are real UI rows that honestly report "not set up yet" with exactly which env vars an admin needs to add, the same
+  pattern as this README's Paddle/Apple IAP sections.
 
 ## Real, but needs your own credentials to go fully live
 
@@ -64,6 +85,14 @@ website/   Small static site for account/credits/settings (no chat here — see 
 - **Meta Graph API** (actually running an Instagram DM or WhatsApp agent against a real account): needs a reviewed
   Meta Developer app with `instagram_manage_messages` or WhatsApp Cloud API access — see the comments in
   `server/src/lib/agents/agentRunner.ts`. The agent builder itself, and safe reply-drafting, work today without this.
+- **Google connector** (Settings → Connectors, Calendar read access): create a Google Cloud project, enable the
+  Calendar API, add an OAuth Web application client with `<APP_BASE_URL>/api/connectors/google/callback` as an
+  authorized redirect URI, and set `GOOGLE_CONNECTOR_CLIENT_ID` / `GOOGLE_CONNECTOR_CLIENT_SECRET` / `APP_BASE_URL`.
+  Deliberately a separate OAuth client from the root PullMarket TCG app's own Google Sign-In. Token storage in
+  `nexaai_connectors` is plain text in this scaffold — **encrypt at rest before a real launch.**
+- **Notion / Slack / Instagram / WhatsApp connectors**: each needs that platform's own developer app credentials
+  (`NOTION_CLIENT_ID`/`_SECRET`, `SLACK_CLIENT_ID`/`_SECRET`, `META_APP_ID`/`_SECRET`) — the Connectors screen tells
+  you exactly which env vars are missing per connector; none of them have OAuth wired up yet beyond Google.
 
 ## What's intentionally stubbed, and why
 

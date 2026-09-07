@@ -18,7 +18,7 @@ import { ThinkingIndicator } from "../components/ThinkingIndicator";
 import { AnswerModeToggle, type AnswerMode } from "../components/AnswerModeToggle";
 import { UsageBanner } from "../components/UsageBanner";
 import { colors, radii, spacing, typography } from "../theme/colors";
-import { api, streamChatMessage } from "../lib/api";
+import { api, streamChatMessage, ApiError } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 import { speak, transcribeVoiceMemo } from "../lib/voice";
 
@@ -56,6 +56,52 @@ export function ChatScreen() {
       setBotMood("thinking");
       setLimitBanner(null);
 
+      const finishWithMessage = (final: { sessionId: string; message: ChatMessageVM }) => {
+        setSessionId(final.sessionId);
+        setSending(false);
+        setBotMood("idle");
+        refreshUser();
+        if (user?.capabilities.autoSpeak ?? true) {
+          speak(final.message.content.replace(/[*_[\]]/g, ""), user?.voiceCharacterId ?? "nova-neutral", {
+            onStart: () => setBotMood("talking"),
+            onDone: () => setBotMood("idle"),
+            onStopped: () => setBotMood("idle"),
+            onError: () => setBotMood("idle"),
+          });
+        }
+      };
+
+      const handleFailure = (message: string, status?: number, errorBody?: any) => {
+        setSending(false);
+        setBotMood("idle");
+        setStreamingMessageId(null);
+        if (status === 429 || status === 402) {
+          setLimitBanner({ message, resetAt: errorBody?.resetAt ?? new Date().toISOString() });
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            { id: `err-${now}`, role: "assistant", content: "Something went wrong reaching NexaAi. Try again in a moment." },
+          ]);
+        }
+      };
+
+      // Live typing is a real, toggleable capability (Settings -> Capabilities):
+      // off means a plain request/response instead of the SSE stream.
+      if (!(user?.capabilities.liveTyping ?? true)) {
+        try {
+          const final = await api<{ sessionId: string; message: ChatMessageVM }>("/api/chat/messages", {
+            method: "POST",
+            body: JSON.stringify({ sessionId, text, kind, paceHintMsSinceLastMessage: gapMs }),
+          });
+          setMessages((prev) => [...prev, final.message]);
+          finishWithMessage(final);
+        } catch (err) {
+          if (err instanceof ApiError) handleFailure(err.message, err.status, err.body);
+          else handleFailure("Something went wrong reaching NexaAi. Try again in a moment.");
+        }
+        return;
+      }
+
       const assistantId = `stream-${now}`;
       let placeholderCreated = false;
 
@@ -74,32 +120,11 @@ export function ChatScreen() {
             });
           },
           onDone: (final) => {
-            setSessionId(final.sessionId);
             setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...final.message } : m)));
             setStreamingMessageId(null);
-            setSending(false);
-            setBotMood("idle");
-            refreshUser();
-            speak(final.message.content.replace(/[*_[\]]/g, ""), user?.voiceCharacterId ?? "nova-neutral", {
-              onStart: () => setBotMood("talking"),
-              onDone: () => setBotMood("idle"),
-              onStopped: () => setBotMood("idle"),
-              onError: () => setBotMood("idle"),
-            });
+            finishWithMessage(final);
           },
-          onError: (message, status, errorBody) => {
-            setSending(false);
-            setBotMood("idle");
-            setStreamingMessageId(null);
-            if (status === 429 || status === 402) {
-              setLimitBanner({ message, resetAt: errorBody?.resetAt ?? new Date().toISOString() });
-            } else {
-              setMessages((prev) => [
-                ...prev,
-                { id: `err-${now}`, role: "assistant", content: "Something went wrong reaching NexaAi. Try again in a moment." },
-              ]);
-            }
-          },
+          onError: handleFailure,
         },
       );
     },

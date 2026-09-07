@@ -7,15 +7,21 @@ import { useAuth } from "../lib/AuthContext";
 import { colors } from "../theme/colors";
 
 import { AuthScreen } from "../screens/AuthScreen";
+import { OnboardingScreen } from "../screens/OnboardingScreen";
 import { ChatScreen } from "../screens/ChatScreen";
 import { CameraAskScreen } from "../screens/CameraAskScreen";
 import { PlansScreen } from "../screens/PlansScreen";
 import { CreditsScreen } from "../screens/CreditsScreen";
 import { AgentBuilderScreen } from "../screens/AgentBuilderScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { PermissionsScreen } from "../screens/PermissionsScreen";
+import { CapabilitiesScreen } from "../screens/CapabilitiesScreen";
+import { MemoryFilesScreen } from "../screens/MemoryFilesScreen";
+import { ConnectorsScreen } from "../screens/ConnectorsScreen";
 
 const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const RootStack = createNativeStackNavigator();
+const HomeStack = createNativeStackNavigator();
 
 const navTheme = {
   ...DarkTheme,
@@ -60,19 +66,41 @@ function MainTabs() {
   );
 }
 
+// Wraps the tab bar in a stack so Settings can push full-screen detail
+// pages (Permissions, Capabilities, Connectors, Memory files) with a back
+// button, without those pages needing their own tab.
+function HomeFlow() {
+  const headerOptions = {
+    headerStyle: { backgroundColor: colors.bgElevated },
+    headerTitleStyle: { color: colors.textPrimary },
+    headerTintColor: colors.accentBright,
+  };
+  return (
+    <HomeStack.Navigator>
+      <HomeStack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+      <HomeStack.Screen name="Permissions" component={PermissionsScreen} options={headerOptions} />
+      <HomeStack.Screen name="Capabilities" component={CapabilitiesScreen} options={headerOptions} />
+      <HomeStack.Screen name="MemoryFiles" component={MemoryFilesScreen} options={{ ...headerOptions, title: "Memory files" }} />
+      <HomeStack.Screen name="Connectors" component={ConnectorsScreen} options={headerOptions} />
+    </HomeStack.Navigator>
+  );
+}
+
 export function RootNavigator() {
   const { user, loading } = useAuth();
   if (loading) return null;
 
   return (
     <NavigationContainer theme={navTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {user ? (
-          <Stack.Screen name="Main" component={MainTabs} />
+      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+        {!user ? (
+          <RootStack.Screen name="Auth" component={AuthScreen} />
+        ) : !user.onboardingCompletedAt ? (
+          <RootStack.Screen name="Onboarding" component={OnboardingScreen} />
         ) : (
-          <Stack.Screen name="Auth" component={AuthScreen} />
+          <RootStack.Screen name="Home" component={HomeFlow} />
         )}
-      </Stack.Navigator>
+      </RootStack.Navigator>
     </NavigationContainer>
   );
 }

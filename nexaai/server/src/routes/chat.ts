@@ -9,6 +9,8 @@ import { askNexaAi, streamNexaAi } from "../lib/anthropic";
 import { PLAN_DEFINITIONS, ANSWER_MODE_DEFINITIONS, resolveAnswerCount, type AnswerMode } from "../lib/plans";
 import { spendCredits } from "../lib/credits";
 import { findNearestBusinesses } from "../lib/businessLookup";
+import { resolveCapabilities } from "../lib/capabilities";
+import { getMemoryContext, extractAndStoreMemory } from "../lib/memory";
 
 export const chatRouter = Router();
 chatRouter.use(requireAuth);
@@ -48,6 +50,21 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       ok: false,
       status: 429,
       body: { error: usageCheck.reason, message: usageCheck.message, resetAt: usageCheck.resetAt },
+    } as const;
+  }
+
+  const caps = resolveCapabilities(user.capabilities);
+  const CAPABILITY_BY_KIND: Partial<Record<SendMessageBody["kind"], keyof typeof caps>> = {
+    camera_ask: "cameraAsk",
+    who_is_lookup: "whoIsLookup",
+    assistance_request: "webLookup",
+  };
+  const requiredCapability = CAPABILITY_BY_KIND[body.kind];
+  if (requiredCapability && !caps[requiredCapability]) {
+    return {
+      ok: false,
+      status: 403,
+      body: { error: "capability_disabled", message: "This feature is turned off in Capabilities settings — turn it back on to use it." },
     } as const;
   }
 
@@ -94,6 +111,8 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
     }
   }
 
+  const memoryContext = await getMemoryContext(userId);
+
   return {
     ok: true,
     sessionId,
@@ -107,6 +126,7 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
         | "chat"
         | "who_is"
         | "assistance_request",
+      memoryContext,
     },
     finish: async (text: string) => {
       const [assistantMsg] = await db
@@ -115,6 +135,8 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
         .returning();
       const pace = (body.paceHintMsSinceLastMessage ?? 5000) < 1500 ? "forced" : "smooth";
       await recordUsageSeconds(userId, 15, pace);
+      // Best-effort, fire-and-forget — never delay the reply on memory extraction.
+      extractAndStoreMemory(userId, sessionId, body.text, text).catch(() => {});
       return { assistantMsg, answerCount, creditBalanceAfterCents: spend.balanceAfterCents, usedGraceOverage: spend.usedGraceOverage };
     },
   } as const;
