@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../lib/AuthContext";
-import { colors } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 
 import { AuthScreen } from "../screens/AuthScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
@@ -14,6 +14,7 @@ import { PlansScreen } from "../screens/PlansScreen";
 import { CreditsScreen } from "../screens/CreditsScreen";
 import { AgentBuilderScreen } from "../screens/AgentBuilderScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { AppearanceScreen } from "../screens/AppearanceScreen";
 import { PermissionsScreen } from "../screens/PermissionsScreen";
 import { CapabilitiesScreen } from "../screens/CapabilitiesScreen";
 import { MemoryFilesScreen } from "../screens/MemoryFilesScreen";
@@ -22,18 +23,6 @@ import { ConnectorsScreen } from "../screens/ConnectorsScreen";
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
-
-const navTheme = {
-  ...DarkTheme,
-  colors: {
-    ...DarkTheme.colors,
-    background: colors.bg,
-    card: colors.bgElevated,
-    border: colors.border,
-    primary: colors.accent,
-    text: colors.textPrimary,
-  },
-};
 
 const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Chat: "chatbubble-ellipses",
@@ -45,14 +34,15 @@ const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
 };
 
 function MainTabs() {
+  const { palette } = useTheme();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: colors.bgElevated },
-        headerTitleStyle: { color: colors.textPrimary },
-        tabBarStyle: { backgroundColor: colors.bgElevated, borderTopColor: colors.border },
-        tabBarActiveTintColor: colors.accentBright,
-        tabBarInactiveTintColor: colors.textMuted,
+        headerStyle: { backgroundColor: palette.bgElevated },
+        headerTitleStyle: { color: palette.textPrimary },
+        tabBarStyle: { backgroundColor: palette.bgElevated, borderTopColor: palette.border },
+        tabBarActiveTintColor: palette.accentBright,
+        tabBarInactiveTintColor: palette.textMuted,
         tabBarIcon: ({ color, size }) => <Ionicons name={TAB_ICONS[route.name]} size={size} color={color} />,
       })}
     >
@@ -67,17 +57,19 @@ function MainTabs() {
 }
 
 // Wraps the tab bar in a stack so Settings can push full-screen detail
-// pages (Permissions, Capabilities, Connectors, Memory files) with a back
-// button, without those pages needing their own tab.
+// pages (Appearance, Permissions, Capabilities, Connectors, Memory files)
+// with a back button, without those pages needing their own tab.
 function HomeFlow() {
+  const { palette } = useTheme();
   const headerOptions = {
-    headerStyle: { backgroundColor: colors.bgElevated },
-    headerTitleStyle: { color: colors.textPrimary },
-    headerTintColor: colors.accentBright,
+    headerStyle: { backgroundColor: palette.bgElevated },
+    headerTitleStyle: { color: palette.textPrimary },
+    headerTintColor: palette.accentBright,
   };
   return (
     <HomeStack.Navigator>
       <HomeStack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+      <HomeStack.Screen name="Appearance" component={AppearanceScreen} options={headerOptions} />
       <HomeStack.Screen name="Permissions" component={PermissionsScreen} options={headerOptions} />
       <HomeStack.Screen name="Capabilities" component={CapabilitiesScreen} options={headerOptions} />
       <HomeStack.Screen name="MemoryFiles" component={MemoryFilesScreen} options={{ ...headerOptions, title: "Memory files" }} />
@@ -88,6 +80,20 @@ function HomeFlow() {
 
 export function RootNavigator() {
   const { user, loading } = useAuth();
+  const { palette } = useTheme();
+
+  const navTheme = {
+    ...DarkTheme,
+    colors: {
+      ...DarkTheme.colors,
+      background: palette.bg,
+      card: palette.bgElevated,
+      border: palette.border,
+      primary: palette.accent,
+      text: palette.textPrimary,
+    },
+  };
+
   if (loading) return null;
 
   return (

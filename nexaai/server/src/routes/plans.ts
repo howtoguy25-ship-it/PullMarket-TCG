@@ -4,12 +4,16 @@ import { z } from "zod";
 import { db } from "../db";
 import { users } from "@shared/schema";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
-import { PLAN_DEFINITIONS } from "../lib/plans";
+import { PLAN_DEFINITIONS, FOCUS_MODE_DEFINITIONS } from "../lib/plans";
 
 export const plansRouter = Router();
 
 plansRouter.get("/", (_req, res) => {
   res.json({ plans: Object.values(PLAN_DEFINITIONS) });
+});
+
+plansRouter.get("/focus-modes", (_req, res) => {
+  res.json({ focusModes: Object.values(FOCUS_MODE_DEFINITIONS) });
 });
 
 const switchSchema = z.object({ tier: z.enum(["beginner", "pro", "max"]) });

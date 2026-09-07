@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TextI
 import * as WebBrowser from "expo-web-browser";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { colors, radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 import { api, ApiError } from "../lib/api";
 
 interface CreditPack {
@@ -12,6 +13,7 @@ interface CreditPack {
 }
 
 export function CreditsScreen() {
+  const { palette } = useTheme();
   const [balanceCents, setBalanceCents] = useState<number | null>(null);
   const [packs, setPacks] = useState<CreditPack[]>([]);
   const [customAmount, setCustomAmount] = useState("");
@@ -52,7 +54,7 @@ export function CreditsScreen() {
         <Text style={styles.title}>Credits</Text>
         <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>Balance</Text>
-          <Text style={styles.balanceValue}>{balanceCents == null ? "…" : `$${(balanceCents / 100).toFixed(2)}`}</Text>
+          <Text style={[styles.balanceValue, { color: palette.accentBright }]}>{balanceCents == null ? "…" : `$${(balanceCents / 100).toFixed(2)}`}</Text>
         </View>
 
         {Platform.OS === "ios" && (
@@ -66,7 +68,7 @@ export function CreditsScreen() {
           {packs.map((pack) => (
             <TouchableOpacity key={pack.label} style={styles.packCard} onPress={() => buy(pack.label)} disabled={!!busyLabel}>
               {busyLabel === pack.label ? (
-                <ActivityIndicator color={colors.accentBright} />
+                <ActivityIndicator color={palette.accentBright} />
               ) : (
                 <>
                   <Text style={styles.packLabel}>{pack.label}</Text>
@@ -89,7 +91,7 @@ export function CreditsScreen() {
             onChangeText={setCustomAmount}
           />
           <TouchableOpacity
-            style={styles.customButton}
+            style={[styles.customButton, { backgroundColor: palette.accent }]}
             disabled={!customAmount || !!busyLabel}
             onPress={() => buy(undefined, Math.round(parseFloat(customAmount) * 100))}
           >
@@ -106,7 +108,7 @@ const styles = StyleSheet.create({
   title: { ...typography.h1, color: colors.textPrimary },
   balanceCard: { backgroundColor: colors.bgCard, borderRadius: radii.lg, padding: spacing.xl, alignItems: "center", borderWidth: 1, borderColor: colors.border },
   balanceLabel: { ...typography.caption, color: colors.textMuted },
-  balanceValue: { ...typography.h1, color: colors.accentBright, marginTop: 4 },
+  balanceValue: { ...typography.h1, marginTop: 4 },
   iosNote: { ...typography.caption, color: colors.textMuted, fontStyle: "italic" },
   packGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   packCard: { flexGrow: 1, minWidth: "45%", backgroundColor: colors.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, alignItems: "center" },

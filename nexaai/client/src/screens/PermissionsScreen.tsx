@@ -9,6 +9,7 @@ import * as Calendar from "expo-calendar";
 import * as Linking from "expo-linking";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { colors, radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 
 type PermStatus = "granted" | "denied" | "undetermined" | "unsupported";
 
@@ -84,6 +85,7 @@ function statusLabel(status: PermStatus): string {
 }
 
 export function PermissionsScreen() {
+  const { palette } = useTheme();
   const [statuses, setStatuses] = useState<Record<string, PermStatus>>({});
 
   const refresh = useCallback(() => {
@@ -123,7 +125,7 @@ export function PermissionsScreen() {
             return (
               <View key={row.key} style={[styles.row, i < ROWS.length - 1 && styles.rowBorder]}>
                 <View style={styles.iconWrap}>
-                  <Ionicons name={row.icon} size={18} color={colors.accentBright} />
+                  <Ionicons name={row.icon} size={18} color={palette.accentBright} />
                 </View>
                 <View style={styles.rowText}>
                   <Text style={styles.rowLabel}>{row.label}</Text>
@@ -134,7 +136,7 @@ export function PermissionsScreen() {
                   value={status === "granted"}
                   disabled={status === "unsupported"}
                   onValueChange={() => onToggle(row)}
-                  trackColor={{ true: colors.accent }}
+                  trackColor={{ true: palette.accent }}
                 />
               </View>
             );

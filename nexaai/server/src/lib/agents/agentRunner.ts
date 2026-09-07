@@ -40,6 +40,7 @@ export async function dryRunAgent(kind: AgentKind, config: AgentConfig, incoming
   const result = await askNexaAi({
     plan: PLAN_DEFINITIONS.pro,
     answerCount: 1,
+    focusMode: "quick",
     userMessage:
       `You are drafting an automated reply to ${platformLabel[kind]} on behalf of a business. ` +
       `The business's instructions for this agent: "${config.instructions}".\n\n` +

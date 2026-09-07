@@ -2,7 +2,7 @@ import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { fetch as expoFetch } from "expo/fetch";
 
-const API_URL = (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ?? "http://localhost:5060";
+export const API_URL = (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ?? "http://localhost:5060";
 const TOKEN_KEY = "nexaai_token";
 
 export async function getToken(): Promise<string | null> {
@@ -45,8 +45,10 @@ export async function api<T = any>(path: string, options: RequestInit = {}): Pro
 export interface StreamChatBody {
   sessionId?: string;
   text: string;
-  kind?: "text" | "voice_memo" | "camera_ask" | "who_is_lookup" | "assistance_request";
+  kind?: "text" | "voice_memo" | "camera_ask" | "who_is_lookup" | "assistance_request" | "file_attachment";
   requestedAnswerCount?: number;
+  requestedFocusMode?: "quick" | "build" | "auto" | "gorilla";
+  attachment?: { url: string; filename: string; mimeType: string; sizeBytes: number; kind: "image" | "video" | "file" };
   businessCategory?: string;
   userLat?: number;
   userLng?: number;

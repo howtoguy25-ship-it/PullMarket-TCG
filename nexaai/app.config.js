@@ -27,7 +27,7 @@ module.exports = {
       bundler: "metro",
       output: "single",
     },
-    plugins: ["expo-camera", "expo-secure-store", "expo-location", "expo-calendar"],
+    plugins: ["expo-camera", "expo-secure-store", "expo-location", "expo-calendar", "expo-font"],
     extra: {
       apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5060",
     },

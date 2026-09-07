@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { colors } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 
 interface Star {
   x: number;
@@ -25,24 +25,25 @@ function makeStars(count: number, width: number, height: number, seed: number): 
   }));
 }
 
-/** Hand-drawn dark "galaxy" backdrop: gradient sky + scattered stars, no image assets. */
+/** Hand-drawn dark backdrop: gradient sky (from the active theme palette) + scattered stars, no image assets. */
 export function GalaxyBackground({ children }: { children?: React.ReactNode }) {
   const { width, height } = useWindowDimensions();
+  const { palette } = useTheme();
   const stars = useMemo(() => makeStars(90, width, height, 42), [width, height]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.bg }]}>
       <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
         <Defs>
           <LinearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={colors.gradientGalaxy[2]} />
-            <Stop offset="0.5" stopColor={colors.gradientGalaxy[1]} />
-            <Stop offset="1" stopColor={colors.gradientGalaxy[0]} />
+            <Stop offset="0" stopColor={palette.gradientGalaxy[2]} />
+            <Stop offset="0.5" stopColor={palette.gradientGalaxy[1]} />
+            <Stop offset="1" stopColor={palette.gradientGalaxy[0]} />
           </LinearGradient>
         </Defs>
         <Rect x={0} y={0} width={width} height={height} fill="url(#sky)" />
         {stars.map((star, i) => (
-          <Circle key={i} cx={star.x} cy={star.y} r={star.r} fill={colors.starBright} opacity={star.opacity} />
+          <Circle key={i} cx={star.x} cy={star.y} r={star.r} fill={palette.starBright} opacity={star.opacity} />
         ))}
       </Svg>
       {children}
@@ -51,5 +52,5 @@ export function GalaxyBackground({ children }: { children?: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1 },
 });

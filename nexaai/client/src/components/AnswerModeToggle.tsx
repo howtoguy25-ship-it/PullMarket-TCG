@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { colors, radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 
 export type AnswerMode = "strong" | "extra" | "normal";
 
@@ -11,6 +12,7 @@ const OPTIONS: { mode: AnswerMode; label: string }[] = [
 ];
 
 export function AnswerModeToggle({ value, onChange }: { value: AnswerMode; onChange: (m: AnswerMode) => void }) {
+  const { palette } = useTheme();
   return (
     <View style={styles.container}>
       {OPTIONS.map((opt) => {
@@ -19,7 +21,7 @@ export function AnswerModeToggle({ value, onChange }: { value: AnswerMode; onCha
           <TouchableOpacity
             key={opt.mode}
             onPress={() => onChange(opt.mode)}
-            style={[styles.pill, active && styles.pillActive]}
+            style={[styles.pill, active && { backgroundColor: palette.accent }]}
             activeOpacity={0.8}
           >
             <Text style={[styles.label, active && styles.labelActive]}>{opt.label}</Text>
@@ -33,7 +35,6 @@ export function AnswerModeToggle({ value, onChange }: { value: AnswerMode; onCha
 const styles = StyleSheet.create({
   container: { flexDirection: "row", backgroundColor: colors.bgCard, borderRadius: radii.pill, padding: 4, gap: 4 },
   pill: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radii.pill },
-  pillActive: { backgroundColor: colors.accent },
   label: { ...typography.caption, color: colors.textSecondary },
   labelActive: { color: "#fff", fontWeight: "700" },
 });

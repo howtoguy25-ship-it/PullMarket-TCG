@@ -101,6 +101,82 @@ export function resolveAnswerCount(mode: AnswerMode, explicitlyRequestedCount?: 
   return ANSWER_MODE_DEFINITIONS[mode].answerCount;
 }
 
+// ---------------------------------------------------------------------------
+// Focus/power modes — a second axis on top of the plan tier. The plan tier
+// says which Claude model answers you; the focus mode says how hard it
+// tries on THIS message, using Claude's real extended-thinking parameter
+// (not a cosmetic label) and a real credit-cost multiplier.
+// ---------------------------------------------------------------------------
+
+export type FocusMode = "quick" | "build" | "auto" | "gorilla";
+
+export interface FocusModeDefinition {
+  mode: FocusMode;
+  label: string;
+  tagline: string;
+  minPlanTier: PlanTier; // gates access — see isFocusModeAllowed
+  creditMultiplier: number; // multiplies the base per-message credit cost
+  thinkingBudgetTokens: number | null; // forces Claude's real extended-thinking budget on; null defers to the plan's own setting
+  promptAddendum: string;
+}
+
+const PLAN_TIER_RANK: Record<PlanTier, number> = { beginner: 0, pro: 1, max: 2 };
+
+export function isFocusModeAllowed(tier: PlanTier, mode: FocusMode): boolean {
+  return PLAN_TIER_RANK[tier] >= PLAN_TIER_RANK[FOCUS_MODE_DEFINITIONS[mode].minPlanTier];
+}
+
+export const FOCUS_MODE_DEFINITIONS: Record<FocusMode, FocusModeDefinition> = {
+  quick: {
+    mode: "quick",
+    label: "Quick",
+    tagline: "Fast everyday edits & tasks",
+    minPlanTier: "beginner",
+    creditMultiplier: 1,
+    thinkingBudgetTokens: null,
+    promptAddendum:
+      "\n\nFocus mode: QUICK. Be fast and to the point — this is an everyday edit or small task, not a project. " +
+      "Skip long preambles and give the direct fix/answer first.",
+  },
+  build: {
+    mode: "build",
+    label: "Build",
+    tagline: "Complex, multi-step builds",
+    minPlanTier: "beginner",
+    creditMultiplier: 1.5,
+    thinkingBudgetTokens: 4000,
+    promptAddendum:
+      "\n\nFocus mode: BUILD. This is a complex or multi-step build/task. Think through the architecture or sequence " +
+      "of steps carefully before answering, and structure the answer as a clear plan the user could actually execute.",
+  },
+  auto: {
+    mode: "auto",
+    label: "Auto",
+    tagline: "Autonomous tasks & builds",
+    minPlanTier: "pro",
+    creditMultiplier: 2.5,
+    thinkingBudgetTokens: 8000,
+    promptAddendum:
+      "\n\nFocus mode: AUTO. Act autonomously within this one reply: don't stop to ask clarifying questions unless " +
+      "truly blocked — make the most reasonable assumptions explicit and deliver a COMPLETE result (full code, full " +
+      "steps, nothing left as 'exercise for the user') in this single turn. Note plainly, once, that this simulates " +
+      "autonomy through careful single-turn planning — it is not a sandboxed multi-step execution loop that can " +
+      "actually run code or click through steps on its own.",
+  },
+  gorilla: {
+    mode: "gorilla",
+    label: "Gorilla",
+    tagline: "Maximum power — more credits",
+    minPlanTier: "max",
+    creditMultiplier: 4,
+    thinkingBudgetTokens: 16000,
+    promptAddendum:
+      "\n\nFocus mode: GORILLA — maximum effort. Give this everything: the deepest, most thorough, most confident " +
+      "version of your answer, with the extra insight and polish someone wouldn't expect. Don't hedge or pad — every " +
+      "sentence should earn its place.",
+  },
+};
+
 export const CREDIT_PACKS = [
   { label: "$35", priceCents: 3500, bonusCents: 0 },
   { label: "$80", priceCents: 8000, bonusCents: 500 },

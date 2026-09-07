@@ -1,5 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -10,22 +12,32 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { Audio } from "expo-av";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { BotAvatar } from "../components/BotAvatar";
 import { MessageBubble, type ChatMessageVM } from "../components/MessageBubble";
 import { ThinkingIndicator } from "../components/ThinkingIndicator";
 import { AnswerModeToggle, type AnswerMode } from "../components/AnswerModeToggle";
+import { FocusModeSelector, type FocusMode } from "../components/FocusModeSelector";
 import { UsageBanner } from "../components/UsageBanner";
 import { colors, radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 import { api, streamChatMessage, ApiError } from "../lib/api";
+import { uploadAttachment, type UploadedAttachment } from "../lib/attachments";
 import { useAuth } from "../lib/AuthContext";
 import { speak, transcribeVoiceMemo } from "../lib/voice";
+
+type ChatKind = "text" | "voice_memo" | "file_attachment";
 
 type BotMood = "idle" | "thinking" | "talking";
 
 export function ChatScreen() {
   const { user, refreshUser } = useAuth();
+  const { palette } = useTheme();
+  const navigation = useNavigation<any>();
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [messages, setMessages] = useState<ChatMessageVM[]>([]);
   const [input, setInput] = useState("");
@@ -34,7 +46,9 @@ export function ChatScreen() {
   const [botMood, setBotMood] = useState<BotMood>("idle");
   const [limitBanner, setLimitBanner] = useState<{ message: string; resetAt: string } | null>(null);
   const [answerMode, setAnswerMode] = useState<AnswerMode>(user?.answerMode ?? "normal");
+  const [focusMode, setFocusMode] = useState<FocusMode>(user?.defaultFocusMode ?? "quick");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
+  const [uploading, setUploading] = useState(false);
   const lastMessageAt = useRef(Date.now());
 
   const changeAnswerMode = async (mode: AnswerMode) => {
@@ -42,14 +56,19 @@ export function ChatScreen() {
     await api("/api/chat/answer-mode", { method: "PATCH", body: JSON.stringify({ mode }) });
   };
 
+  const changeFocusMode = async (mode: FocusMode) => {
+    setFocusMode(mode);
+    await api("/api/auth/settings", { method: "PATCH", body: JSON.stringify({ defaultFocusMode: mode }) });
+  };
+
   const send = useCallback(
-    async (text: string, kind: "text" | "voice_memo" = "text") => {
+    async (text: string, kind: ChatKind = "text", attachment?: UploadedAttachment) => {
       if (!text.trim() || sending) return;
       const now = Date.now();
       const gapMs = now - lastMessageAt.current;
       lastMessageAt.current = now;
 
-      const userMsg: ChatMessageVM = { id: `local-${now}`, role: "user", content: text };
+      const userMsg: ChatMessageVM = { id: `local-${now}`, role: "user", content: text, attachment };
       setMessages((prev) => [...prev, userMsg]);
       setInput("");
       setSending(true);
@@ -77,6 +96,9 @@ export function ChatScreen() {
         setStreamingMessageId(null);
         if (status === 429 || status === 402) {
           setLimitBanner({ message, resetAt: errorBody?.resetAt ?? new Date().toISOString() });
+        } else if (status === 403 && errorBody?.error === "focus_mode_not_allowed") {
+          setFocusMode("quick");
+          Alert.alert("Locked focus mode", message);
         } else {
           setMessages((prev) => [
             ...prev,
@@ -91,7 +113,7 @@ export function ChatScreen() {
         try {
           const final = await api<{ sessionId: string; message: ChatMessageVM }>("/api/chat/messages", {
             method: "POST",
-            body: JSON.stringify({ sessionId, text, kind, paceHintMsSinceLastMessage: gapMs }),
+            body: JSON.stringify({ sessionId, text, kind, paceHintMsSinceLastMessage: gapMs, requestedFocusMode: focusMode, attachment }),
           });
           setMessages((prev) => [...prev, final.message]);
           finishWithMessage(final);
@@ -106,7 +128,7 @@ export function ChatScreen() {
       let placeholderCreated = false;
 
       await streamChatMessage(
-        { sessionId, text, kind, paceHintMsSinceLastMessage: gapMs },
+        { sessionId, text, kind, paceHintMsSinceLastMessage: gapMs, requestedFocusMode: focusMode, attachment },
         {
           onDelta: (delta) => {
             setBotMood("talking");
@@ -128,8 +150,47 @@ export function ChatScreen() {
         },
       );
     },
-    [sessionId, sending, user, refreshUser],
+    [sessionId, sending, user, refreshUser, focusMode],
   );
+
+  const handlePickedFile = async (uri: string, filename: string, mimeType: string) => {
+    setUploading(true);
+    try {
+      const uploaded = await uploadAttachment(uri, filename, mimeType);
+      const caption = input.trim() || filename;
+      setInput("");
+      await send(caption, "file_attachment", uploaded);
+    } catch (err) {
+      Alert.alert("Upload failed", err instanceof ApiError ? err.message : "Couldn't upload that file. Try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const pickAttachmentMedia = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 0.8 });
+    const asset = result.assets?.[0];
+    if (result.canceled || !asset) return;
+    const fallbackMime = asset.type === "video" ? "video/mp4" : "image/jpeg";
+    await handlePickedFile(asset.uri, asset.fileName ?? `attachment-${Date.now()}`, asset.mimeType ?? fallbackMime);
+  };
+
+  const pickAttachmentDocument = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: "*/*", copyToCacheDirectory: true });
+    const asset = result.assets?.[0];
+    if (result.canceled || !asset) return;
+    await handlePickedFile(asset.uri, asset.name, asset.mimeType ?? "application/octet-stream");
+  };
+
+  const openAttachmentMenu = () => {
+    Alert.alert("Attach", "Add a photo, video, or file to this message.", [
+      { text: "Photo or video", onPress: pickAttachmentMedia },
+      { text: "File", onPress: pickAttachmentDocument },
+      { text: "Cancel", style: "cancel" },
+    ]);
+  };
 
   const startRecording = async () => {
     const { granted } = await Audio.requestPermissionsAsync();
@@ -170,13 +231,19 @@ export function ChatScreen() {
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>NexaAi</Text>
             {botMood !== "idle" && (
-              <Text style={styles.headerStatus}>{botMood === "thinking" ? "thinking…" : "speaking…"}</Text>
+              <Text style={[styles.headerStatus, { color: palette.accentBright }]}>{botMood === "thinking" ? "thinking…" : "speaking…"}</Text>
             )}
           </View>
         </View>
 
         <View style={styles.toolbar}>
           <AnswerModeToggle value={answerMode} onChange={changeAnswerMode} />
+          <FocusModeSelector
+            value={focusMode}
+            onChange={changeFocusMode}
+            planTier={user?.planTier ?? "beginner"}
+            onNavigateToPlans={() => navigation.navigate("Plans")}
+          />
         </View>
 
         {limitBanner && <UsageBanner message={limitBanner.message} resetAtIso={limitBanner.resetAt} />}
@@ -196,11 +263,14 @@ export function ChatScreen() {
         />
 
         <View style={styles.inputRow}>
+          <TouchableOpacity style={styles.iconButton} onPress={openAttachmentMenu} disabled={uploading}>
+            {uploading ? <ActivityIndicator size="small" color={palette.accentBright} /> : <Ionicons name="attach" size={20} color={palette.accentBright} />}
+          </TouchableOpacity>
           <TouchableOpacity
             style={[styles.iconButton, recording && styles.iconButtonActive]}
             onPress={recording ? stopRecording : startRecording}
           >
-            <Ionicons name={recording ? "stop" : "mic"} size={20} color={recording ? "#fff" : colors.accentBright} />
+            <Ionicons name={recording ? "stop" : "mic"} size={20} color={recording ? "#fff" : palette.accentBright} />
           </TouchableOpacity>
           <TextInput
             style={styles.input}
@@ -210,7 +280,7 @@ export function ChatScreen() {
             onChangeText={setInput}
             onSubmitEditing={() => send(input)}
           />
-          <TouchableOpacity style={styles.sendButton} onPress={() => send(input)} disabled={sending}>
+          <TouchableOpacity style={[styles.sendButton, { backgroundColor: palette.accent }]} onPress={() => send(input)} disabled={sending}>
             <Ionicons name="arrow-up" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -230,8 +300,8 @@ const styles = StyleSheet.create({
   },
   headerText: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
   headerTitle: { ...typography.h2, color: colors.textPrimary },
-  headerStatus: { ...typography.caption, color: colors.accentBright, fontStyle: "italic" },
-  toolbar: { padding: spacing.md, alignItems: "flex-start" },
+  headerStatus: { ...typography.caption, fontStyle: "italic" },
+  toolbar: { padding: spacing.md, alignItems: "flex-start", gap: spacing.sm },
   list: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
   inputRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md },
   input: {
@@ -260,7 +330,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: radii.pill,
-    backgroundColor: colors.accent,
     alignItems: "center",
     justifyContent: "center",
   },

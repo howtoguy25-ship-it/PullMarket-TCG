@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing } from "react-native";
 import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Stop } from "react-native-svg";
-import { colors } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 
 const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
 
@@ -22,7 +22,9 @@ interface BotAvatarProps {
  *  - idle blink: a small periodic blink regardless of mood, so the bot
  *    reads as alive rather than static.
  */
-export function BotAvatar({ size = 72, mood = "idle", glowColor = colors.accent }: BotAvatarProps) {
+export function BotAvatar({ size = 72, mood = "idle", glowColor }: BotAvatarProps) {
+  const { palette } = useTheme();
+  const glow = glowColor ?? palette.accent;
   const pulse = useRef(new Animated.Value(1)).current;
   const mouthOpen = useRef(new Animated.Value(0)).current;
   const blink = useRef(new Animated.Value(1)).current;
@@ -82,38 +84,38 @@ export function BotAvatar({ size = 72, mood = "idle", glowColor = colors.accent 
       <Svg width={size} height={size} viewBox="0 0 100 100">
         <Defs>
           <LinearGradient id="botBody" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={colors.bgCardAlt} />
-            <Stop offset="1" stopColor={colors.bgCard} />
+            <Stop offset="0" stopColor={palette.bgCardAlt} />
+            <Stop offset="1" stopColor={palette.bgCard} />
           </LinearGradient>
           <LinearGradient id="botGlow" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={glowColor} stopOpacity="0.9" />
-            <Stop offset="1" stopColor={colors.accentBright} stopOpacity="0.6" />
+            <Stop offset="0" stopColor={glow} stopOpacity="0.9" />
+            <Stop offset="1" stopColor={palette.accentBright} stopOpacity="0.6" />
           </LinearGradient>
         </Defs>
 
         {/* antennae */}
-        <Path d="M35 18 L30 4" stroke={glowColor} strokeWidth={2.5} strokeLinecap="round" />
-        <Path d="M65 18 L70 4" stroke={glowColor} strokeWidth={2.5} strokeLinecap="round" />
-        <Circle cx={30} cy={4} r={3.5} fill={colors.accentBright} />
-        <Circle cx={70} cy={4} r={3.5} fill={colors.accentBright} />
+        <Path d="M35 18 L30 4" stroke={glow} strokeWidth={2.5} strokeLinecap="round" />
+        <Path d="M65 18 L70 4" stroke={glow} strokeWidth={2.5} strokeLinecap="round" />
+        <Circle cx={30} cy={4} r={3.5} fill={palette.accentBright} />
+        <Circle cx={70} cy={4} r={3.5} fill={palette.accentBright} />
 
         {/* head/body — one soft rounded blob */}
-        <Ellipse cx={50} cy={56} rx={38} ry={34} fill="url(#botBody)" stroke={colors.border} strokeWidth={1.5} />
+        <Ellipse cx={50} cy={56} rx={38} ry={34} fill="url(#botBody)" stroke={palette.border} strokeWidth={1.5} />
 
         {/* glowing core visor */}
         <Ellipse cx={50} cy={56} rx={26} ry={20} fill="url(#botGlow)" opacity={0.28} />
 
         {/* eyes — blink via a scaled ry, driven by an Animated value */}
-        <AnimatedEllipse cx={38} cy={56} rx={5} ry={eyeHeight as unknown as number} fill={colors.starBright} />
-        <AnimatedEllipse cx={62} cy={56} rx={5} ry={eyeHeight as unknown as number} fill={colors.starBright} />
+        <AnimatedEllipse cx={38} cy={56} rx={5} ry={eyeHeight as unknown as number} fill={palette.starBright} />
+        <AnimatedEllipse cx={62} cy={56} rx={5} ry={eyeHeight as unknown as number} fill={palette.starBright} />
 
         {/* mouth */}
         {mood === "talking" ? (
-          <AnimatedEllipse cx={50} cy={72} rx={mouthRx as unknown as number} ry={mouthRy as unknown as number} fill={colors.starBright} />
+          <AnimatedEllipse cx={50} cy={72} rx={mouthRx as unknown as number} ry={mouthRy as unknown as number} fill={palette.starBright} />
         ) : mood === "happy" ? (
-          <Path d="M40 70 Q50 78 60 70" stroke={colors.starBright} strokeWidth={3} fill="none" strokeLinecap="round" />
+          <Path d="M40 70 Q50 78 60 70" stroke={palette.starBright} strokeWidth={3} fill="none" strokeLinecap="round" />
         ) : (
-          <Path d="M42 71 L58 71" stroke={colors.starBright} strokeWidth={3} strokeLinecap="round" />
+          <Path d="M42 71 L58 71" stroke={palette.starBright} strokeWidth={3} strokeLinecap="round" />
         )}
       </Svg>
     </Animated.View>

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
-import type { NexaCapabilities } from "@shared/schema";
+import type { NexaCapabilities, FontChoice, ThemeId, FocusMode } from "@shared/schema";
 import { api, setToken, clearToken, getToken } from "./api";
 
-export type { NexaCapabilities };
+export type { NexaCapabilities, FontChoice, ThemeId, FocusMode };
 
 export interface NexaUser {
   id: string;
@@ -20,6 +20,9 @@ export interface NexaUser {
   referenceChatsEnabled: boolean;
   includeSensitiveInMemory: boolean;
   onboardingCompletedAt: string | null;
+  fontChoice: FontChoice;
+  themeId: ThemeId;
+  defaultFocusMode: FocusMode;
 }
 
 interface AuthState {

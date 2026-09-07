@@ -1,12 +1,23 @@
 import { Router } from "express";
 import { eq, desc } from "drizzle-orm";
 import { z } from "zod";
+import path from "path";
+import fs from "fs";
 import { db } from "../db";
+import { UPLOADS_DIR } from "./attachments";
 import { chatSessions, messages, users } from "@shared/schema";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
 import { checkUsageWindow, recordSessionStart, recordUsageSeconds } from "../middleware/usage";
 import { askNexaAi, streamNexaAi } from "../lib/anthropic";
-import { PLAN_DEFINITIONS, ANSWER_MODE_DEFINITIONS, resolveAnswerCount, type AnswerMode } from "../lib/plans";
+import {
+  PLAN_DEFINITIONS,
+  ANSWER_MODE_DEFINITIONS,
+  FOCUS_MODE_DEFINITIONS,
+  resolveAnswerCount,
+  isFocusModeAllowed,
+  type AnswerMode,
+  type FocusMode,
+} from "../lib/plans";
 import { spendCredits } from "../lib/credits";
 import { findNearestBusinesses } from "../lib/businessLookup";
 import { resolveCapabilities } from "../lib/capabilities";
@@ -18,10 +29,20 @@ chatRouter.use(requireAuth);
 const sendMessageSchema = z.object({
   sessionId: z.string().uuid().optional(),
   text: z.string().min(1).max(4000),
-  kind: z.enum(["text", "voice_memo", "camera_ask", "who_is_lookup", "assistance_request"]).default("text"),
+  kind: z.enum(["text", "voice_memo", "camera_ask", "who_is_lookup", "assistance_request", "file_attachment"]).default("text"),
   requestedAnswerCount: z.number().int().min(1).max(6).optional(),
+  requestedFocusMode: z.enum(["quick", "build", "auto", "gorilla"]).optional(),
   imageBase64: z.string().optional(),
   imageMediaType: z.enum(["image/jpeg", "image/png", "image/webp"]).optional(),
+  attachment: z
+    .object({
+      url: z.string(),
+      filename: z.string(),
+      mimeType: z.string(),
+      sizeBytes: z.number(),
+      kind: z.enum(["image", "video", "file"]),
+    })
+    .optional(),
   businessCategory: z.string().optional(),
   userLat: z.number().optional(),
   userLng: z.number().optional(),
@@ -68,6 +89,19 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
     } as const;
   }
 
+  const focusMode: FocusMode = body.requestedFocusMode ?? (user.defaultFocusMode as FocusMode);
+  if (!isFocusModeAllowed(user.planTier, focusMode)) {
+    const required = FOCUS_MODE_DEFINITIONS[focusMode].minPlanTier;
+    return {
+      ok: false,
+      status: 403,
+      body: {
+        error: "focus_mode_not_allowed",
+        message: `${FOCUS_MODE_DEFINITIONS[focusMode].label} mode needs the ${required} plan or higher. Upgrade in Plans to use it.`,
+      },
+    } as const;
+  }
+
   let sessionId = body.sessionId;
   if (!sessionId) {
     const [session] = await db.insert(chatSessions).values({ userId, title: body.text.slice(0, 60) }).returning();
@@ -75,7 +109,8 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
     await recordSessionStart(userId);
   }
 
-  const spend = await spendCredits(db, userId, CENTS_PER_ANSWER_SET, `chat:${body.kind}`);
+  const creditCostCents = Math.round(CENTS_PER_ANSWER_SET * FOCUS_MODE_DEFINITIONS[focusMode].creditMultiplier);
+  const spend = await spendCredits(db, userId, creditCostCents, `chat:${body.kind}:${focusMode}`);
   if (!spend.allowed) {
     return {
       ok: false,
@@ -84,7 +119,13 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
     } as const;
   }
 
-  await db.insert(messages).values({ sessionId, role: "user", kind: body.kind, content: body.text });
+  await db.insert(messages).values({
+    sessionId,
+    role: "user",
+    kind: body.kind,
+    content: body.text,
+    metadata: body.attachment ?? null,
+  });
 
   const history = await db
     .select()
@@ -100,14 +141,45 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
   const plan = PLAN_DEFINITIONS[user.planTier];
   const answerCount = resolveAnswerCount(user.answerMode as AnswerMode, body.requestedAnswerCount);
 
-  let assistanceContext = "";
+  let extraContext = "";
   if (body.kind === "assistance_request" && body.businessCategory) {
     const nearby = await findNearestBusinesses(body.businessCategory, body.userLat ?? null, body.userLng ?? null);
     if (nearby.length) {
-      assistanceContext =
+      extraContext =
         "\n\n[Nearby options found by the app: " +
         nearby.map((b) => `${b.name}${b.distanceKm != null ? ` (${b.distanceKm.toFixed(1)}km away)` : ""}`).join(", ") +
         " — mention these by name and tell the user they can tap through for directions/call.]";
+    }
+  }
+
+  // Camera-ask sends the image inline as base64; a general file attachment
+  // (Chat's paperclip button) references an already-uploaded file instead.
+  // Real vision analysis for images in a format Claude's API accepts; video
+  // and unsupported image formats (e.g. HEIC) get an honest text note
+  // instead of a fake "I watched it" — the model genuinely cannot view those.
+  const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+  let attachmentImage: { data: string; mediaType: (typeof SUPPORTED_IMAGE_TYPES)[number] } | undefined;
+  if (body.imageBase64 && body.imageMediaType) {
+    attachmentImage = { data: body.imageBase64, mediaType: body.imageMediaType };
+  } else if (body.attachment) {
+    const { attachment } = body;
+    const isSupportedImage = attachment.kind === "image" && (SUPPORTED_IMAGE_TYPES as readonly string[]).includes(attachment.mimeType);
+    if (isSupportedImage) {
+      try {
+        const filePath = path.join(UPLOADS_DIR, path.basename(attachment.url));
+        const data = fs.readFileSync(filePath).toString("base64");
+        attachmentImage = { data, mediaType: attachment.mimeType as (typeof SUPPORTED_IMAGE_TYPES)[number] };
+      } catch {
+        extraContext += `\n\n[The user attached an image ("${attachment.filename}") but it couldn't be read — ask them to resend it.]`;
+      }
+    } else {
+      const sizeLabel = `${(attachment.sizeBytes / (1024 * 1024)).toFixed(1)}MB`;
+      extraContext +=
+        attachment.kind === "video"
+          ? `\n\n[The user attached a video ("${attachment.filename}", ${sizeLabel}). You cannot watch video — respond based on ` +
+            "what they tell you is in it, and say plainly that you can't view the video directly.]"
+          : `\n\n[The user attached a file ("${attachment.filename}", ${attachment.mimeType}, ${sizeLabel}) in a format you can't open ` +
+            "directly — respond based on what they describe, and say so plainly.]";
     }
   }
 
@@ -119,14 +191,15 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
     askParams: {
       plan,
       answerCount,
-      userMessage: body.text + assistanceContext,
-      imageBase64: body.imageBase64 && body.imageMediaType ? { data: body.imageBase64, mediaType: body.imageMediaType } : undefined,
+      userMessage: body.text + extraContext,
+      imageBase64: attachmentImage,
       history: orderedHistory,
       mode: (body.kind === "who_is_lookup" ? "who_is" : body.kind === "assistance_request" ? "assistance_request" : "chat") as
         | "chat"
         | "who_is"
         | "assistance_request",
       memoryContext,
+      focusMode,
     },
     finish: async (text: string) => {
       const [assistantMsg] = await db
@@ -137,7 +210,14 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       await recordUsageSeconds(userId, 15, pace);
       // Best-effort, fire-and-forget — never delay the reply on memory extraction.
       extractAndStoreMemory(userId, sessionId, body.text, text).catch(() => {});
-      return { assistantMsg, answerCount, creditBalanceAfterCents: spend.balanceAfterCents, usedGraceOverage: spend.usedGraceOverage };
+      return {
+        assistantMsg,
+        answerCount,
+        focusMode,
+        creditCostCents,
+        creditBalanceAfterCents: spend.balanceAfterCents,
+        usedGraceOverage: spend.usedGraceOverage,
+      };
     },
   } as const;
 }

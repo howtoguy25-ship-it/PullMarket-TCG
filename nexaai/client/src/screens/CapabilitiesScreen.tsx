@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { colors, radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 import { api } from "../lib/api";
 import { useAuth, type NexaCapabilities } from "../lib/AuthContext";
 
@@ -18,6 +19,7 @@ const CAPABILITY_ROWS: { key: keyof NexaCapabilities; label: string; description
 
 export function CapabilitiesScreen() {
   const { user, refreshUser } = useAuth();
+  const { palette } = useTheme();
   const navigation = useNavigation<any>();
   const [pending, setPending] = useState<string | null>(null);
 
@@ -61,7 +63,7 @@ export function CapabilitiesScreen() {
                 value={user.capabilities[row.key]}
                 disabled={pending === row.key}
                 onValueChange={() => toggleCapability(row.key)}
-                trackColor={{ true: colors.accent }}
+                trackColor={{ true: palette.accent }}
               />
             </View>
           ))}
@@ -74,7 +76,7 @@ export function CapabilitiesScreen() {
               <Text style={styles.rowLabel}>Generate memory from chats</Text>
               <Text style={styles.rowDescription}>Let NexaAi save durable facts (preferences, ongoing projects) from your conversations.</Text>
             </View>
-            <Switch value={user.memoryEnabled} disabled={pending === "memoryEnabled"} onValueChange={() => toggleMemorySetting("memoryEnabled")} trackColor={{ true: colors.accent }} />
+            <Switch value={user.memoryEnabled} disabled={pending === "memoryEnabled"} onValueChange={() => toggleMemorySetting("memoryEnabled")} trackColor={{ true: palette.accent }} />
           </View>
           <View style={[styles.row, styles.rowBorder]}>
             <View style={styles.rowText}>
@@ -85,7 +87,7 @@ export function CapabilitiesScreen() {
               value={user.referenceChatsEnabled}
               disabled={pending === "referenceChatsEnabled"}
               onValueChange={() => toggleMemorySetting("referenceChatsEnabled")}
-              trackColor={{ true: colors.accent }}
+              trackColor={{ true: palette.accent }}
             />
           </View>
           <View style={[styles.row, styles.rowBorder]}>
@@ -97,7 +99,7 @@ export function CapabilitiesScreen() {
               value={user.includeSensitiveInMemory}
               disabled={pending === "includeSensitiveInMemory"}
               onValueChange={() => toggleMemorySetting("includeSensitiveInMemory")}
-              trackColor={{ true: colors.accent }}
+              trackColor={{ true: palette.accent }}
             />
           </View>
           <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("MemoryFiles")}>

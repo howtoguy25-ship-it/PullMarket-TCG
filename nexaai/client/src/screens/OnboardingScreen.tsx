@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { BotAvatar } from "../components/BotAvatar";
 import { colors, radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 
@@ -54,6 +55,7 @@ function TypewriterText({ text, style }: { text: string; style: any }) {
 
 export function OnboardingScreen() {
   const { refreshUser } = useAuth();
+  const { palette } = useTheme();
   const [stepIndex, setStepIndex] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
   const step = STEPS[stepIndex];
@@ -82,7 +84,7 @@ export function OnboardingScreen() {
         <Animated.View style={[styles.content, { opacity: fade }]}>
           <BotAvatar size={120} mood="talking" />
           <View style={styles.bubble}>
-            <Ionicons name={step.icon} size={22} color={colors.accentBright} style={{ marginBottom: spacing.sm }} />
+            <Ionicons name={step.icon} size={22} color={palette.accentBright} style={{ marginBottom: spacing.sm }} />
             <Text style={styles.stepTitle}>{step.title}</Text>
             <TypewriterText text={step.body} style={styles.stepBody} />
           </View>
@@ -90,7 +92,7 @@ export function OnboardingScreen() {
 
         <View style={styles.dots}>
           {STEPS.map((_, i) => (
-            <View key={i} style={[styles.dot, i === stepIndex && styles.dotActive]} />
+            <View key={i} style={[styles.dot, i === stepIndex && { backgroundColor: palette.accentBright, width: 22 }]} />
           ))}
         </View>
 
@@ -102,7 +104,7 @@ export function OnboardingScreen() {
           ) : (
             <View style={{ flex: 1 }} />
           )}
-          <TouchableOpacity style={styles.primaryButton} onPress={() => (isLast ? finish() : animateTo(stepIndex + 1))}>
+          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: palette.accent }]} onPress={() => (isLast ? finish() : animateTo(stepIndex + 1))}>
             <Text style={styles.primaryButtonText}>{isLast ? "Let's go" : "Next"}</Text>
           </TouchableOpacity>
         </View>
@@ -121,9 +123,8 @@ const styles = StyleSheet.create({
   stepBody: { ...typography.body, color: colors.textSecondary, minHeight: 66 },
   dots: { flexDirection: "row", justifyContent: "center", gap: spacing.sm, marginBottom: spacing.lg },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.bgCardAlt },
-  dotActive: { backgroundColor: colors.accentBright, width: 22 },
   footer: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  primaryButton: { flex: 1, backgroundColor: colors.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  primaryButton: { flex: 1, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
   primaryButtonText: { color: "#fff", fontWeight: "700" },
   secondaryButton: { flex: 1, backgroundColor: colors.bgCard, borderRadius: radii.md, padding: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.border },
   secondaryButtonText: { color: colors.textSecondary, fontWeight: "700" },

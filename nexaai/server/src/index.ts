@@ -10,6 +10,7 @@ import { agentsRouter } from "./routes/agents";
 import { businessesRouter } from "./routes/businesses";
 import { memoryRouter } from "./routes/memory";
 import { connectorsRouter } from "./routes/connectors";
+import { attachmentsRouter, UPLOADS_DIR } from "./routes/attachments";
 import { paddleWebhookRouter } from "./routes/webhooks/paddle";
 import { googleConnectorCallbackRouter } from "./lib/connectors/google";
 import { isChatConfigured } from "./lib/anthropic";
@@ -39,11 +40,18 @@ app.use("/api/agents", agentsRouter);
 app.use("/api/businesses", businessesRouter);
 app.use("/api/memory", memoryRouter);
 app.use("/api/connectors", connectorsRouter);
+app.use("/api/attachments", attachmentsRouter);
 app.use("/api/webhooks/paddle", paddleWebhookRouter);
 app.use("/api/connectors/google/callback", googleConnectorCallbackRouter);
 
 // The website (credits top-up + settings) is a small static site — see nexaai/website.
 app.use("/account", express.static(path.join(__dirname, "../../website")));
+
+// Uploaded photos/videos/files (see routes/attachments.ts) — served straight
+// off local disk. NOTE: on most hosts (Render, Railway, etc.) this directory
+// is wiped on every deploy/restart unless it's a persistent volume — same
+// caveat as the root PullMarket TCG app's own /uploads, see its README.
+app.use("/uploads", express.static(UPLOADS_DIR));
 
 if (process.env.NODE_ENV === "production") {
   const webBuildDir = path.join(__dirname, "../../web-build");

@@ -73,6 +73,9 @@ const settingsSchema = z.object({
   memoryEnabled: z.boolean().optional(),
   referenceChatsEnabled: z.boolean().optional(),
   includeSensitiveInMemory: z.boolean().optional(),
+  fontChoice: z.enum(["inter", "fraunces", "space_grotesk"]).optional(),
+  themeId: z.enum(["galaxy_violet", "nebula_rose", "deep_ocean", "solar_amber"]).optional(),
+  defaultFocusMode: z.enum(["quick", "build", "auto", "gorilla"]).optional(),
 });
 authRouter.patch("/settings", requireAuth, async (req: AuthedRequest, res) => {
   const parsed = settingsSchema.safeParse(req.body);

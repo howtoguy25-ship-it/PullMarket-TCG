@@ -24,6 +24,7 @@ export const messageKindEnum = pgEnum("message_kind", [
   "camera_ask",
   "who_is_lookup",
   "assistance_request",
+  "file_attachment",
 ]);
 export const creditTxnKindEnum = pgEnum("credit_txn_kind", [
   "purchase",
@@ -50,9 +51,23 @@ export const connectorProviderEnum = pgEnum("connector_provider", [
 ]);
 export const connectorStatusEnum = pgEnum("connector_status", ["disconnected", "connected", "not_configured"]);
 
+// Font + background theme pickers (Settings -> Appearance). Values are
+// enforced at the DB level so a bad client can't write a font/theme id
+// nothing recognizes.
+export const fontChoiceEnum = pgEnum("font_choice", ["inter", "fraunces", "space_grotesk"]);
+export const themeIdEnum = pgEnum("theme_id", ["galaxy_violet", "nebula_rose", "deep_ocean", "solar_amber"]);
+
+// Focus/power modes — how hard NexaAi tries, and how much credit that costs.
+// See lib/plans.ts's FOCUS_MODE_DEFINITIONS for the real model/thinking-budget
+// mapping and lib/plans.ts's FOCUS_MODE_MIN_TIER for plan-tier gating.
+export const focusModeEnum = pgEnum("focus_mode", ["quick", "build", "auto", "gorilla"]);
+
 export type AgentKind = (typeof agentKindEnum.enumValues)[number];
 export type MapsAppKind = (typeof mapsAppEnum.enumValues)[number];
 export type ConnectorProvider = (typeof connectorProviderEnum.enumValues)[number];
+export type FontChoice = (typeof fontChoiceEnum.enumValues)[number];
+export type ThemeId = (typeof themeIdEnum.enumValues)[number];
+export type FocusMode = (typeof focusModeEnum.enumValues)[number];
 
 // The real, toggleable features on the "Capabilities" screen — each one
 // gates an actual code path server-side (see middleware/capabilities.ts),
@@ -115,6 +130,14 @@ export const users = pgTable("nexaai_users", {
   includeSensitiveInMemory: boolean("include_sensitive_in_memory").notNull().default(false),
 
   onboardingCompletedAt: timestamp("onboarding_completed_at"),
+
+  // Appearance
+  fontChoice: fontChoiceEnum("font_choice").notNull().default("inter"),
+  themeId: themeIdEnum("theme_id").notNull().default("galaxy_violet"),
+
+  // Default focus/power mode for new messages (per-message override is
+  // still allowed — see chat.ts's requestedFocusMode).
+  defaultFocusMode: focusModeEnum("default_focus_mode").notNull().default("quick"),
 
   timezone: text("timezone").notNull().default("Australia/Sydney"),
 });

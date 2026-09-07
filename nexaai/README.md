@@ -64,6 +64,20 @@ website/   Small static site for account/credits/settings (no chat here — see 
   end-to-end with a real OAuth 2.0 Authorization Code flow (Calendar read access); Notion/Slack/Instagram/WhatsApp
   are real UI rows that honestly report "not set up yet" with exactly which env vars an admin needs to add, the same
   pattern as this README's Paddle/Apple IAP sections.
+- **3 real fonts, pickable** (Settings → Appearance): Inter (clean/modern), Fraunces (fancy/editorial, the closest
+  free equivalent to Claude's own serif prose font), and Space Grotesk (techy). Switching applies instantly across
+  the whole app — see "How the font switch works" below for the real mechanism and its one honest limitation.
+- **4 real switchable background themes** (Settings → Appearance): Galaxy Violet, Nebula Rose, Deep Ocean, Solar
+  Amber. Only the background gradient and accent color change between them — card surfaces, borders, and text stay
+  the exact same shade in every theme, so contrast against text is guaranteed rather than something to hope a
+  themed palette got right.
+- **Focus/power modes** (the chip row next to the answer-count toggle in Chat): Quick, Build, Auto, and Gorilla.
+  Each one is real, not a label — see "Focus/power modes" below for exactly what each does to the actual Claude API
+  call and its credit cost.
+- **Real file/photo/video attachments** (the paperclip button in Chat): picks a photo/video from the library or any
+  file, uploads it with real multipart streaming (not a giant base64 JSON blob), and — for images in a format
+  Claude's vision API accepts — actually analyzes it, the same as camera-ask. See "Attachments & the 30GB question"
+  below for the honest limits on video and very large files.
 
 ## Real, but needs your own credentials to go fully live
 
@@ -147,6 +161,54 @@ explicit, documented rule: round the moment credits/time ran out up to the next 
 30-minute slot if usage was paced smoothly, or a full extra hour if messages were fired back-to-back ("forced"). The
 weekly cap always resets Monday 05:00 **Australia/Sydney** time for every user, worldwide, per the spec.
 
+## How the font switch works
+
+`client/src/lib/globalFont.ts` overrides `Text`/`TextInput`'s `defaultProps.style` — the same technique the
+`react-native-global-props` package uses — instead of threading a font prop through every screen's `StyleSheet`.
+That works because none of this app's styles set `fontFamily` explicitly, so the default always wins at the lowest
+priority. The one honest limitation: each Google Font weight ships as its own distinct font family (`Inter_700Bold`
+is not "Inter" + bold), so an existing style's numeric `fontWeight` can't perfectly re-synthesize a different weight
+of a custom family the way it does for a system font — headings still read as bold on most platforms via partial
+synthetic boldening, just not pixel-identical to a dedicated Bold cut.
+
+## Focus/power modes
+
+A second axis on top of the plan tier (`server/src/lib/plans.ts`'s `FOCUS_MODE_DEFINITIONS`). The plan tier picks
+which Claude model answers you; the focus mode picks how hard it tries on *this* message, using Claude's real
+`thinking` parameter (extended thinking with an actual token budget, not a cosmetic setting) plus a real credit-cost
+multiplier:
+
+| Mode | For | Min plan | Thinking budget | Credit cost |
+|---|---|---|---|---|
+| Quick | Fast everyday edits & tasks | Beginner | — | 1x |
+| Build | Complex, multi-step builds | Beginner | 4,000 tokens | 1.5x |
+| Auto | Autonomous tasks & builds | Pro | 8,000 tokens | 2.5x |
+| Gorilla | Maximum power | Max | 16,000 tokens | 4x |
+
+Locked modes show a real upgrade prompt (with a "See plans" button) rather than silently downgrading. "Auto" mode's
+system-prompt addendum is honest with the model itself: it instructs Claude to deliver a complete result in one
+turn rather than stalling on clarifying questions, but it explicitly is **not** a sandboxed multi-step execution
+loop that can actually run code or click through steps unattended — that would be a materially different, much
+larger project (a real code-execution sandbox with its own security model).
+
+## Attachments & the 30GB question
+
+The paperclip button in Chat uploads through `server/src/routes/attachments.ts`, which streams the multipart body
+straight to disk via `multer` (never buffers the whole file in memory) — this is a real difference from camera-ask's
+inline base64-in-JSON approach, and it's what makes genuinely large files possible at all.
+
+Two honest limits, stated plainly rather than silently capped:
+- **A single HTTP request moving tens of gigabytes over a mobile connection isn't realistic**, independent of any
+  server code — a dropped connection restarts the whole upload from zero. A real "up to 30GB" experience needs a
+  resumable/chunked upload protocol (e.g. [tus](https://tus.io)), which this endpoint does not implement. `MAX_UPLOAD_BYTES`
+  (`.env.example`) defaults to a real, useful 2GB; raise it if your hosting's disk/bandwidth budget supports more,
+  but treat anything past a few GB in one request as fragile until a resumable uploader replaces this endpoint.
+- **NexaAi cannot watch video.** There is no video-understanding step here or in the Claude API this app calls — an
+  attached video is stored and shown in the chat like any other attachment, and the model is told plainly that it
+  can't view it directly, so it answers based on what the user describes instead of pretending to have watched it.
+  Images in a format Claude's vision API accepts (JPEG/PNG/WebP/GIF) get real analysis; unsupported formats (e.g.
+  HEIC) get the same honest "can't open this" note as video.
+
 ## Local development
 
 ```bash
@@ -165,3 +227,7 @@ same API process at `/account` (e.g. `http://localhost:5060/account/index.html`)
 
 Same shape as the root app: build command `npm run web:build && npm run server:build`, pre-deploy command
 `npm run db:push`, start command `npm run server:start`. Set every env var from `.env.example` on your host.
+
+Uploaded attachments live in `nexaai/uploads/` on local disk by default — same caveat as the root PullMarket TCG
+app's own `/uploads`: most hosts (Render, Railway, etc.) wipe this on every deploy/restart unless it's a persistent
+volume. Point it at S3-compatible object storage for anything beyond local testing.

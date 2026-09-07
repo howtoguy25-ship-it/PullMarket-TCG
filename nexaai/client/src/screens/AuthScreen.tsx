@@ -3,11 +3,13 @@ import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View 
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { BotAvatar } from "../components/BotAvatar";
 import { colors, radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 import { useAuth } from "../lib/AuthContext";
 import { ApiError } from "../lib/api";
 
 export function AuthScreen() {
   const { login, signup } = useAuth();
+  const { palette } = useTheme();
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -67,12 +69,12 @@ export function AuthScreen() {
 
         {error && <Text style={styles.error}>{error}</Text>}
 
-        <TouchableOpacity style={styles.button} onPress={submit} disabled={busy}>
+        <TouchableOpacity style={[styles.button, { backgroundColor: palette.accent }]} onPress={submit} disabled={busy}>
           {busy ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>{mode === "signup" ? "Start my 2-day free trial" : "Log in"}</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => setMode(mode === "signup" ? "login" : "signup")}>
-          <Text style={styles.switchText}>{mode === "signup" ? "Already have an account? Log in" : "New here? Create an account"}</Text>
+          <Text style={[styles.switchText, { color: palette.accentBright }]}>{mode === "signup" ? "Already have an account? Log in" : "New here? Create an account"}</Text>
         </TouchableOpacity>
       </View>
     </GalaxyBackground>
@@ -92,8 +94,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     color: colors.textPrimary,
   },
-  button: { width: "100%", backgroundColor: colors.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center", marginTop: spacing.sm },
+  button: { width: "100%", borderRadius: radii.md, padding: spacing.md, alignItems: "center", marginTop: spacing.sm },
   buttonText: { color: "#fff", fontWeight: "700" },
-  switchText: { color: colors.accentBright, marginTop: spacing.sm },
+  switchText: { marginTop: spacing.sm },
   error: { color: colors.danger, textAlign: "center" },
 });

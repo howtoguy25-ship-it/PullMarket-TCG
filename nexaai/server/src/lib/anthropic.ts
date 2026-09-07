@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { PlanDefinition } from "./plans";
+import type { PlanDefinition, FocusMode } from "./plans";
+import { FOCUS_MODE_DEFINITIONS } from "./plans";
 
 let client: Anthropic | null = null;
 function getClient(): Anthropic | null {
@@ -16,11 +17,12 @@ export interface AskParams {
   plan: PlanDefinition;
   answerCount: number;
   userMessage: string;
-  imageBase64?: { data: string; mediaType: "image/jpeg" | "image/png" | "image/webp" };
+  imageBase64?: { data: string; mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif" };
   history: Array<{ role: "user" | "assistant"; content: string }>;
   mode: "chat" | "who_is" | "assistance_request";
   /** Formatted memory-recall block from lib/memory.ts's getMemoryContext, or "" if memory/reference is off. */
   memoryContext?: string;
+  focusMode: FocusMode;
 }
 
 export interface AskResult {
@@ -56,6 +58,7 @@ function buildSystemPrompt(params: AskParams): string {
   return (
     BASE_PERSONA.replace("{{ANSWER_COUNT}}", String(params.answerCount)) +
     MODE_ADDENDUM[params.mode] +
+    FOCUS_MODE_DEFINITIONS[params.focusMode].promptAddendum +
     (params.memoryContext ?? "")
   );
 }
@@ -73,9 +76,20 @@ function buildMessagesRequest(params: AskParams) {
       ]
     : params.userMessage;
 
+  const focus = FOCUS_MODE_DEFINITIONS[params.focusMode];
+  // Real extended-thinking budget (Anthropic's actual `thinking` param, not
+  // a cosmetic setting) — the plan tier's own baseline still applies if the
+  // focus mode doesn't force a bigger one (e.g. Max's extendedThinking flag
+  // with no explicit budget below falls back to a sensible default).
+  const budgetTokens = focus.thinkingBudgetTokens ?? (params.plan.extendedThinking ? 2000 : null);
+  // The API requires max_tokens to exceed the thinking budget, since the
+  // budget is drawn from the same token allowance as the visible output.
+  const maxTokens = budgetTokens ? Math.max(params.plan.maxOutputTokens, budgetTokens + 1024) : params.plan.maxOutputTokens;
+
   return {
     model: params.plan.model,
-    max_tokens: params.plan.maxOutputTokens,
+    max_tokens: maxTokens,
+    ...(budgetTokens ? { thinking: { type: "enabled" as const, budget_tokens: budgetTokens } } : {}),
     system: buildSystemPrompt(params),
     messages: [
       ...params.history.map((m) => ({ role: m.role, content: m.content })),

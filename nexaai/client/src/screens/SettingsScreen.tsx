@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { colors, radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 import { useAuth } from "../lib/AuthContext";
 import { api } from "../lib/api";
 import { VOICE_CHARACTERS, speak } from "../lib/voice";
@@ -17,6 +18,7 @@ const MAPS_OPTIONS: { id: MapsApp; label: string }[] = [
 
 export function SettingsScreen() {
   const { user, logout, refreshUser } = useAuth();
+  const { palette } = useTheme();
   const navigation = useNavigation<any>();
   const [proactive, setProactive] = useState(user?.proactiveCheckInEnabled ?? true);
 
@@ -50,7 +52,7 @@ export function SettingsScreen() {
               <Text style={styles.rowLabel}>
                 {c.displayName} · {c.gender}, {c.tone}
               </Text>
-              {user.voiceCharacterId === c.id && <Text style={styles.checkmark}>✓</Text>}
+              {user.voiceCharacterId === c.id && <Text style={[styles.checkmark, { color: palette.accentBright }]}>✓</Text>}
             </TouchableOpacity>
           ))}
         </Section>
@@ -63,12 +65,16 @@ export function SettingsScreen() {
               onPress={() => patch({ preferredMapsApp: m.id })}
             >
               <Text style={styles.rowLabel}>{m.label}</Text>
-              {user.preferredMapsApp === m.id && <Text style={styles.checkmark}>✓</Text>}
+              {user.preferredMapsApp === m.id && <Text style={[styles.checkmark, { color: palette.accentBright }]}>✓</Text>}
             </TouchableOpacity>
           ))}
         </Section>
 
         <Section title="Access & control">
+          <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("Appearance")}>
+            <Text style={styles.rowLabel}>Appearance</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
           <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("Permissions")}>
             <Text style={styles.rowLabel}>Permissions</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
@@ -94,7 +100,7 @@ export function SettingsScreen() {
                 you a push notification check-in; it does not watch you through the camera.
               </Text>
             </View>
-            <Switch value={proactive} onValueChange={toggleProactive} trackColor={{ true: colors.accent }} />
+            <Switch value={proactive} onValueChange={toggleProactive} trackColor={{ true: palette.accent }} />
           </View>
         </Section>
 
@@ -125,7 +131,7 @@ const styles = StyleSheet.create({
   rowActive: { backgroundColor: colors.bgCardAlt },
   rowLabel: { ...typography.body, color: colors.textPrimary },
   rowValue: { ...typography.caption, color: colors.textMuted },
-  checkmark: { color: colors.accentBright, fontWeight: "700" },
+  checkmark: { fontWeight: "700" },
   disclaimer: { ...typography.caption, color: colors.textMuted, marginTop: 4, maxWidth: 260 },
   logoutButton: { alignItems: "center", padding: spacing.md },
   logoutText: { color: colors.danger, fontWeight: "700" },
