@@ -23,6 +23,7 @@ import { ThinkingIndicator } from "../components/ThinkingIndicator";
 import { AnswerModeToggle, type AnswerMode } from "../components/AnswerModeToggle";
 import { FocusModeSelector, type FocusMode } from "../components/FocusModeSelector";
 import { UsageBanner } from "../components/UsageBanner";
+import { ChatSideMenu, type ChatSessionSummary } from "../components/ChatSideMenu";
 import { colors, radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
 import { api, streamChatMessage, ApiError } from "../lib/api";
@@ -53,7 +54,32 @@ export function ChatScreen() {
   const [uploading, setUploading] = useState(false);
   const [whoIsMode, setWhoIsMode] = useState(false);
   const [pendingKind, setPendingKind] = useState<ChatKind>("text");
+  const [sideMenuOpen, setSideMenuOpen] = useState(false);
+  const [loadingSession, setLoadingSession] = useState(false);
   const lastMessageAt = useRef(Date.now());
+
+  const startNewChat = () => {
+    setSessionId(undefined);
+    setMessages([]);
+    setStreamingMessageId(null);
+    setInput("");
+    setWhoIsMode(false);
+    setLimitBanner(null);
+  };
+
+  const openSession = async (session: ChatSessionSummary) => {
+    setLoadingSession(true);
+    setStreamingMessageId(null);
+    setWhoIsMode(false);
+    setLimitBanner(null);
+    try {
+      const { messages: history } = await api<{ messages: ChatMessageVM[] }>(`/api/chat/sessions/${session.id}/messages`);
+      setSessionId(session.id);
+      setMessages(history);
+    } finally {
+      setLoadingSession(false);
+    }
+  };
 
   const changeAnswerMode = async (mode: AnswerMode) => {
     setAnswerMode(mode);
@@ -228,6 +254,9 @@ export function ChatScreen() {
     <GalaxyBackground>
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.header}>
+          <TouchableOpacity testID="chat-side-menu-button" onPress={() => setSideMenuOpen(true)}>
+            <Ionicons name="menu" size={24} color={colors.textPrimary} />
+          </TouchableOpacity>
           <BotAvatar size={36} mood={botMood} />
           <View style={styles.headerText}>
             <Text style={styles.headerTitle}>NexaAi</Text>
@@ -236,6 +265,20 @@ export function ChatScreen() {
             )}
           </View>
         </View>
+
+        <ChatSideMenu
+          visible={sideMenuOpen}
+          onClose={() => setSideMenuOpen(false)}
+          activeSessionId={sessionId}
+          onNewChat={startNewChat}
+          onSelectSession={openSession}
+        />
+
+        {loadingSession && (
+          <View style={styles.sessionLoadingOverlay}>
+            <ActivityIndicator color={palette.accentBright} />
+          </View>
+        )}
 
         <View style={styles.toolbar}>
           <AnswerModeToggle value={answerMode} onChange={changeAnswerMode} />
@@ -311,6 +354,7 @@ export function ChatScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
+  sessionLoadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(5,4,15,0.55)" },
   header: {
     flexDirection: "row",
     alignItems: "center",
