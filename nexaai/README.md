@@ -25,16 +25,22 @@ website/   Small static site for account/credits/settings (no chat here — see 
   walkthrough (real typewriter-style text reveal) the first time a new account opens the app
 - Real-time chat with NexaAi (a custom SVG-drawn bot character, not a stock asset) backed by the real Anthropic
   Claude API, streamed token-by-token over Server-Sent Events (Anthropic's real streaming API, not a client-side
-  reveal effect) — text in, formatted answer out (bold headings, numbered steps, image-hint callouts), with an
-  animated "thinking… tinkering… gathering info…" state while waiting
+  reveal effect) — text in, a genuinely **structured** answer out: every approach is broken down into the same
+  labeled parts every time (Title, Description, Image findings when a photo's attached, Reasoning, then Steps) —
+  see "The hybrid model architecture" below for why this exact structure is also what the self-hosted Llama model
+  is being trained to reproduce, with an animated "thinking… tinkering… gathering info…" state while waiting
 - A bot avatar that actually talks: its mouth opens/closes in an irregular loop while tokens are streaming in, and
   again while `expo-speech`'s own playback callbacks confirm audio is actually sounding out — not a decorative loop
   that runs regardless of state
 - Answer-count toggle: 1 ("strong, straight to the point"), 2 ("extra info"), or 3 (normal) answers per question —
   and if you explicitly ask for a specific number in the message itself, that overrides the toggle for that message
 - Camera "ask about this photo": snap a photo, ask a question, the photo + question go to Claude together
-- Voice memo recording (real audio capture via `expo-av`) with an edit-before-send step
+- Voice memo recording (real audio capture via `expo-av`), **really transcribed** server-side (OpenAI Whisper — see
+  "Real voice chat" below) with an edit-before-send step
 - On-device text-to-speech playback of NexaAi's replies, with 4 switchable voice characters (gender + tone presets)
+- **Real live voice chat** (the Voice tab): an actual spoken back-and-forth conversation with NexaAi — record,
+  real transcription, a real answer, real spoken reply audio, saved turn-by-turn as a "live memo" you can revisit.
+  See "Real voice chat & the Gemini speed lane" below for exactly how it works and its one honest limitation.
 - Three plan tiers (Beginner/Pro/Max), each backed by a real, different model — not a fake label. Pro/Max call the
   real Anthropic API (Max gets a stronger model, a bigger thinking budget, more output tokens). **Beginner runs on
   your own self-hosted fine-tuned Llama model** (see "The hybrid model architecture" below) — this caps the
@@ -56,9 +62,9 @@ website/   Small static site for account/credits/settings (no chat here — see 
   Calendar, and (iOS) Reminders, using each platform's actual permission API. Toggling on requests it for real;
   toggling off an already-granted permission opens the system Settings app, since no app can revoke its own
   permission grant — only iOS/Android can do that.
-- **Capabilities screen** (Settings → Capabilities & memory): six real feature toggles (camera-ask, nearest-business
-  lookup, who-is lookups, agent builder, auto-speak, live typing) that are enforced **server-side** — turning one off
-  makes the matching API endpoint refuse the request with a clear message, not just hide a button.
+- **Capabilities screen** (Settings → Capabilities & memory): seven real feature toggles (camera-ask, nearest-business
+  lookup, who-is lookups, agent builder, auto-speak, live typing, voice chat) that are enforced **server-side** —
+  turning one off makes the matching API endpoint refuse the request with a clear message, not just hide a button.
 - **Real memory core**: after each turn, a cheap/fast Claude call decides whether anything durable and safe is worth
   remembering (a preference, an ongoing project) and saves it — gated by the "Generate memory from chats" toggle, with
   a separate "Reference past chats" toggle for whether saved memory is read back into future conversations, and an
@@ -113,6 +119,11 @@ website/   Small static site for account/credits/settings (no chat here — see 
   OAuth wired up yet (Google/Instagram/WhatsApp do).
 - **Your self-hosted model** (Beginner tier): set `SELF_HOSTED_MODEL_BASE_URL` to your deployed vLLM endpoint — see
   "The hybrid model architecture" below and `finetune/RUNPOD_SETUP.md` for training + deploying it.
+- **Gemini speed lane** (voice chat's fast-reasoning step): sign up at aistudio.google.com, set `GEMINI_API_KEY`.
+  Without it, voice chat still works end-to-end — it just falls back to your plan tier's own model, which is slower.
+- **OpenAI (Whisper + TTS)** — real voice chat's actual speech-to-text and text-to-speech: sign up at platform.openai.com,
+  set `OPENAI_API_KEY`. Without it, both the Voice tab and the Chat screen's voice-memo transcription return a clear
+  "not configured" error instead of a fake transcript.
 
 ## What's intentionally stubbed, and why
 
@@ -238,9 +249,54 @@ Two things `modelRouter.ts` handles honestly rather than silently:
   the model (and, in its reply, the user) that image analysis needs Pro/Max.
 
 The exact same system prompt (`shared/src/nexaPersona.ts`) is used both when generating fine-tuning data
-(`finetune/generateSyntheticData.ts`) and at inference time (`lib/anthropic.ts`, `lib/selfHostedModel.ts`) — kept
-as one shared module specifically so the two can't drift out of sync, since a fine-tuned model's quality depends
-on being prompted the same way it was trained.
+(`finetune/generateSyntheticData.ts`) and at inference time (`lib/anthropic.ts`, `lib/selfHostedModel.ts`,
+`lib/geminiModel.ts`) — kept as one shared module specifically so the two can't drift out of sync, since a
+fine-tuned model's quality depends on being prompted the same way it was trained.
+
+**The structured breakdown format** is the concrete answer to "understand information better than any other app" —
+not a vibe, a real, enforced output shape. `buildNexaSystemPrompt` in `nexaPersona.ts` requires every text answer to
+break each approach into the same five labeled parts, every time: **Title**, **Description**, **Image findings**
+(only when a photo was actually attached — never invented), **Reasoning** (the numbered "why" that comes before the
+steps), then **Steps**. Because this lives in the one shared prompt module, it's already real and in effect for
+every provider today (Claude and self-hosted Llama alike); it's also exactly what future fine-tuning runs
+(`finetune/`) will train the self-hosted model to reproduce on its own without needing the instruction spelled out
+in the prompt every time — that's the actual, buildable version of "train it to be better than any other app at
+this," as opposed to a vague claim that more GPU time makes it smarter than Claude/GPT-5 in general (see the
+budget breakdown in `finetune/README.md` for why that specific claim doesn't hold up).
+
+## Real voice chat & the Gemini speed lane
+
+The Voice tab is a genuine spoken back-and-forth with NexaAi, not the voice-memo-then-type flow in Chat. Each turn
+(`server/src/routes/voice.ts`) does four real steps in sequence:
+
+1. **Record** — `expo-av` captures the user's speech on-device.
+2. **Transcribe** — the recording uploads to the server and OpenAI's Whisper API (`lib/voice/speechToText.ts`)
+   transcribes it. This is also what now powers Chat's own voice-memo transcription (`client/src/lib/voice.ts`'s
+   `transcribeVoiceMemo`, previously a stub that threw because on-device STT needs a native EAS build) — doing it
+   server-side sidesteps that limitation entirely.
+3. **Reason** — the transcript is answered using NexaAi's "voice" prompt mode (plain spoken language, no markdown,
+   one direct answer instead of several compared approaches — see `nexaPersona.ts`). This step runs on **Gemini**
+   (`lib/geminiModel.ts`), the app's "speed lane": per the explicit decision behind this feature, Gemini is scoped
+   to fast/voice/multimodal work only, not a second selectable chat provider — Claude stays the sole premium text
+   model for Pro/Max. If `GEMINI_API_KEY` isn't set, this step transparently falls back to the user's own plan-tier
+   model (self-hosted Llama or Claude, via the same `modelRouter.ts` chat uses) so voice chat still works end to
+   end, just slower.
+4. **Speak** — the reply text is synthesized to real audio via OpenAI's TTS API (`lib/voice/textToSpeech.ts`,
+   mapped from the user's chosen voice character) and played back on-device.
+
+Every turn is saved as a real "live memo" row (`voiceTurns` in the schema) — transcript, reply text, and reply
+audio URL — so a past conversation has an actual record to revisit, not audio that's gone once it's played.
+
+**The one honest limitation:** this is a turn-based pipeline (record → transcribe → think → speak), not full-duplex
+streaming. You get real control over every stage — which model reasons, which voice speaks, what the prompt says —
+which is exactly what "DIY" was chosen for, but you don't get the seamless "interrupt it mid-sentence" feel of a
+sealed product like OpenAI's Realtime API or Gemini's Live API. There's also no live word-by-word caption while
+you're still talking (that needs a streaming STT connection with partial results) — instead the Voice screen shows
+real, distinct progress states per turn (listening → transcribing → thinking → speaking), which is an honest
+approximation of "second by second" rather than the literal thing.
+
+Without `OPENAI_API_KEY` set, both the transcribe and speak steps return a clear "not configured" error — voice
+chat won't pretend to work with fake transcripts or silent replies.
 
 ## The agent builder's live-send capability
 

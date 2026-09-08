@@ -13,6 +13,7 @@ const CAPABILITY_ROWS: { key: keyof NexaCapabilities; label: string; description
   { key: "webLookup", label: "Find nearest assistance", description: "Look up the closest matching business for a real-world problem." },
   { key: "whoIsLookup", label: "“Who is…” lookups", description: "Answer public-figure questions from training knowledge." },
   { key: "agentBuilder", label: "Agent builder", description: "Build and test custom auto-reply agents." },
+  { key: "voiceChat", label: "Voice chat", description: "Talk to NexaAi out loud with real transcription and spoken replies." },
   { key: "autoSpeak", label: "Auto-speak replies", description: "Read NexaAi's answers out loud automatically." },
   { key: "liveTyping", label: "Live typing", description: "Stream answers token-by-token instead of all at once." },
 ];

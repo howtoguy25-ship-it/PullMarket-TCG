@@ -209,16 +209,11 @@ export function ChatScreen() {
     try {
       const transcript = await transcribeVoiceMemo(uri);
       setInput(transcript); // pre-filled so the user can edit before sending, per spec
-    } catch {
+    } catch (err) {
+      const detail = err instanceof ApiError ? err.message : "Couldn't reach the transcription service — check your connection and try again.";
       setMessages((prev) => [
         ...prev,
-        {
-          id: `stt-note-${Date.now()}`,
-          role: "assistant",
-          content:
-            "_Voice memo recorded._\n\n**Transcription isn't wired up yet**\nOn-device speech-to-text needs a native build " +
-            "(see client/src/lib/voice.ts). Type out what you said below and edit it before sending.",
-        },
+        { id: `stt-note-${Date.now()}`, role: "assistant", content: `_Voice memo recorded._\n\n**Couldn't transcribe it**\n${detail}` },
       ]);
     }
   };

@@ -10,6 +10,7 @@ import { AuthScreen } from "../screens/AuthScreen";
 import { OnboardingScreen } from "../screens/OnboardingScreen";
 import { ChatScreen } from "../screens/ChatScreen";
 import { CameraAskScreen } from "../screens/CameraAskScreen";
+import { VoiceChatScreen } from "../screens/VoiceChatScreen";
 import { PlansScreen } from "../screens/PlansScreen";
 import { CreditsScreen } from "../screens/CreditsScreen";
 import { AgentBuilderScreen } from "../screens/AgentBuilderScreen";
@@ -27,6 +28,7 @@ const HomeStack = createNativeStackNavigator();
 const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Chat: "chatbubble-ellipses",
   Camera: "camera",
+  Voice: "call",
   Plans: "flash",
   Credits: "wallet",
   Agents: "hardware-chip",
@@ -48,6 +50,7 @@ function MainTabs() {
     >
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Camera" component={CameraAskScreen} options={{ title: "Ask with camera" }} />
+      <Tab.Screen name="Voice" component={VoiceChatScreen} options={{ title: "Voice chat" }} />
       <Tab.Screen name="Plans" component={PlansScreen} />
       <Tab.Screen name="Credits" component={CreditsScreen} />
       <Tab.Screen name="Agents" component={AgentBuilderScreen} options={{ title: "My agents" }} />

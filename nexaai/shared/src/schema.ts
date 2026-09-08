@@ -79,6 +79,7 @@ export interface NexaCapabilities {
   agentBuilder: boolean;
   autoSpeak: boolean;
   liveTyping: boolean;
+  voiceChat: boolean;
 }
 
 export const DEFAULT_CAPABILITIES: NexaCapabilities = {
@@ -88,6 +89,7 @@ export const DEFAULT_CAPABILITIES: NexaCapabilities = {
   agentBuilder: true,
   autoSpeak: true,
   liveTyping: true,
+  voiceChat: true,
 };
 
 // ---------------------------------------------------------------------------
@@ -149,6 +151,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   usageWindows: many(usageWindows),
   memoryEntries: many(memoryEntries),
   connectors: many(connectors),
+  voiceConversations: many(voiceConversations),
 }));
 
 // ---------------------------------------------------------------------------
@@ -365,4 +368,43 @@ export const agentPendingDrafts = pgTable("nexaai_agent_pending_drafts", {
 export const agentPendingDraftsRelations = relations(agentPendingDrafts, ({ one }) => ({
   agent: one(agents, { fields: [agentPendingDrafts.agentId], references: [agents.id] }),
   user: one(users, { fields: [agentPendingDrafts.userId], references: [users.id] }),
+}));
+
+// ---------------------------------------------------------------------------
+// Live voice chat — a real conversation (see routes/voice.ts) made of turns:
+// the user records audio, it's transcribed (OpenAI Whisper), answered (the
+// Gemini speed lane, or a plan-tier fallback), and spoken back (OpenAI TTS).
+// Each turn is persisted as a real "live memo" — the running transcript +
+// reply record the Voice screen renders, not audio that vanishes on playback.
+// ---------------------------------------------------------------------------
+
+export const voiceConversations = pgTable("nexaai_voice_conversations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull().default("Voice chat"),
+  startedAt: timestamp("started_at").notNull().defaultNow(),
+  endedAt: timestamp("ended_at"),
+});
+
+export const voiceConversationsRelations = relations(voiceConversations, ({ one, many }) => ({
+  user: one(users, { fields: [voiceConversations.userId], references: [users.id] }),
+  turns: many(voiceTurns),
+}));
+
+export const voiceTurns = pgTable("nexaai_voice_turns", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id").notNull().references(() => voiceConversations.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  incomingAudioUrl: text("incoming_audio_url").notNull(),
+  transcript: text("transcript").notNull(),
+  replyText: text("reply_text").notNull(),
+  // Null when text-to-speech isn't configured (OPENAI_API_KEY unset) — the
+  // turn still completes with a real text reply, just without spoken audio.
+  replyAudioUrl: text("reply_audio_url"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const voiceTurnsRelations = relations(voiceTurns, ({ one }) => ({
+  conversation: one(voiceConversations, { fields: [voiceTurns.conversationId], references: [voiceConversations.id] }),
+  user: one(users, { fields: [voiceTurns.userId], references: [users.id] }),
 }));

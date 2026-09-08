@@ -1,4 +1,5 @@
 import * as Speech from "expo-speech";
+import { API_URL, getToken, ApiError } from "./api";
 
 export interface VoiceCharacter {
   id: string;
@@ -57,18 +58,25 @@ export function stopSpeaking() {
 }
 
 /**
- * Speech-to-text for voice memos/live voice chat.
- *
- * STUB NOTICE: real on-device STT needs a native module that isn't part of
- * the Expo Go sandbox — e.g. `expo-speech-recognition` (native speech
- * recognizer) — which requires a custom dev/production build (`eas build`),
- * not Expo Go, plus the microphone permission already declared in
- * app.config.js. Wire it up here once you've added that package and run a
- * native build; until then this throws instead of pretending to transcribe.
+ * Real speech-to-text for voice memos, via the server's Whisper-backed
+ * /api/voice/transcribe endpoint (see server/src/lib/voice/speechToText.ts).
+ * This sidesteps the on-device-STT gap entirely — no native module or EAS
+ * build needed, since transcription happens server-side. Throws with the
+ * server's own honest message if OPENAI_API_KEY isn't configured there.
  */
-export async function transcribeVoiceMemo(_audioUri: string): Promise<string> {
-  throw new Error(
-    "Speech-to-text isn't wired up yet — add expo-speech-recognition (or a similar native STT module), " +
-      "run a native EAS build, then implement transcribeVoiceMemo().",
-  );
+export async function transcribeVoiceMemo(audioUri: string): Promise<string> {
+  const token = await getToken();
+  const form = new FormData();
+  form.append("audio", { uri: audioUri, name: "memo.m4a", type: "audio/m4a" } as unknown as Blob);
+
+  const response = await fetch(`${API_URL}/api/voice/transcribe`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: form,
+  });
+
+  const isJson = response.headers.get("content-type")?.includes("application/json");
+  const body = isJson ? await response.json() : null;
+  if (!response.ok) throw new ApiError(response.status, body);
+  return (body as { transcript: string }).transcript;
 }
