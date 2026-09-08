@@ -15,6 +15,8 @@ interface ChatSessionVM {
   id: string;
 }
 
+const BUILD_THINKING_PHRASES = ["Sketching the plan…", "Writing the code…", "Wiring it together…", "Double-checking it…"];
+
 /**
  * Real project workspace: same streaming chat mechanics as ChatScreen, but
  * scoped to one Project (server/src/routes/projects.ts) — the model answers
@@ -119,7 +121,7 @@ export function ProjectChatScreen() {
               <Text style={styles.emptyText}>Describe what you want to build — e.g. "a one-page portfolio site with a contact form".</Text>
             }
             renderItem={({ item }) => <MessageBubble message={item} isStreaming={item.id === streamingMessageId} />}
-            ListFooterComponent={sending && !streamingMessageId ? <ThinkingIndicator /> : null}
+            ListFooterComponent={sending && !streamingMessageId ? <ThinkingIndicator phrases={BUILD_THINKING_PHRASES} /> : null}
           />
         )}
 

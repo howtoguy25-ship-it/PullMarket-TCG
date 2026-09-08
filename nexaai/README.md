@@ -256,6 +256,28 @@ Two honest limits, stated plainly rather than silently capped:
   can't view it directly, so it answers based on what the user describes instead of pretending to have watched it.
   Images in a format Claude's vision API accepts (JPEG/PNG/WebP/GIF) get real analysis; unsupported formats (e.g.
   HEIC) get the same honest "can't open this" note as video.
+- **Real text/PDF breakdown for file attachments.** `server/src/lib/extractFileText.ts` actually reads a plain
+  text/code/data file directly, and a real PDF via `pdf-parse`, and hands the model the file's real content (with
+  an explicit instruction to break it down section by section) — not just its filename and size. Anything with no
+  real reader here (a `.docx`, a spreadsheet binary, etc.) still gets the honest "can't open this" fallback rather
+  than a fabricated summary.
+
+## Scanning a QR code / barcode
+
+The "Ask with camera" tab (`client/src/screens/CameraAskScreen.tsx`) has a real "Scan a code" mode alongside
+"Ask about a photo", using `expo-camera`'s real `onBarcodeScanned` detector (QR, EAN-13/8, Code128/39, PDF417,
+UPC) — not a placeholder. Once something decodes, NexaAi is asked in the background to break down plainly what it
+is; a decoded `http(s)://` link additionally gets a one-tap "Open link" button (`Linking.openURL`) rather than
+making the user retype it.
+
+## Building an agent from Chat
+
+Chat can kick off an agent (e.g. "build me an agent for Instagram DMs"), but the Agent Builder tab is where the
+real thing lives — connecting a real platform, testing with a real dry run, and turning it on. A deterministic
+detector (`server/src/lib/agents/detectAgentRequest.ts`, matched on the request text — not left up to the model)
+creates a real, off-by-default draft row in `nexaai_agents` right then, and the model's reply tells the user
+plainly that it's waiting for them in Agents. If Agent Builder is turned off in Capabilities, no draft is created
+and NexaAi says so instead.
 
 ## The hybrid model architecture
 

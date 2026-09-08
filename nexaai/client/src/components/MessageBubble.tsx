@@ -7,6 +7,7 @@ import { useTheme } from "../lib/ThemeContext";
 import { BotAvatar } from "./BotAvatar";
 import { FadeInUp } from "./FadeInUp";
 import { parseWhoIsProfile, WhoIsProfileCard } from "./WhoIsProfileCard";
+import { deriveLiveStatus } from "../lib/liveStatus";
 
 export interface MessageAttachment {
   url: string;
@@ -151,10 +152,15 @@ export function MessageBubble({ message, isStreaming, avatarMood }: MessageBubbl
         {isUser ? (
           <Text style={styles.userText}>{message.content}</Text>
         ) : isStreaming ? (
-          <Text style={styles.bodyText}>
-            {message.content}
-            <BlinkingCursor />
-          </Text>
+          <View>
+            <Text style={styles.bodyText}>
+              {message.content}
+              <BlinkingCursor />
+            </Text>
+            {message.content.length > 0 && (
+              <Text style={[styles.liveStatus, { color: palette.accentBright }]}>{deriveLiveStatus(message.content)}</Text>
+            )}
+          </View>
         ) : (() => {
           const profile = parseWhoIsProfile(message.content);
           return profile ? <WhoIsProfileCard profile={profile} /> : <FormattedAnswer text={message.content} />;
@@ -173,6 +179,7 @@ const styles = StyleSheet.create({
   bubbleAssistant: { backgroundColor: colors.bgCard, borderTopLeftRadius: radii.sm, borderWidth: 1, borderColor: colors.border },
   userText: { ...typography.body, color: "#FFFFFF" },
   bodyText: { ...typography.body, color: colors.textPrimary, marginBottom: 2 },
+  liveStatus: { ...typography.caption, fontStyle: "italic", marginTop: 4 },
   heading: { ...typography.bodyBold, marginTop: spacing.sm, marginBottom: 2 },
   italic: { ...typography.body, color: colors.textSecondary, fontStyle: "italic", marginBottom: 6 },
   stepRow: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", marginVertical: 2 },

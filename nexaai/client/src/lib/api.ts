@@ -24,11 +24,28 @@ export async function clearToken(): Promise<void> {
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 
+// Several routes return a zod validation failure as `{ error: parsed.error.flatten() }`
+// — a real object, not a string. `Error`'s constructor coerces its message
+// argument with ToString, so passing that object through unchanged renders
+// as the literal text "[object Object]" everywhere this error is shown
+// (signup, login, every validated form). Pull a real message out of it.
+function deriveErrorMessage(status: number, body: any): string {
+  if (typeof body?.message === "string" && body.message) return body.message;
+  if (typeof body?.error === "string" && body.error) return body.error;
+  const flat = body?.error;
+  if (flat && typeof flat === "object") {
+    const fieldError = flat.fieldErrors && Object.values(flat.fieldErrors).find((v: any) => Array.isArray(v) && v.length);
+    const text = (Array.isArray(flat.formErrors) && flat.formErrors[0]) || (Array.isArray(fieldError) && fieldError[0]);
+    if (typeof text === "string" && text) return text;
+  }
+  return `Request failed (${status})`;
+}
+
 export class ApiError extends Error {
   status: number;
   body: any;
   constructor(status: number, body: any) {
-    super(body?.message ?? body?.error ?? `Request failed (${status})`);
+    super(deriveErrorMessage(status, body));
     this.status = status;
     this.body = body;
   }

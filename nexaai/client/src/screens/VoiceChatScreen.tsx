@@ -53,8 +53,24 @@ export function VoiceChatScreen() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [turns, setTurns] = useState<VoiceTurn[]>([]);
   const [phase, setPhase] = useState<CallPhase>("idle");
+  const [phaseElapsedSec, setPhaseElapsedSec] = useState(0);
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+
+  // A voice turn is one blocking request (transcribe+reason+speak, see
+  // stopRecording below) with no token stream to derive live detail from,
+  // so this ticks a real elapsed-seconds count instead — the one honest
+  // "still working" signal available during that wait.
+  useEffect(() => {
+    if (phase !== "transcribing" && phase !== "thinking") {
+      setPhaseElapsedSec(0);
+      return;
+    }
+    setPhaseElapsedSec(0);
+    const startedAt = Date.now();
+    const interval = setInterval(() => setPhaseElapsedSec(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+    return () => clearInterval(interval);
+  }, [phase]);
 
   const loadConversations = async () => {
     setLoadingList(true);
@@ -210,7 +226,10 @@ export function VoiceChatScreen() {
           <Ionicons name="chevron-back" size={22} color={palette.accentBright} />
         </TouchableOpacity>
         <BotAvatar size={32} mood={phase === "idle" ? "idle" : phase === "speaking" ? "talking" : "thinking"} />
-        <Text style={styles.callHeaderText}>{PHASE_LABEL[phase]}</Text>
+        <Text style={styles.callHeaderText}>
+          {PHASE_LABEL[phase]}
+          {(phase === "transcribing" || phase === "thinking") && phaseElapsedSec > 0 ? ` (${phaseElapsedSec}s)` : ""}
+        </Text>
         <TouchableOpacity onPress={endConversation}>
           <Text style={[styles.endText, { color: palette.accentBright }]}>End</Text>
         </TouchableOpacity>
@@ -232,6 +251,7 @@ export function VoiceChatScreen() {
 
       <View style={styles.micRow}>
         <TouchableOpacity
+          testID="voice-mic-button"
           style={[styles.micButton, { backgroundColor: phase === "recording" ? colors.danger : palette.accent }]}
           onPress={phase === "recording" ? stopRecording : phase === "idle" ? startRecording : undefined}
           disabled={phase !== "idle" && phase !== "recording"}

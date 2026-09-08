@@ -24,6 +24,9 @@ import { spendCredits } from "../lib/credits";
 import { findNearestBusinesses } from "../lib/businessLookup";
 import { resolveCapabilities } from "../lib/capabilities";
 import { getMemoryContext, extractAndStoreMemory } from "../lib/memory";
+import { extractFileText } from "../lib/extractFileText";
+import { detectAgentBuildRequest } from "../lib/agents/detectAgentRequest";
+import { agents } from "@shared/schema";
 
 export const chatRouter = Router();
 chatRouter.use(requireAuth);
@@ -194,14 +197,53 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       } catch {
         extraContext += `\n\n[The user attached an image ("${attachment.filename}") but it couldn't be read — ask them to resend it.]`;
       }
+    } else if (attachment.kind === "file") {
+      // Real text/PDF extraction (lib/extractFileText.ts) — the model
+      // actually reads the document's real content here, not just its
+      // filename. Anything it has no real reader for (a spreadsheet
+      // binary, a Word .doc, etc.) still gets the honest fallback.
+      const filePath = path.join(UPLOADS_DIR, path.basename(attachment.url));
+      let extractedText: string | null = null;
+      try {
+        extractedText = await extractFileText(filePath, attachment.mimeType, attachment.filename);
+      } catch {
+        extractedText = null;
+      }
+      if (extractedText) {
+        extraContext +=
+          `\n\n[The user attached a file ("${attachment.filename}"). Its real contents, extracted directly from the file:]\n` +
+          `"""\n${extractedText}\n"""\n` +
+          "[Break this down for the user section by section — don't just summarize in one line.]";
+      } else {
+        const sizeLabel = `${(attachment.sizeBytes / (1024 * 1024)).toFixed(1)}MB`;
+        extraContext += `\n\n[The user attached a file ("${attachment.filename}", ${attachment.mimeType}, ${sizeLabel}) in a format you can't open directly — respond based on what they describe, and say so plainly.]`;
+      }
     } else {
       const sizeLabel = `${(attachment.sizeBytes / (1024 * 1024)).toFixed(1)}MB`;
-      extraContext +=
-        attachment.kind === "video"
-          ? `\n\n[The user attached a video ("${attachment.filename}", ${sizeLabel}). You cannot watch video — respond based on ` +
-            "what they tell you is in it, and say plainly that you can't view the video directly.]"
-          : `\n\n[The user attached a file ("${attachment.filename}", ${attachment.mimeType}, ${sizeLabel}) in a format you can't open ` +
-            "directly — respond based on what they describe, and say so plainly.]";
+      extraContext += `\n\n[The user attached a video ("${attachment.filename}", ${sizeLabel}). You cannot watch video — respond based on what they tell you is in it, and say plainly that you can't view the video directly.]`;
+    }
+  }
+
+  // Deterministic "build me an agent" detector (lib/agents/detectAgentRequest.ts)
+  // — chat can kick this off, but the Agent Builder tab is where the real
+  // platform connection/approval queue/dry-run lives, so this creates a
+  // real, off-by-default draft row there rather than trying to build
+  // anything inline in the chat reply.
+  const agentIntent = detectAgentBuildRequest(body.text);
+  if (agentIntent) {
+    if (caps.agentBuilder) {
+      const [draft] = await db
+        .insert(agents)
+        .values({
+          userId,
+          name: `${agentIntent.label} agent — ${body.text.slice(0, 40)}`,
+          kind: agentIntent.kind,
+          config: { instructions: body.text, autoSend: false },
+        })
+        .returning();
+      extraContext += `\n\n[The app just created a real draft agent named "${draft.name}" in the user's Agents tab from this request. Tell them plainly, in your own words, that you've started it there — Agents is where they connect the real platform, test it with a dry run, and turn it on; you don't build or run agents directly in chat.]`;
+    } else {
+      extraContext += `\n\n[The user asked you to build an agent, but Agent Builder is turned off in their Capabilities settings. Tell them plainly to turn it on in Settings > Capabilities before you can start a draft for them.]`;
     }
   }
 
