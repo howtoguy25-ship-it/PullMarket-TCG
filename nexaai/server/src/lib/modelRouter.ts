@@ -20,14 +20,16 @@ function anthropicFallbackPlan(plan: PlanDefinition): PlanDefinition {
 }
 
 function stripImageForTextOnlyModel(params: AskParams): AskParams {
-  if (!params.imageBase64) return params;
+  if (!params.imageBase64 && !params.extraImages?.length) return params;
+  const attachmentWord = params.extraImages?.length ? "video" : "image";
   return {
     ...params,
     imageBase64: undefined,
+    extraImages: undefined,
     userMessage:
       params.userMessage +
-      "\n\n[The user attached an image, but this tier's self-hosted model is text-only and can't view it — answer " +
-      "based on what they describe in words, and mention plainly that real image analysis needs the Pro or Max plan.]",
+      `\n\n[The user attached a${attachmentWord === "image" ? "n" : ""} ${attachmentWord}, but this tier's self-hosted model is text-only and can't view it — answer ` +
+      "based on what they describe in words, and mention plainly that real vision analysis needs the Pro or Max plan.]",
   };
 }
 

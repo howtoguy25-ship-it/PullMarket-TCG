@@ -19,6 +19,8 @@ export interface AskParams {
   answerCount: number;
   userMessage: string;
   imageBase64?: { data: string; mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif" };
+  /** Real stills sampled from an attached video (lib/videoFrames.ts) — sent as additional real vision content alongside imageBase64, never both from the same attachment. */
+  extraImages?: Array<{ data: string; mediaType: "image/jpeg" | "image/png" | "image/webp" | "image/gif" }>;
   history: Array<{ role: "user" | "assistant"; content: string }>;
   mode: NexaPromptMode;
   /** Formatted memory-recall block from lib/memory.ts's getMemoryContext, or "" if memory/reference is off. */
@@ -89,13 +91,17 @@ const NOT_CONFIGURED_TEXT =
   "environment to enable real answers (see nexaai/.env.example). Until then this is a placeholder response so " +
   "the rest of the app (credits, session limits, UI) can still be exercised.";
 
+function buildUserContent(params: AskParams): Anthropic.MessageParam["content"] {
+  const images = [...(params.imageBase64 ? [params.imageBase64] : []), ...(params.extraImages ?? [])];
+  if (!images.length) return params.userMessage;
+  return [
+    ...images.map((img): Anthropic.ImageBlockParam => ({ type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } })),
+    { type: "text", text: params.userMessage },
+  ];
+}
+
 function buildMessagesRequest(params: AskParams) {
-  const userContent: Anthropic.MessageParam["content"] = params.imageBase64
-    ? [
-        { type: "image", source: { type: "base64", media_type: params.imageBase64.mediaType, data: params.imageBase64.data } },
-        { type: "text", text: params.userMessage },
-      ]
-    : params.userMessage;
+  const userContent = buildUserContent(params);
 
   const focus = FOCUS_MODE_DEFINITIONS[params.focusMode];
   // Real extended-thinking budget (Anthropic's actual `thinking` param, not

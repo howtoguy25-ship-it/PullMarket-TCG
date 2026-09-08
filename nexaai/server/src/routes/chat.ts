@@ -27,6 +27,7 @@ import { getMemoryContext, extractAndStoreMemory } from "../lib/memory";
 import { extractFileText } from "../lib/extractFileText";
 import { detectAgentBuildRequest } from "../lib/agents/detectAgentRequest";
 import { buildMcpToolBridge } from "../lib/mcp/toolBridge";
+import { extractVideoFrames, type VideoFrame } from "../lib/videoFrames";
 import { agents } from "@shared/schema";
 
 export const chatRouter = Router();
@@ -185,6 +186,7 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
   // instead of a fake "I watched it" — the model genuinely cannot view those.
   const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
   let attachmentImage: { data: string; mediaType: (typeof SUPPORTED_IMAGE_TYPES)[number] } | undefined;
+  let videoFrames: VideoFrame[] | undefined;
   if (body.imageBase64 && body.imageMediaType) {
     attachmentImage = { data: body.imageBase64, mediaType: body.imageMediaType };
   } else if (body.attachment) {
@@ -220,8 +222,23 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
         extraContext += `\n\n[The user attached a file ("${attachment.filename}", ${attachment.mimeType}, ${sizeLabel}) in a format you can't open directly — respond based on what they describe, and say so plainly.]`;
       }
     } else {
-      const sizeLabel = `${(attachment.sizeBytes / (1024 * 1024)).toFixed(1)}MB`;
-      extraContext += `\n\n[The user attached a video ("${attachment.filename}", ${sizeLabel}). You cannot watch video — respond based on what they tell you is in it, and say plainly that you can't view the video directly.]`;
+      // Real video "watching" via frame sampling (lib/videoFrames.ts) — the
+      // Claude API has no native video input, so this extracts real stills
+      // spread across the video's actual duration with a real ffmpeg binary
+      // and sends them as real vision content. Any real extraction failure
+      // (corrupt file, unsupported codec, etc.) falls back to the honest
+      // "can't watch" note rather than pretending.
+      try {
+        const filePath = path.join(UPLOADS_DIR, path.basename(attachment.url));
+        videoFrames = await extractVideoFrames(filePath);
+        extraContext +=
+          `\n\n[The user attached a video ("${attachment.filename}"). Attached are ${videoFrames.length} real frames sampled across its ` +
+          "duration (not the full motion) — describe/analyze based on what's actually visible across these stills, and say plainly that " +
+          "you're working from sampled frames, not the whole video.]";
+      } catch {
+        const sizeLabel = `${(attachment.sizeBytes / (1024 * 1024)).toFixed(1)}MB`;
+        extraContext += `\n\n[The user attached a video ("${attachment.filename}", ${sizeLabel}) but no frames could be sampled from it — respond based on what they tell you is in it, and say plainly that you can't view it directly.]`;
+      }
     }
   }
 
@@ -263,12 +280,13 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       answerCount,
       userMessage: body.text + extraContext,
       imageBase64: attachmentImage,
+      extraImages: videoFrames,
       history: orderedHistory,
       mode: (body.kind === "who_is_lookup"
         ? "who_is"
         : body.kind === "assistance_request"
           ? "assistance_request"
-          : body.kind === "camera_ask" || attachmentImage
+          : body.kind === "camera_ask" || attachmentImage || videoFrames
             ? "camera_ask"
             : projectId
               ? "build_project"

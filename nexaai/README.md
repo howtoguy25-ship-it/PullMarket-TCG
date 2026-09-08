@@ -251,11 +251,16 @@ Two honest limits, stated plainly rather than silently capped:
   resumable/chunked upload protocol (e.g. [tus](https://tus.io)), which this endpoint does not implement. `MAX_UPLOAD_BYTES`
   (`.env.example`) defaults to a real, useful 2GB; raise it if your hosting's disk/bandwidth budget supports more,
   but treat anything past a few GB in one request as fragile until a resumable uploader replaces this endpoint.
-- **NexaAi cannot watch video.** There is no video-understanding step here or in the Claude API this app calls — an
-  attached video is stored and shown in the chat like any other attachment, and the model is told plainly that it
-  can't view it directly, so it answers based on what the user describes instead of pretending to have watched it.
-  Images in a format Claude's vision API accepts (JPEG/PNG/WebP/GIF) get real analysis; unsupported formats (e.g.
-  HEIC) get the same honest "can't open this" note as video.
+- **NexaAi "watches" a video by real frame sampling, not full motion.** Claude's API has no native video input at
+  all, so `server/src/lib/videoFrames.ts` extracts 4 real JPEG stills spread across the video's actual duration
+  (using `@ffmpeg-installer/ffmpeg`'s bundled static binary — no system `ffmpeg`/`ffprobe` install needed; duration
+  is read straight from ffmpeg's own stderr output, not a separate probe) and sends them to the model as real
+  vision content, with an explicit note that it's working from sampled stills, not the whole video. A real
+  extraction failure (corrupt file, unsupported codec) falls back to the honest "can't view it directly" note
+  instead of pretending. Verified against a real 3-scene test video with distinct labeled colors — NexaAi
+  correctly named all three, and correctly noticed two of the four sampled frames landed in the same middle scene.
+  Images in a format Claude's vision API accepts (JPEG/PNG/WebP/GIF) get real full-image analysis; unsupported
+  image formats (e.g. HEIC) get the same honest "can't open this" note.
 - **Real text/PDF breakdown for file attachments.** `server/src/lib/extractFileText.ts` actually reads a plain
   text/code/data file directly, and a real PDF via `pdf-parse`, and hands the model the file's real content (with
   an explicit instruction to break it down section by section) — not just its filename and size. Anything with no
