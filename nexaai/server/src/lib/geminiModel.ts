@@ -26,6 +26,14 @@ export interface GeminiAskParams {
   maxOutputTokens?: number;
 }
 
+// Gemini 3.6's internal "thinking" tokens are drawn from the same max_tokens
+// budget as the visible reply on this OpenAI-compatible endpoint (confirmed
+// against the real API: a 159-token answer consumed 734 tokens total) — the
+// endpoint has no reasoning_effort/thinking-budget override that works here,
+// so the only real fix is enough headroom that thinking can't crowd out the
+// answer. 1024 leaves plenty of room for a short spoken voice reply.
+const DEFAULT_MAX_OUTPUT_TOKENS = 1024;
+
 const NOT_CONFIGURED_TEXT =
   "I can't answer that yet — the app owner hasn't connected the fast voice model. Set GEMINI_API_KEY in the server environment.";
 
@@ -38,7 +46,7 @@ export async function askGemini(params: GeminiAskParams): Promise<AskResult> {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
-      max_tokens: params.maxOutputTokens ?? 400,
+      max_tokens: params.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       temperature: 0.7,
       messages: [
         { role: "system", content: buildNexaSystemPrompt(params.mode, 1) },
