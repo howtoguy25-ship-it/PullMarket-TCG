@@ -13,30 +13,42 @@
     <a href="#" id="logout">Log out</a>
   </div>
 
-  <div class="card">
+  <div class="build-header">
     <h1>Build</h1>
     <h2>The same Projects + real streaming chat as the app — build a site/app from web, not just manage the account.</h2>
+  </div>
 
-    <div class="build-layout">
-      <div>
-        <label>New project</label>
+  <div class="build-layout">
+    <div class="card">
+      <p class="panel-title">Projects</p>
+      <div class="new-project-form">
         <input id="newProjectTitle" placeholder="e.g. Portfolio site" />
-        <button id="createProjectBtn">Create project</button>
-        <div id="projectList" class="project-list" style="margin-top:16px"></div>
+        <button id="createProjectBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New
+        </button>
       </div>
+      <div id="projectList" class="project-list"></div>
+    </div>
 
-      <div class="chat-panel">
-        <div id="chatMessages" class="chat-messages">
-          <p class="empty-hint" id="emptyHint">Create or pick a project, then describe what you want to build.</p>
-        </div>
-        <div class="chat-input-row">
-          <textarea id="chatInput" placeholder="Describe what to build or change…" disabled></textarea>
-          <button id="sendBtn" disabled>Send</button>
-        </div>
+    <div class="card chat-panel-card">
+      <div class="chat-panel-header" id="chatPanelHeader">
+        <span class="dot"></span>
+        <span class="name" id="chatPanelName">No project selected</span>
+      </div>
+      <div id="chatMessages" class="chat-messages">
+        <p class="empty-hint" id="emptyHint">Create or pick a project on the left, then describe what you want to build.</p>
+      </div>
+      <div class="chat-input-row">
+        <textarea id="chatInput" placeholder="Describe what to build or change…" disabled></textarea>
+        <button id="sendBtn" disabled>
+          Send
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
       </div>
     </div>
-    <p class="error" id="error" style="display:none"></p>
   </div>
+  <p class="error" id="error" style="display:none"></p>
 </div>
 <script src="./api.js"></script>
 <script>
@@ -52,10 +64,42 @@
   const inputEl = document.getElementById("chatInput");
   const sendBtn = document.getElementById("sendBtn");
   const errorEl = document.getElementById("error");
+  const panelHeaderEl = document.getElementById("chatPanelHeader");
+  const panelNameEl = document.getElementById("chatPanelName");
+
+  const CHEVRON = `<svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
 
   function showError(msg) {
     errorEl.textContent = msg;
     errorEl.style.display = "block";
+  }
+
+  // Renders a plain-text segment's real markdown-ish structure (CODE_BUILD_FORMAT's
+  // "**Title**" heading lines and inline **bold**) as real elements instead
+  // of literal asterisks — mirrors the mobile app's FormattedAnswer.
+  function renderPlainText(container, text) {
+    text.split("\n").forEach((line, i) => {
+      if (i > 0) container.appendChild(document.createElement("br"));
+      const trimmed = line.trim();
+      const headingMatch = trimmed.match(/^\*\*(.+)\*\*$/);
+      if (headingMatch) {
+        const strong = document.createElement("strong");
+        strong.style.cssText = "display:block;margin-top:6px;color:var(--accent-bright);";
+        strong.textContent = headingMatch[1];
+        container.appendChild(strong);
+        return;
+      }
+      const parts = line.split(/\*\*(.+?)\*\*/g);
+      parts.forEach((part, j) => {
+        if (j % 2 === 1) {
+          const strong = document.createElement("strong");
+          strong.textContent = part;
+          container.appendChild(strong);
+        } else if (part) {
+          container.appendChild(document.createTextNode(part));
+        }
+      });
+    });
   }
 
   // Renders fenced code blocks (CODE_BUILD_FORMAT's real output shape, e.g.
@@ -65,7 +109,7 @@
   function renderContent(container, text) {
     const parts = text.split(/```([\w-]*)\s*(?:filename="([^"]*)")?\n?([\s\S]*?)```/g);
     for (let i = 0; i < parts.length; i += 4) {
-      if (parts[i]) container.appendChild(document.createTextNode(parts[i]));
+      if (parts[i]) renderPlainText(container, parts[i]);
       const filename = parts[i + 2];
       const code = parts[i + 3];
       if (code !== undefined) {
@@ -90,10 +134,17 @@
       return;
     }
     list.forEach((m) => {
-      const div = document.createElement("div");
-      div.className = `msg ${m.role}`;
-      renderContent(div, m.content);
-      messagesEl.appendChild(div);
+      const group = document.createElement("div");
+      group.className = `msg-group ${m.role}`;
+      const roleLabel = document.createElement("span");
+      roleLabel.className = "msg-role";
+      roleLabel.textContent = m.role === "user" ? "You" : "NexaAi";
+      const bubble = document.createElement("div");
+      bubble.className = `msg ${m.role}`;
+      renderContent(bubble, m.content);
+      group.appendChild(roleLabel);
+      group.appendChild(bubble);
+      messagesEl.appendChild(group);
     });
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
@@ -103,10 +154,14 @@
     projects = rows;
     const listEl = document.getElementById("projectList");
     listEl.innerHTML = "";
+    if (!rows.length) {
+      listEl.innerHTML = `<p class="project-empty">No projects yet — create one above.</p>`;
+      return;
+    }
     rows.forEach((p) => {
       const item = document.createElement("div");
       item.className = `project-item${p.id === currentProjectId ? " active" : ""}`;
-      item.innerHTML = `<div class="title">${p.title}</div><div class="preview">${p.lastMessagePreview ?? "No messages yet"}</div>`;
+      item.innerHTML = `<div class="info"><div class="title">${p.title}</div><div class="preview">${p.lastMessagePreview ?? "No messages yet"}</div></div>${CHEVRON}`;
       item.addEventListener("click", () => selectProject(p.id, p.title));
       listEl.appendChild(item);
     });
@@ -117,6 +172,8 @@
     currentSessionId = null;
     inputEl.disabled = false;
     sendBtn.disabled = false;
+    panelHeaderEl.classList.add("active");
+    panelNameEl.textContent = title;
     await loadProjects();
     const { sessions } = await api(`/api/projects/${id}/sessions`);
     if (sessions.length) {
@@ -158,9 +215,17 @@
     currentMessages.push({ role: "user", content: text });
     renderMessages(currentMessages);
 
-    const assistantDiv = document.createElement("div");
-    assistantDiv.className = "msg assistant";
-    messagesEl.appendChild(assistantDiv);
+    const assistantGroup = document.createElement("div");
+    assistantGroup.className = "msg-group assistant";
+    const assistantRole = document.createElement("span");
+    assistantRole.className = "msg-role";
+    assistantRole.textContent = "NexaAi";
+    const assistantBubble = document.createElement("div");
+    assistantBubble.className = "msg assistant";
+    assistantGroup.appendChild(assistantRole);
+    assistantGroup.appendChild(assistantBubble);
+    messagesEl.appendChild(assistantGroup);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
 
     try {
       const token = localStorage.getItem("nexaai_token");
@@ -197,12 +262,12 @@
             if (payload.error) throw new Error(payload.error);
             if (payload.done) {
               currentSessionId = payload.sessionId;
-              assistantDiv.innerHTML = "";
-              renderContent(assistantDiv, assistantText);
+              assistantBubble.innerHTML = "";
+              renderContent(assistantBubble, assistantText);
               await loadProjects();
             } else if (typeof payload.delta === "string") {
               assistantText += payload.delta;
-              assistantDiv.textContent = assistantText;
+              assistantBubble.textContent = assistantText;
               messagesEl.scrollTop = messagesEl.scrollHeight;
             }
           }
