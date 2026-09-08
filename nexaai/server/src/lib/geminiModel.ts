@@ -37,7 +37,7 @@ export async function askGemini(params: GeminiAskParams): Promise<AskResult> {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
-      model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+      model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
       max_tokens: params.maxOutputTokens ?? 400,
       temperature: 0.7,
       messages: [
