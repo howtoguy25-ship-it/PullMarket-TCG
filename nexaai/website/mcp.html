@@ -37,6 +37,15 @@
 <script>
   requireLoginOrRedirect();
 
+  // Real loading/success/error animation for a connect attempt — driven by
+  // the actual request state, not a cosmetic delay (see style.css's
+  // .mcp-status/.mcp-spin/.mcp-pop rules).
+  function statusBadge(state, label) {
+    const iconHtml = state === "connecting" ? "" : state === "success" ? "✓" : "✕";
+    return `<span class="mcp-status ${state}"><span class="icon">${iconHtml}</span>${label}</span>`;
+  }
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
   function statusPill(server) {
     if (server.status === "connected") return `<span class="pill ok">${server.toolCount} tool${server.toolCount === 1 ? "" : "s"}</span>`;
     if (server.status === "error") return `<span class="pill err">Connection error</span>`;
@@ -89,10 +98,14 @@
     listEl.querySelectorAll("[data-action='reconnect']").forEach((btn) =>
       btn.addEventListener("click", async () => {
         btn.disabled = true;
-        btn.textContent = "Reconnecting…";
+        btn.innerHTML = statusBadge("connecting", "Reconnecting…");
         try {
-          await api(`/api/mcp/${btn.dataset.id}/reconnect`, { method: "POST" });
+          const { server } = await api(`/api/mcp/${btn.dataset.id}/reconnect`, { method: "POST" });
+          btn.innerHTML = statusBadge(server.status === "connected" ? "success" : "error", server.status === "connected" ? "Connected" : "Failed");
+        } catch {
+          btn.innerHTML = statusBadge("error", "Failed");
         } finally {
+          await sleep(1000);
           load();
         }
       }),
@@ -107,21 +120,40 @@
   }
 
   document.getElementById("add").addEventListener("click", async () => {
+    const addBtn = document.getElementById("add");
     const errorEl = document.getElementById("error");
     errorEl.style.display = "none";
     const name = document.getElementById("name").value.trim();
     const url = document.getElementById("url").value.trim();
     const token = document.getElementById("token").value.trim();
     if (!name || !url) return;
+
+    const originalLabel = addBtn.textContent;
+    addBtn.disabled = true;
+    addBtn.innerHTML = statusBadge("connecting", "Connecting…");
     try {
-      await api("/api/mcp", { method: "POST", body: JSON.stringify({ name, url, bearerToken: token || undefined }) });
-      document.getElementById("name").value = "";
-      document.getElementById("url").value = "";
-      document.getElementById("token").value = "";
+      const { server } = await api("/api/mcp", { method: "POST", body: JSON.stringify({ name, url, bearerToken: token || undefined }) });
+      if (server.status === "connected") {
+        addBtn.innerHTML = statusBadge("success", "Connected");
+        await sleep(900);
+        document.getElementById("name").value = "";
+        document.getElementById("url").value = "";
+        document.getElementById("token").value = "";
+      } else {
+        addBtn.innerHTML = statusBadge("error", "Couldn't connect");
+        errorEl.textContent = server.lastError || "Couldn't verify that server — check the URL and try again.";
+        errorEl.style.display = "block";
+        await sleep(1200);
+      }
       load();
     } catch (err) {
+      addBtn.innerHTML = statusBadge("error", "Couldn't connect");
       errorEl.textContent = err.message;
       errorEl.style.display = "block";
+      await sleep(1200);
+    } finally {
+      addBtn.disabled = false;
+      addBtn.textContent = originalLabel;
     }
   });
 

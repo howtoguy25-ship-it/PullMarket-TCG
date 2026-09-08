@@ -8,6 +8,7 @@ import { FadeInUp } from "../components/FadeInUp";
 import { colors, radii, spacing, typography } from "../theme/colors";
 import { api, ApiError } from "../lib/api";
 import { openOnWeb } from "../lib/webLinks";
+import { McpStatusAnimation, type McpConnectPhase } from "../components/McpStatusAnimation";
 
 interface McpServerVM {
   id: string;
@@ -31,6 +32,8 @@ const MCP_STATUS_LABEL: Record<McpServerVM["status"], string> = {
  * discovers its actual tools, and can call them live during chat. Same idea
  * as Claude's own "Add custom connector".
  */
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 function McpConnectorsSection() {
   const [servers, setServers] = useState<McpServerVM[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -39,7 +42,9 @@ function McpConnectorsSection() {
   const [url, setUrl] = useState("");
   const [token, setToken] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [addPhase, setAddPhase] = useState<McpConnectPhase | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [phaseById, setPhaseById] = useState<Record<string, McpConnectPhase>>({});
 
   const load = useCallback(() => {
     api<{ servers: McpServerVM[] }>("/api/mcp").then((r) => {
@@ -53,27 +58,50 @@ function McpConnectorsSection() {
   const submit = async () => {
     if (!name.trim() || !url.trim()) return;
     setSubmitting(true);
+    setAddPhase("connecting");
+    setAddError(null);
     try {
-      await api("/api/mcp", { method: "POST", body: JSON.stringify({ name: name.trim(), url: url.trim(), bearerToken: token.trim() || undefined }) });
-      setModalOpen(false);
-      setName("");
-      setUrl("");
-      setToken("");
-      load();
+      const res = await api<{ server: McpServerVM }>("/api/mcp", {
+        method: "POST",
+        body: JSON.stringify({ name: name.trim(), url: url.trim(), bearerToken: token.trim() || undefined }),
+      });
+      if (res.server.status === "connected") {
+        setAddPhase("success");
+        load();
+        await wait(900); // let the checkmark actually be seen before the modal closes
+        setModalOpen(false);
+        setName("");
+        setUrl("");
+        setToken("");
+        setAddPhase(null);
+      } else {
+        setAddPhase("error");
+        setAddError(res.server.lastError ?? "Couldn't verify that server — check the URL and try again.");
+        load();
+      }
     } catch (err) {
-      Alert.alert("Couldn't add connector", err instanceof ApiError ? err.message : "Check the server URL and try again.");
+      setAddPhase("error");
+      setAddError(err instanceof ApiError ? err.message : "Check the server URL and try again.");
     } finally {
       setSubmitting(false);
     }
   };
 
   const reconnect = async (server: McpServerVM) => {
-    setBusyId(server.id);
+    setPhaseById((p) => ({ ...p, [server.id]: "connecting" }));
     try {
-      await api(`/api/mcp/${server.id}/reconnect`, { method: "POST" });
+      const res = await api<{ server: McpServerVM }>(`/api/mcp/${server.id}/reconnect`, { method: "POST" });
+      setPhaseById((p) => ({ ...p, [server.id]: res.server.status === "connected" ? "success" : "error" }));
+    } catch {
+      setPhaseById((p) => ({ ...p, [server.id]: "error" }));
     } finally {
-      setBusyId(null);
       load();
+      await wait(1200); // let the result icon actually be seen before reverting to the normal badge
+      setPhaseById((p) => {
+        const next = { ...p };
+        delete next[server.id];
+        return next;
+      });
     }
   };
 
@@ -122,8 +150,8 @@ function McpConnectorsSection() {
                 {server.status === "connected" ? `${server.toolCount} tool${server.toolCount === 1 ? "" : "s"}` : MCP_STATUS_LABEL[server.status]}
               </Text>
             </View>
-            {busyId === server.id ? (
-              <ActivityIndicator size="small" color={colors.accentBright} />
+            {phaseById[server.id] ? (
+              <McpStatusAnimation phase={phaseById[server.id]} size={18} />
             ) : (
               <TouchableOpacity onPress={() => reconnect(server)} style={styles.mcpIconButton}>
                 <Ionicons name="refresh" size={16} color={colors.textMuted} />
@@ -166,12 +194,20 @@ function McpConnectorsSection() {
               autoCapitalize="none"
               secureTextEntry
             />
+            {addError && <Text style={styles.mcpModalError}>{addError}</Text>}
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setModalOpen(false)}>
+              <TouchableOpacity
+                style={styles.modalCancelButton}
+                onPress={() => {
+                  setModalOpen(false);
+                  setAddPhase(null);
+                  setAddError(null);
+                }}
+              >
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity testID="mcp-submit-button" style={styles.modalConnectButton} onPress={submit} disabled={submitting}>
-                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalConnectText}>Connect</Text>}
+                {addPhase ? <McpStatusAnimation phase={addPhase} size={20} /> : <Text style={styles.modalConnectText}>Connect</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -478,5 +514,6 @@ const styles = StyleSheet.create({
   mcpRowText: { flex: 1, gap: 2 },
   mcpIconButton: { padding: 6 },
   mcpWebLink: { ...typography.caption, color: colors.accentBright, textAlign: "center", marginTop: spacing.xs },
+  mcpModalError: { ...typography.caption, color: colors.danger, marginTop: spacing.xs },
   badgeError: { backgroundColor: colors.danger },
 });

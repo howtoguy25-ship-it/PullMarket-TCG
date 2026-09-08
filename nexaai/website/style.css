@@ -100,3 +100,12 @@ button:disabled { opacity: 0.6; cursor: default; }
 details.tool { margin-top: 10px; }
 details.tool summary { cursor: pointer; color: var(--accent-bright); font-size: 13px; font-weight: 600; }
 pre.schema { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; overflow-x: auto; color: var(--text-secondary); margin-top: 8px; }
+
+@keyframes mcp-spin { to { transform: rotate(360deg); } }
+@keyframes mcp-pop { from { transform: scale(0.3); opacity: 0; } 60% { transform: scale(1.15); } to { transform: scale(1); opacity: 1; } }
+.mcp-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; }
+.mcp-status .icon { display: inline-block; width: 16px; height: 16px; }
+.mcp-status.connecting .icon { border: 2px solid var(--border); border-top-color: var(--accent-bright); border-radius: 50%; animation: mcp-spin 0.7s linear infinite; }
+.mcp-status.success .icon, .mcp-status.error .icon { animation: mcp-pop 0.35s ease; border-radius: 50%; text-align: center; line-height: 16px; font-size: 11px; color: #fff; }
+.mcp-status.success .icon { background: var(--success); color: #08130e; }
+.mcp-status.error .icon { background: var(--danger); }
