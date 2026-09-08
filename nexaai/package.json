@@ -15,7 +15,9 @@
     "check:types": "tsc --noEmit",
     "seed": "tsx server/src/scripts/seed.ts",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "finetune:generate": "tsx finetune/generateSyntheticData.ts",
+    "finetune:validate": "tsx finetune/validateDataset.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",

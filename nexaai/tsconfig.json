@@ -10,6 +10,6 @@
     },
     "types": ["node"]
   },
-  "include": ["client/**/*.ts", "client/**/*.tsx", "server/**/*.ts", "shared/**/*.ts"],
+  "include": ["client/**/*.ts", "client/**/*.tsx", "server/**/*.ts", "shared/**/*.ts", "finetune/**/*.ts"],
   "exclude": ["node_modules", "web-build", "server-dist"]
 }
