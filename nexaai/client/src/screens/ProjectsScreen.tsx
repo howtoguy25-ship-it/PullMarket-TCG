@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TextInput, Toucha
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
+import { FadeInUp } from "../components/FadeInUp";
 import { colors, radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
 import { api } from "../lib/api";
@@ -59,7 +60,7 @@ export function ProjectsScreen() {
         <Text style={styles.subtitle}>A named workspace for building one specific site or app — real code, real history, picked back up anytime.</Text>
       </View>
 
-      <TouchableOpacity style={[styles.newButton, { backgroundColor: palette.accent }]} onPress={() => setCreateOpen(true)}>
+      <TouchableOpacity testID="projects-new-button" style={[styles.newButton, { backgroundColor: palette.accent }]} onPress={() => setCreateOpen(true)}>
         <Ionicons name="add" size={18} color="#fff" />
         <Text style={styles.newButtonText}>New project</Text>
       </TouchableOpacity>
@@ -72,23 +73,25 @@ export function ProjectsScreen() {
           keyExtractor={(p) => p.id}
           contentContainerStyle={styles.list}
           ListEmptyComponent={<Text style={styles.emptyText}>No projects yet — start one above.</Text>}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.row}
-              onPress={() => navigation.navigate("ProjectChat", { projectId: item.id, projectTitle: item.title })}
-            >
-              <View style={styles.rowIcon}>
-                <Ionicons name="code-slash" size={18} color={palette.accentBright} />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{item.title}</Text>
-                <Text style={styles.rowPreview} numberOfLines={1}>
-                  {item.lastMessagePreview ?? "No messages yet"}
-                </Text>
-                <Text style={styles.rowMeta}>{new Date(item.lastActivityAt).toLocaleString()}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-            </TouchableOpacity>
+          renderItem={({ item, index }) => (
+            <FadeInUp delayMs={index * 60}>
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => navigation.navigate("ProjectChat", { projectId: item.id, projectTitle: item.title })}
+              >
+                <View style={styles.rowIcon}>
+                  <Ionicons name="code-slash" size={18} color={palette.accentBright} />
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowTitle}>{item.title}</Text>
+                  <Text style={styles.rowPreview} numberOfLines={1}>
+                    {item.lastMessagePreview ?? "No messages yet"}
+                  </Text>
+                  <Text style={styles.rowMeta}>{new Date(item.lastActivityAt).toLocaleString()}</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </FadeInUp>
           )}
         />
       )}
@@ -98,12 +101,12 @@ export function ProjectsScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>New project</Text>
             <Text style={styles.modalSubtitle}>Give it a name — e.g. "Portfolio site" or "Client landing page".</Text>
-            <TextInput style={styles.input} placeholder="Project name" placeholderTextColor={colors.textMuted} value={newTitle} onChangeText={setNewTitle} autoFocus />
+            <TextInput testID="project-name-input" style={styles.input} placeholder="Project name" placeholderTextColor={colors.textMuted} value={newTitle} onChangeText={setNewTitle} autoFocus />
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalCancelButton} onPress={() => setCreateOpen(false)}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.modalContinueButton, { backgroundColor: palette.accent }]} onPress={createProject} disabled={creating}>
+              <TouchableOpacity testID="project-continue-button" style={[styles.modalContinueButton, { backgroundColor: palette.accent }]} onPress={createProject} disabled={creating}>
                 {creating ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalContinueText}>Continue</Text>}
               </TouchableOpacity>
             </View>

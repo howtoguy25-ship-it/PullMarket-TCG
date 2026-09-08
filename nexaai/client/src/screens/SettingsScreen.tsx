@@ -107,7 +107,7 @@ export function SettingsScreen() {
             <Text style={styles.rowLabel}>Capabilities & memory</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("Connectors")}>
+          <TouchableOpacity testID="settings-connectors-row" style={styles.row} onPress={() => navigation.navigate("Connectors")}>
             <Text style={styles.rowLabel}>Connectors</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
           </TouchableOpacity>
@@ -135,11 +135,11 @@ export function SettingsScreen() {
           </Text>
         </Section>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={confirmLogout}>
+        <TouchableOpacity testID="settings-logout-button" style={styles.logoutButton} onPress={confirmLogout}>
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.deleteButton} onPress={() => setDeleteModalOpen(true)}>
+        <TouchableOpacity testID="settings-delete-account-button" style={styles.deleteButton} onPress={() => setDeleteModalOpen(true)}>
           <Text style={styles.deleteText}>Delete account</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -153,6 +153,7 @@ export function SettingsScreen() {
               connected platform, memory entry, and API key. This cannot be undone. Enter your password to confirm.
             </Text>
             <TextInput
+              testID="delete-account-password-input"
               style={styles.input}
               placeholder="Password"
               placeholderTextColor={colors.textMuted}
@@ -165,7 +166,7 @@ export function SettingsScreen() {
               <TouchableOpacity style={styles.modalCancelButton} onPress={() => setDeleteModalOpen(false)}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalDeleteButton} onPress={submitDeleteAccount} disabled={deleting}>
+              <TouchableOpacity testID="delete-account-confirm-button" style={styles.modalDeleteButton} onPress={submitDeleteAccount} disabled={deleting}>
                 {deleting ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalDeleteText}>Delete forever</Text>}
               </TouchableOpacity>
             </View>

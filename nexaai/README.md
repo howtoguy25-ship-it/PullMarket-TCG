@@ -449,11 +449,22 @@ cp .env.example .env      # fill in what you have
 npm install
 npm run db:push           # creates tables in your Postgres database
 npm run seed               # adds a few example businesses (NRMA etc.) + voice characters
-npm run dev                 # runs the API (:5060) and Expo web (:8090ish) together
+npm run dev                 # runs the API (:5080) and Expo web (:8090ish) together
 ```
 
 Open the Expo web URL it prints for the app, or scan the QR code with Expo Go. The account website is served by the
-same API process at `/account` (e.g. `http://localhost:5060/account/index.html`) once the server is running.
+same API process at `/account` (e.g. `http://localhost:5080/account/index.html`) once the server is running.
+
+**Why port 5080, not the more obvious 5060/5000/3000:** verified against a real Chromium browser during testing —
+port 5060 is on Chrome's hardcoded list of "unsafe" ports (an old SIP-signaling reservation) and gets silently
+blocked with `net::ERR_UNSAFE_PORT`, which breaks every API call from the website *and* from the mobile client's
+own web build. If you change `PORT`, avoid Chrome's restricted list (5060/5061/6000/6666-6669 and a few dozen
+others) or you'll hit the same wall.
+
+**A second real bug this surfaced and fixed while testing in an actual browser:** `expo-secure-store` has no web
+implementation at all — it throws rather than no-oping — so token storage (`client/src/lib/api.ts`) falls back to
+`localStorage` on `Platform.OS === "web"` and uses SecureStore everywhere else. Without this, logging in from the
+web build (part of `npm run dev`) fails outright.
 
 ## Deploying
 

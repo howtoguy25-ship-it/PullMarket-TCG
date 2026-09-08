@@ -29,7 +29,7 @@ module.exports = {
     },
     plugins: ["expo-camera", "expo-secure-store", "expo-location", "expo-calendar", "expo-font"],
     extra: {
-      apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5060",
+      apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:5080",
     },
   },
 };

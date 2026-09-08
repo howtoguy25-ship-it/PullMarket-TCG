@@ -4,6 +4,7 @@ import { useFocusEffect } from "@react-navigation/native";
 import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
+import { FadeInUp } from "../components/FadeInUp";
 import { colors, radii, spacing, typography } from "../theme/colors";
 import { api, ApiError } from "../lib/api";
 
@@ -182,22 +183,24 @@ export function ConnectorsScreen() {
         keyExtractor={(c) => c.provider}
         contentContainerStyle={styles.list}
         ListEmptyComponent={<Text style={styles.emptyText}>No connectors match "{search}".</Text>}
-        renderItem={({ item }) => (
-          <TouchableOpacity style={styles.row} onPress={() => onPressRow(item)} disabled={busy === item.provider}>
-            <View style={styles.iconWrap}>{busy === item.provider ? <ActivityIndicator size="small" color={colors.accentBright} /> : <ConnectorIcon provider={item.provider} />}</View>
-            <View style={styles.rowText}>
-              <Text style={styles.rowLabel}>{item.label}</Text>
-              <Text style={styles.rowDescription}>
-                {item.status === "connected" ? `Connected as ${item.externalAccountLabel}` : item.status === "not_configured" ? "Not set up yet" : item.description}
-              </Text>
-            </View>
-            <View style={[styles.badge, item.status === "connected" && styles.badgeConnected]}>
-              <Text style={[styles.badgeText, item.status === "connected" && styles.badgeTextConnected]}>
-                {item.status === "connected" ? "Connected" : item.status === "not_configured" ? "Not set up" : "Connect"}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
-          </TouchableOpacity>
+        renderItem={({ item, index }) => (
+          <FadeInUp delayMs={index * 45}>
+            <TouchableOpacity style={styles.row} onPress={() => onPressRow(item)} disabled={busy === item.provider}>
+              <View style={styles.iconWrap}>{busy === item.provider ? <ActivityIndicator size="small" color={colors.accentBright} /> : <ConnectorIcon provider={item.provider} />}</View>
+              <View style={styles.rowText}>
+                <Text style={styles.rowLabel}>{item.label}</Text>
+                <Text style={styles.rowDescription}>
+                  {item.status === "connected" ? `Connected as ${item.externalAccountLabel}` : item.status === "not_configured" ? "Not set up yet" : item.description}
+                </Text>
+              </View>
+              <View style={[styles.badge, item.status === "connected" && styles.badgeConnected]}>
+                <Text style={[styles.badgeText, item.status === "connected" && styles.badgeTextConnected]}>
+                  {item.status === "connected" ? "Connected" : item.status === "not_configured" ? "Not set up" : "Connect"}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          </FadeInUp>
         )}
       />
 

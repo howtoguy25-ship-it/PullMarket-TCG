@@ -1,17 +1,26 @@
+import { Platform } from "react-native";
 import Constants from "expo-constants";
 import * as SecureStore from "expo-secure-store";
 import { fetch as expoFetch } from "expo/fetch";
 
-export const API_URL = (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ?? "http://localhost:5060";
+export const API_URL = (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ?? "http://localhost:5080";
 const TOKEN_KEY = "nexaai_token";
 
+// expo-secure-store has no web implementation at all (calling it throws
+// "not a function", not a graceful no-op) — the native module simply isn't
+// there on web. `npm run dev` runs the mobile client's web build alongside
+// the server for quick iteration, so this needs a real fallback rather
+// than leaving login broken whenever this exact app runs in a browser.
 export async function getToken(): Promise<string | null> {
+  if (Platform.OS === "web") return Promise.resolve(localStorage.getItem(TOKEN_KEY));
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
 export async function setToken(token: string): Promise<void> {
+  if (Platform.OS === "web") return Promise.resolve(localStorage.setItem(TOKEN_KEY, token));
   await SecureStore.setItemAsync(TOKEN_KEY, token);
 }
 export async function clearToken(): Promise<void> {
+  if (Platform.OS === "web") return Promise.resolve(localStorage.removeItem(TOKEN_KEY));
   await SecureStore.deleteItemAsync(TOKEN_KEY);
 }
 

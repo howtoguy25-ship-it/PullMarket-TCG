@@ -229,7 +229,13 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       focusMode,
     },
     finish: async (text: string) => {
-      const [assistantMsg] = await db
+      // NOTE: this key is `message`, not `assistantMsg` — the client
+      // (ChatScreen/ProjectChatScreen) reads `final.message` on both the
+      // plain and streaming routes. Keep them in sync: a mismatch here
+      // means `final.message` is `undefined` client-side, and
+      // `FormattedAnswer`'s `text.split("\n")` throws on the very next
+      // render, crashing the whole screen right after every real reply.
+      const [message] = await db
         .insert(messages)
         .values({ sessionId, role: "assistant", kind: "text", content: text })
         .returning();
@@ -239,7 +245,7 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       // Best-effort, fire-and-forget — never delay the reply on memory extraction.
       extractAndStoreMemory(userId, sessionId, body.text, text).catch(() => {});
       return {
-        assistantMsg,
+        message,
         answerCount,
         focusMode,
         creditCostCents,

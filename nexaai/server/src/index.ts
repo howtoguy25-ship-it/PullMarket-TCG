@@ -101,7 +101,7 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(err.status ?? 500).json({ error: err.message ?? "Internal error" });
 });
 
-const PORT = Number(process.env.PORT ?? 5060);
+const PORT = Number(process.env.PORT ?? 5080);
 app.listen(PORT, () => {
   console.log(`NexaAi server listening on :${PORT} (chat ${isChatConfigured() ? "configured" : "NOT configured — set ANTHROPIC_API_KEY"})`);
 });

@@ -5,6 +5,8 @@ import { API_URL } from "../lib/api";
 import { colors, radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
 import { BotAvatar } from "./BotAvatar";
+import { FadeInUp } from "./FadeInUp";
+import { parseWhoIsProfile, WhoIsProfileCard } from "./WhoIsProfileCard";
 
 export interface MessageAttachment {
   url: string;
@@ -142,7 +144,7 @@ export function MessageBubble({ message, isStreaming, avatarMood }: MessageBubbl
   const { palette } = useTheme();
   const isUser = message.role === "user";
   return (
-    <View style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
+    <FadeInUp style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
       {!isUser && <BotAvatar size={32} mood={avatarMood ?? "happy"} />}
       <View style={[styles.bubble, isUser ? [styles.bubbleUser, { backgroundColor: palette.accent }] : styles.bubbleAssistant]}>
         {message.attachment && <AttachmentPreview attachment={message.attachment} />}
@@ -153,11 +155,12 @@ export function MessageBubble({ message, isStreaming, avatarMood }: MessageBubbl
             {message.content}
             <BlinkingCursor />
           </Text>
-        ) : (
-          <FormattedAnswer text={message.content} />
-        )}
+        ) : (() => {
+          const profile = parseWhoIsProfile(message.content);
+          return profile ? <WhoIsProfileCard profile={profile} /> : <FormattedAnswer text={message.content} />;
+        })()}
       </View>
-    </View>
+    </FadeInUp>
   );
 }
 

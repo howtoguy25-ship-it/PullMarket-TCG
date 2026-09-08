@@ -79,9 +79,17 @@ export async function deepWhoIsLookup(params: WhoIsSearchParams): Promise<AskRes
     iterations++;
   }
 
+  // A tool-use turn can carry several separate text blocks (e.g. a short
+  // "let me search for that" aside before/between web_search calls, then
+  // the real structured answer as its own block) — joining with "" glues
+  // them into one run-on paragraph with no newline before the bolded name
+  // line, which breaks the app's profile-card parser (it requires the name
+  // on its own line). Joining with a blank line preserves each block's own
+  // line structure regardless of how many there are.
   const text = response.content
     .map((block) => (block.type === "text" ? block.text : ""))
-    .join("")
+    .filter(Boolean)
+    .join("\n\n")
     .trim();
 
   return { text };

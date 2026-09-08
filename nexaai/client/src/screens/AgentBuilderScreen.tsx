@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { GalaxyBackground } from "../components/GalaxyBackground";
+import { FadeInUp } from "../components/FadeInUp";
 import { colors, radii, spacing, typography } from "../theme/colors";
 import { api, ApiError } from "../lib/api";
 
@@ -108,21 +109,23 @@ export function AgentBuilderScreen() {
         {pendingDrafts.length > 0 && (
           <View>
             <Text style={styles.sectionLabel}>Waiting for your approval</Text>
-            {pendingDrafts.map((draft) => (
-              <View key={draft.id} style={styles.draftCard}>
-                <Text style={styles.draftPlatform}>{draft.platform === "instagram" ? "Instagram DM" : "WhatsApp message"}</Text>
-                <Text style={styles.draftIncoming}>"{draft.incomingMessage}"</Text>
-                <Text style={styles.draftReplyLabel}>NexaAi's drafted reply:</Text>
-                <Text style={styles.draftReply}>{draft.draftReply}</Text>
-                <View style={styles.draftButtons}>
-                  <TouchableOpacity style={styles.rejectButton} onPress={() => resolveDraft(draft, "reject")} disabled={resolvingDraft === draft.id}>
-                    <Text style={styles.rejectButtonText}>Reject</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity style={styles.approveButton} onPress={() => resolveDraft(draft, "approve")} disabled={resolvingDraft === draft.id}>
-                    {resolvingDraft === draft.id ? <ActivityIndicator color="#fff" /> : <Text style={styles.approveButtonText}>Send it</Text>}
-                  </TouchableOpacity>
+            {pendingDrafts.map((draft, i) => (
+              <FadeInUp key={draft.id} delayMs={i * 60}>
+                <View style={styles.draftCard}>
+                  <Text style={styles.draftPlatform}>{draft.platform === "instagram" ? "Instagram DM" : "WhatsApp message"}</Text>
+                  <Text style={styles.draftIncoming}>"{draft.incomingMessage}"</Text>
+                  <Text style={styles.draftReplyLabel}>NexaAi's drafted reply:</Text>
+                  <Text style={styles.draftReply}>{draft.draftReply}</Text>
+                  <View style={styles.draftButtons}>
+                    <TouchableOpacity style={styles.rejectButton} onPress={() => resolveDraft(draft, "reject")} disabled={resolvingDraft === draft.id}>
+                      <Text style={styles.rejectButtonText}>Reject</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.approveButton} onPress={() => resolveDraft(draft, "approve")} disabled={resolvingDraft === draft.id}>
+                      {resolvingDraft === draft.id ? <ActivityIndicator color="#fff" /> : <Text style={styles.approveButtonText}>Send it</Text>}
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
+              </FadeInUp>
             ))}
           </View>
         )}
@@ -149,35 +152,37 @@ export function AgentBuilderScreen() {
           </TouchableOpacity>
         </View>
 
-        {agents.map((agent) => (
-          <View key={agent.id} style={styles.agentCard}>
-            <View style={styles.agentHeader}>
-              <View>
-                <Text style={styles.agentName}>{agent.name}</Text>
-                <Text style={styles.agentKind}>{KIND_LABELS[agent.kind]}</Text>
+        {agents.map((agent, i) => (
+          <FadeInUp key={agent.id} delayMs={i * 60}>
+            <View style={styles.agentCard}>
+              <View style={styles.agentHeader}>
+                <View>
+                  <Text style={styles.agentName}>{agent.name}</Text>
+                  <Text style={styles.agentKind}>{KIND_LABELS[agent.kind]}</Text>
+                </View>
+                <Switch value={agent.isActive} onValueChange={() => toggleActive(agent)} trackColor={{ true: colors.accent }} />
               </View>
-              <Switch value={agent.isActive} onValueChange={() => toggleActive(agent)} trackColor={{ true: colors.accent }} />
-            </View>
-            {agent.isActive && (agent.kind === "instagram_dm" || agent.kind === "whatsapp_autoresponder") && (
-              <TouchableOpacity onPress={() => navigation.navigate("Connectors")}>
-                <Text style={styles.notConnectedNote}>
-                  Make sure {agent.kind === "instagram_dm" ? "Instagram" : "WhatsApp"} is connected in Settings → Connectors, or real
-                  messages won't get a reply. {agent.config.autoSend ? "Auto-send is ON — replies go out immediately." : "Auto-send is off — replies wait above for your approval."}
-                </Text>
+              {agent.isActive && (agent.kind === "instagram_dm" || agent.kind === "whatsapp_autoresponder") && (
+                <TouchableOpacity onPress={() => navigation.navigate("Connectors")}>
+                  <Text style={styles.notConnectedNote}>
+                    Make sure {agent.kind === "instagram_dm" ? "Instagram" : "WhatsApp"} is connected in Settings → Connectors, or real
+                    messages won't get a reply. {agent.config.autoSend ? "Auto-send is ON — replies go out immediately." : "Auto-send is off — replies wait above for your approval."}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <TextInput
+                style={styles.input}
+                placeholder="Try an incoming message…"
+                placeholderTextColor={colors.textMuted}
+                value={testInput[agent.id] ?? ""}
+                onChangeText={(t) => setTestInput((prev) => ({ ...prev, [agent.id]: t }))}
+              />
+              <TouchableOpacity style={styles.secondaryButton} onPress={() => dryRun(agent)} disabled={testing === agent.id}>
+                {testing === agent.id ? <ActivityIndicator color={colors.accentBright} /> : <Text style={styles.secondaryButtonText}>Preview draft reply</Text>}
               </TouchableOpacity>
-            )}
-            <TextInput
-              style={styles.input}
-              placeholder="Try an incoming message…"
-              placeholderTextColor={colors.textMuted}
-              value={testInput[agent.id] ?? ""}
-              onChangeText={(t) => setTestInput((prev) => ({ ...prev, [agent.id]: t }))}
-            />
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => dryRun(agent)} disabled={testing === agent.id}>
-              {testing === agent.id ? <ActivityIndicator color={colors.accentBright} /> : <Text style={styles.secondaryButtonText}>Preview draft reply</Text>}
-            </TouchableOpacity>
-            {testOutput[agent.id] && <Text style={styles.draftReply}>{testOutput[agent.id]}</Text>}
-          </View>
+              {testOutput[agent.id] && <Text style={styles.draftReply}>{testOutput[agent.id]}</Text>}
+            </View>
+          </FadeInUp>
         ))}
       </ScrollView>
     </GalaxyBackground>

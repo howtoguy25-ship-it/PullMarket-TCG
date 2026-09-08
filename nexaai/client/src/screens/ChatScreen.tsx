@@ -30,9 +30,11 @@ import { uploadAttachment, type UploadedAttachment } from "../lib/attachments";
 import { useAuth } from "../lib/AuthContext";
 import { speak, transcribeVoiceMemo } from "../lib/voice";
 
-type ChatKind = "text" | "voice_memo" | "file_attachment";
+type ChatKind = "text" | "voice_memo" | "file_attachment" | "who_is_lookup";
 
 type BotMood = "idle" | "thinking" | "talking";
+
+const WHO_IS_THINKING_PHRASES = ["Searching the web…", "Checking sources…", "Confirming accounts…", "Laying out the profile…"];
 
 export function ChatScreen() {
   const { user, refreshUser } = useAuth();
@@ -49,6 +51,8 @@ export function ChatScreen() {
   const [focusMode, setFocusMode] = useState<FocusMode>(user?.defaultFocusMode ?? "quick");
   const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [whoIsMode, setWhoIsMode] = useState(false);
+  const [pendingKind, setPendingKind] = useState<ChatKind>("text");
   const lastMessageAt = useRef(Date.now());
 
   const changeAnswerMode = async (mode: AnswerMode) => {
@@ -72,6 +76,8 @@ export function ChatScreen() {
       setMessages((prev) => [...prev, userMsg]);
       setInput("");
       setSending(true);
+      setPendingKind(kind);
+      setWhoIsMode(false);
       setBotMood("thinking");
       setLimitBanner(null);
 
@@ -254,28 +260,47 @@ export function ChatScreen() {
               avatarMood={item.id === streamingMessageId ? "talking" : "happy"}
             />
           )}
-          ListFooterComponent={sending && !streamingMessageId ? <ThinkingIndicator /> : null}
+          ListFooterComponent={
+            sending && !streamingMessageId ? <ThinkingIndicator phrases={pendingKind === "who_is_lookup" ? WHO_IS_THINKING_PHRASES : undefined} /> : null
+          }
         />
 
+        {whoIsMode && (
+          <View style={styles.whoIsBanner}>
+            <Ionicons name="person-circle" size={14} color={palette.accentBright} />
+            <Text style={styles.whoIsBannerText}>Who-is deep dive — type a public figure's name, then send. Public figures only.</Text>
+          </View>
+        )}
+
         <View style={styles.inputRow}>
-          <TouchableOpacity style={styles.iconButton} onPress={openAttachmentMenu} disabled={uploading}>
+          <TouchableOpacity testID="chat-attach-button" style={styles.iconButton} onPress={openAttachmentMenu} disabled={uploading}>
             {uploading ? <ActivityIndicator size="small" color={palette.accentBright} /> : <Ionicons name="attach" size={20} color={palette.accentBright} />}
           </TouchableOpacity>
           <TouchableOpacity
+            testID="chat-mic-button"
             style={[styles.iconButton, recording && styles.iconButtonActive]}
             onPress={recording ? stopRecording : startRecording}
           >
             <Ionicons name={recording ? "stop" : "mic"} size={20} color={recording ? "#fff" : palette.accentBright} />
           </TouchableOpacity>
+          <TouchableOpacity testID="chat-whois-toggle" style={[styles.iconButton, whoIsMode && styles.iconButtonActive]} onPress={() => setWhoIsMode((v) => !v)}>
+            <Ionicons name="person-circle-outline" size={20} color={whoIsMode ? "#fff" : palette.accentBright} />
+          </TouchableOpacity>
           <TextInput
+            testID="chat-input"
             style={styles.input}
-            placeholder="Ask NexaAi anything…"
+            placeholder={whoIsMode ? "Who do you want to look up?" : "Ask NexaAi anything…"}
             placeholderTextColor={colors.textMuted}
             value={input}
             onChangeText={setInput}
-            onSubmitEditing={() => send(input)}
+            onSubmitEditing={() => send(input, whoIsMode ? "who_is_lookup" : "text")}
           />
-          <TouchableOpacity style={[styles.sendButton, { backgroundColor: palette.accent }]} onPress={() => send(input)} disabled={sending}>
+          <TouchableOpacity
+            testID="chat-send-button"
+            style={[styles.sendButton, { backgroundColor: palette.accent }]}
+            onPress={() => send(input, whoIsMode ? "who_is_lookup" : "text")}
+            disabled={sending}
+          >
             <Ionicons name="arrow-up" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -321,6 +346,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   iconButtonActive: { backgroundColor: colors.danger, borderColor: colors.danger },
+  whoIsBanner: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
+  whoIsBannerText: { ...typography.caption, color: colors.textMuted },
   sendButton: {
     width: 40,
     height: 40,
