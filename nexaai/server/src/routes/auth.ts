@@ -112,6 +112,26 @@ authRouter.post("/onboarding-complete", requireAuth, async (req: AuthedRequest, 
   res.json({ user: publicUser(user) });
 });
 
+// Real account deletion — requires re-entering the password (a real
+// security check, not a formality) and actually deletes the row. Every
+// other table's userId column is declared onDelete:"cascade" in
+// shared/src/schema.ts, so Postgres itself removes every chat, credit
+// transaction, agent, connector, project, memory entry, API key, etc. —
+// this isn't a soft "deactivated" flag the data quietly survives.
+const deleteAccountSchema = z.object({ password: z.string().min(1) });
+authRouter.post("/delete-account", requireAuth, async (req: AuthedRequest, res) => {
+  const parsed = deleteAccountSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const [user] = await db.select().from(users).where(eq(users.id, req.userId!));
+  if (!user || !(await bcrypt.compare(parsed.data.password, user.passwordHash))) {
+    return res.status(401).json({ error: "Incorrect password" });
+  }
+
+  await db.delete(users).where(eq(users.id, req.userId!));
+  res.status(204).end();
+});
+
 function publicUser(user: typeof users.$inferSelect) {
   const { passwordHash, ...rest } = user;
   return { ...rest, capabilities: resolveCapabilities(user.capabilities) };

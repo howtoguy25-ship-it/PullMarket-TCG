@@ -1,0 +1,106 @@
+<title>NexaAi Owner Panel</title>
+<link rel="stylesheet" href="./style.css" />
+<div class="wrap">
+  <div class="nav">
+    <span class="brand">✦ NexaAi</span>
+    <a href="./credits.html">Credits</a>
+    <a href="./settings.html">Settings</a>
+    <a class="active" href="./owner.html">Owner</a>
+    <a href="#" id="logout">Log out</a>
+  </div>
+
+  <div class="card">
+    <h1>Overview</h1>
+    <h2>Real aggregate queries against the live database — not mock numbers.</h2>
+    <div id="overview"></div>
+    <p class="error" id="error" style="display:none"></p>
+  </div>
+
+  <div class="card">
+    <h1>Users</h1>
+    <div id="users"></div>
+  </div>
+
+  <div class="card" id="historyCard" style="display:none">
+    <h1 id="historyTitle">History</h1>
+    <div id="historyBody"></div>
+    <button class="secondary" id="closeHistory">Close</button>
+  </div>
+</div>
+<script src="./api.js"></script>
+<script>
+  requireLoginOrRedirect();
+
+  const errorEl = document.getElementById("error");
+
+  function statLine(label, value) {
+    const row = document.createElement("div");
+    row.className = "toggle-row";
+    row.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+    return row;
+  }
+
+  async function loadOverview() {
+    const o = await api("/api/owner/overview");
+    const el = document.getElementById("overview");
+    el.innerHTML = "";
+    el.appendChild(statLine("Total users", o.totalUsers));
+    el.appendChild(statLine("Total revenue", `$${(o.totalRevenueCents / 100).toFixed(2)}`));
+    el.appendChild(statLine("Total messages", o.totalMessages));
+    el.appendChild(statLine("Total voice turns", o.totalVoiceTurns));
+    el.appendChild(statLine("Active agents", o.activeAgents));
+    el.appendChild(statLine("Total projects", o.totalProjects));
+    el.appendChild(statLine("Total API keys issued", o.totalApiKeys));
+    Object.entries(o.connectedByProvider).forEach(([provider, n]) => {
+      el.appendChild(statLine(`Connected: ${provider}`, n));
+    });
+  }
+
+  async function showHistory(userId, label) {
+    const h = await api(`/api/owner/users/${userId}/history`);
+    document.getElementById("historyTitle").textContent = `History — ${label}`;
+    const body = document.getElementById("historyBody");
+    body.innerHTML =
+      `<p class="muted">${h.sessions.length} chat sessions · ${h.projects.length} projects · ${h.agents.length} agents · ${h.connectors.filter((c) => c.status === "connected").length} connectors connected</p>` +
+      "<h1 style='font-size:15px;margin-top:16px'>Recent messages</h1>" +
+      h.recentMessages
+        .slice(0, 30)
+        .map((m) => `<div class="toggle-row"><span>[${m.role}] ${m.content.slice(0, 100)}</span></div>`)
+        .join("");
+    document.getElementById("historyCard").style.display = "block";
+  }
+
+  document.getElementById("closeHistory").addEventListener("click", () => {
+    document.getElementById("historyCard").style.display = "none";
+  });
+
+  async function loadUsers() {
+    const { users } = await api("/api/owner/users");
+    const el = document.getElementById("users");
+    el.innerHTML = "";
+    users.forEach((u) => {
+      const row = document.createElement("div");
+      row.className = "toggle-row";
+      row.innerHTML = `<span><strong>${u.displayName}</strong> (${u.email})<br/><span class="muted">${u.planTier} · $${(u.creditBalanceCents / 100).toFixed(2)} credit · joined ${new Date(u.createdAt).toLocaleDateString()}</span></span>`;
+      const btn = document.createElement("button");
+      btn.textContent = "History";
+      btn.className = "secondary";
+      btn.style.width = "auto";
+      btn.style.marginTop = "0";
+      btn.addEventListener("click", () => showHistory(u.id, u.displayName));
+      row.appendChild(btn);
+      el.appendChild(row);
+    });
+  }
+
+  document.getElementById("logout").addEventListener("click", (e) => {
+    e.preventDefault();
+    clearToken();
+    window.location.href = "./index.html";
+  });
+
+  Promise.all([loadOverview(), loadUsers()]).catch((err) => {
+    errorEl.textContent = err.status === 403 ? "This area is restricted to the app owner." : err.message;
+    errorEl.style.display = "block";
+  });
+</script>

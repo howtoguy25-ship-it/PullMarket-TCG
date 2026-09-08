@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { colors, radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
 import { useAuth } from "../lib/AuthContext";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 import { VOICE_CHARACTERS, speak } from "../lib/voice";
 import type { MapsApp } from "../lib/maps";
 
@@ -21,6 +21,9 @@ export function SettingsScreen() {
   const { palette } = useTheme();
   const navigation = useNavigation<any>();
   const [proactive, setProactive] = useState(user?.proactiveCheckInEnabled ?? true);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const patch = async (body: Record<string, unknown>) => {
     await api("/api/auth/settings", { method: "PATCH", body: JSON.stringify(body) });
@@ -30,6 +33,27 @@ export function SettingsScreen() {
   const toggleProactive = async (value: boolean) => {
     setProactive(value);
     await patch({ proactiveCheckInEnabled: value });
+  };
+
+  const confirmLogout = () => {
+    Alert.alert("Log out?", "You'll need to sign back in with your email and password to use NexaAi again.", [
+      { text: "Cancel", style: "cancel" },
+      { text: "Log out", style: "destructive", onPress: logout },
+    ]);
+  };
+
+  const submitDeleteAccount = async () => {
+    if (!deletePassword) return;
+    setDeleting(true);
+    try {
+      await api("/api/auth/delete-account", { method: "POST", body: JSON.stringify({ password: deletePassword }) });
+      setDeleteModalOpen(false);
+      await logout();
+    } catch (err) {
+      Alert.alert("Couldn't delete account", err instanceof ApiError ? err.message : "Check your password and try again.");
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (!user) return null;
@@ -104,10 +128,50 @@ export function SettingsScreen() {
           </View>
         </Section>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+        <Section title="Developer">
+          <Text style={styles.disclaimer}>
+            API keys and third-party integration management need a browser — open your account website (Settings on the login
+            page) to generate a key or manage Connectors from there.
+          </Text>
+        </Section>
+
+        <TouchableOpacity style={styles.logoutButton} onPress={confirmLogout}>
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity style={styles.deleteButton} onPress={() => setDeleteModalOpen(true)}>
+          <Text style={styles.deleteText}>Delete account</Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      <Modal visible={deleteModalOpen} transparent animationType="fade" onRequestClose={() => setDeleteModalOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Delete your account?</Text>
+            <Text style={styles.modalSubtitle}>
+              This permanently deletes your account and everything tied to it — every chat, project, credit transaction,
+              connected platform, memory entry, and API key. This cannot be undone. Enter your password to confirm.
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor={colors.textMuted}
+              value={deletePassword}
+              onChangeText={setDeletePassword}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setDeleteModalOpen(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalDeleteButton} onPress={submitDeleteAccount} disabled={deleting}>
+                {deleting ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalDeleteText}>Delete forever</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </GalaxyBackground>
   );
 }
@@ -126,13 +190,25 @@ const styles = StyleSheet.create({
   title: { ...typography.h1, color: colors.textPrimary },
   section: { gap: spacing.sm },
   sectionTitle: { ...typography.bodyBold, color: colors.textSecondary },
-  sectionCard: { backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+  sectionCard: { backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden", padding: spacing.md },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
   rowActive: { backgroundColor: colors.bgCardAlt },
   rowLabel: { ...typography.body, color: colors.textPrimary },
   rowValue: { ...typography.caption, color: colors.textMuted },
   checkmark: { fontWeight: "700" },
-  disclaimer: { ...typography.caption, color: colors.textMuted, marginTop: 4, maxWidth: 260 },
+  disclaimer: { ...typography.caption, color: colors.textMuted },
   logoutButton: { alignItems: "center", padding: spacing.md },
   logoutText: { color: colors.danger, fontWeight: "700" },
+  deleteButton: { alignItems: "center", padding: spacing.md },
+  deleteText: { color: colors.danger, fontWeight: "700", opacity: 0.7 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
+  modalCard: { width: "100%", maxWidth: 380, backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
+  modalTitle: { ...typography.h2, color: colors.textPrimary },
+  modalSubtitle: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.sm },
+  input: { backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: colors.textPrimary },
+  modalButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  modalCancelButton: { flex: 1, backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  modalCancelText: { color: colors.textSecondary, fontWeight: "700" },
+  modalDeleteButton: { flex: 1, backgroundColor: colors.danger, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  modalDeleteText: { color: "#fff", fontWeight: "700" },
 });

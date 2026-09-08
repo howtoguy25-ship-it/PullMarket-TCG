@@ -5,6 +5,9 @@
     <span class="brand">✦ NexaAi</span>
     <a href="./credits.html">Credits</a>
     <a class="active" href="./settings.html">Settings</a>
+    <a href="./connectors.html">Connectors</a>
+    <a href="./apikeys.html">Developer</a>
+    <a href="./owner.html">Owner</a>
     <a href="#" id="logout">Log out</a>
   </div>
 
@@ -41,6 +44,15 @@
 
   <button id="save">Save settings</button>
   <p class="error" id="error" style="display:none"></p>
+
+  <div class="card" style="border-color: var(--danger); margin-top: 24px">
+    <h1>Delete account</h1>
+    <h2>Permanently deletes your account and everything tied to it — every chat, project, credit transaction, connected platform, memory entry, and API key. This cannot be undone.</h2>
+    <label>Confirm your password</label>
+    <input id="deletePassword" type="password" autocomplete="current-password" />
+    <button id="deleteBtn" style="background: var(--danger)">Delete account forever</button>
+    <p class="error" id="deleteError" style="display:none"></p>
+  </div>
 </div>
 <script src="./api.js"></script>
 <script>
@@ -76,8 +88,25 @@
 
   document.getElementById("logout").addEventListener("click", (e) => {
     e.preventDefault();
+    if (!confirm("Log out of NexaAi on this browser?")) return;
     clearToken();
     window.location.href = "./index.html";
+  });
+
+  document.getElementById("deleteBtn").addEventListener("click", async () => {
+    const errorEl = document.getElementById("deleteError");
+    errorEl.style.display = "none";
+    const password = document.getElementById("deletePassword").value;
+    if (!password) return;
+    if (!confirm("This permanently deletes your account and all its data. Are you absolutely sure?")) return;
+    try {
+      await api("/api/auth/delete-account", { method: "POST", body: JSON.stringify({ password }) });
+      clearToken();
+      window.location.href = "./index.html";
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
   });
 
   load();

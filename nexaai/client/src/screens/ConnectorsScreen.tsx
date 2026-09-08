@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as WebBrowser from "expo-web-browser";
@@ -17,21 +17,68 @@ interface ConnectorVM {
   notConfiguredHint: string | null;
 }
 
-const PROVIDER_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
+// Real Ionicons brand glyph where one exists; everything else gets a
+// brand-colored monogram badge below (BrandBadge) instead — this app has no
+// way to source exact trademarked vector artwork for GitHub/Vercel/etc, so
+// rather than fake a pixel copy, it shows the real name in the real brand
+// color, which is honestly what it is.
+const PROVIDER_ICON: Partial<Record<string, keyof typeof Ionicons.glyphMap>> = {
   google: "logo-google",
   notion: "document-text",
   slack: "logo-slack",
   instagram: "logo-instagram",
   whatsapp: "logo-whatsapp",
+  github: "logo-github",
+};
+
+const BRAND_BADGE: Record<string, { letter: string; color: string }> = {
+  sitespark: { letter: "S", color: "#7C5CFF" },
+  vercel: { letter: "▲", color: "#000000" },
+  netlify: { letter: "N", color: "#00C7B7" },
+  stripe: { letter: "S", color: "#635BFF" },
+  namecheap: { letter: "N", color: "#DE3723" },
+};
+
+function ConnectorIcon({ provider }: { provider: string }) {
+  const ioniconName = PROVIDER_ICON[provider];
+  if (ioniconName) return <Ionicons name={ioniconName} size={20} color={colors.accentBright} />;
+  const brand = BRAND_BADGE[provider];
+  if (brand) {
+    return (
+      <View style={[styles.brandBadge, { backgroundColor: brand.color }]}>
+        <Text style={styles.brandBadgeText}>{brand.letter}</Text>
+      </View>
+    );
+  }
+  return <Ionicons name="link" size={20} color={colors.accentBright} />;
+}
+
+// Manual-entry connectors each need their own small set of fields — see
+// server/src/lib/connectors/{meta,namecheap}.ts for what each verifies.
+const MANUAL_ENTRY_FIELDS: Record<string, { key: string; placeholder: string; secure?: boolean }[]> = {
+  whatsapp: [
+    { key: "businessName", placeholder: "Business name" },
+    { key: "phoneNumberId", placeholder: "Phone number ID" },
+    { key: "accessToken", placeholder: "Permanent access token", secure: true },
+  ],
+  namecheap: [
+    { key: "apiUser", placeholder: "Namecheap username" },
+    { key: "apiKey", placeholder: "API key", secure: true },
+    { key: "clientIp", placeholder: "Whitelisted IP address" },
+  ],
+};
+
+const MANUAL_ENTRY_SUBTITLE: Record<string, string> = {
+  whatsapp: "WhatsApp Cloud API doesn't use a login popup — copy these from Meta Business Suite / your WhatsApp Business Platform dashboard.",
+  namecheap: "Namecheap's API doesn't use a login popup either — copy these from ap.www.namecheap.com/settings/tools/apiaccess (the IP must be whitelisted there).",
 };
 
 export function ConnectorsScreen() {
   const [connectors, setConnectors] = useState<ConnectorVM[]>([]);
+  const [search, setSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
-  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
-  const [accessToken, setAccessToken] = useState("");
-  const [phoneNumberId, setPhoneNumberId] = useState("");
-  const [businessName, setBusinessName] = useState("");
+  const [manualProvider, setManualProvider] = useState<string | null>(null);
+  const [fields, setFields] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(() => {
@@ -40,12 +87,19 @@ export function ConnectorsScreen() {
 
   useFocusEffect(load);
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return connectors;
+    return connectors.filter((c) => c.label.toLowerCase().includes(q) || c.provider.toLowerCase().includes(q));
+  }, [connectors, search]);
+
   const connect = async (connector: ConnectorVM) => {
     setBusy(connector.provider);
     try {
       const result = await api<{ authUrl?: string; manualEntry?: boolean }>(`/api/connectors/${connector.provider}/connect`, { method: "POST" });
       if (result.manualEntry) {
-        setWhatsappModalOpen(true);
+        setFields({});
+        setManualProvider(connector.provider);
         return;
       }
       if (result.authUrl) {
@@ -60,18 +114,18 @@ export function ConnectorsScreen() {
     }
   };
 
-  const submitWhatsAppManual = async () => {
-    if (!accessToken.trim() || !phoneNumberId.trim() || !businessName.trim()) return;
+  const submitManualEntry = async () => {
+    if (!manualProvider) return;
+    const requiredKeys = MANUAL_ENTRY_FIELDS[manualProvider].map((f) => f.key);
+    if (requiredKeys.some((k) => !fields[k]?.trim())) return;
     setSubmitting(true);
     try {
-      await api("/api/connectors/whatsapp/manual", { method: "POST", body: JSON.stringify({ accessToken, phoneNumberId, businessName }) });
-      setWhatsappModalOpen(false);
-      setAccessToken("");
-      setPhoneNumberId("");
-      setBusinessName("");
+      await api(`/api/connectors/${manualProvider}/manual`, { method: "POST", body: JSON.stringify(fields) });
+      setManualProvider(null);
+      setFields({});
       load();
     } catch (err) {
-      Alert.alert("Couldn't connect WhatsApp", err instanceof ApiError ? err.message : "Check your access token and phone number ID and try again.");
+      Alert.alert("Couldn't connect", err instanceof ApiError ? err.message : "Check your details and try again.");
     } finally {
       setSubmitting(false);
     }
@@ -106,19 +160,31 @@ export function ConnectorsScreen() {
       </View>
       <Text style={styles.subtitle}>Link other platforms to NexaAi so it can use real data from them, or so an agent can act through them.</Text>
 
+      <View style={styles.searchWrap}>
+        <Ionicons name="search" size={16} color={colors.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search connectors by name…"
+          placeholderTextColor={colors.textMuted}
+          value={search}
+          onChangeText={setSearch}
+          autoCapitalize="none"
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch("")}>
+            <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+      </View>
+
       <FlatList
-        data={connectors}
+        data={filtered}
         keyExtractor={(c) => c.provider}
         contentContainerStyle={styles.list}
+        ListEmptyComponent={<Text style={styles.emptyText}>No connectors match "{search}".</Text>}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.row} onPress={() => onPressRow(item)} disabled={busy === item.provider}>
-            <View style={styles.iconWrap}>
-              {busy === item.provider ? (
-                <ActivityIndicator size="small" color={colors.accentBright} />
-              ) : (
-                <Ionicons name={PROVIDER_ICON[item.provider] ?? "link"} size={20} color={colors.accentBright} />
-              )}
-            </View>
+            <View style={styles.iconWrap}>{busy === item.provider ? <ActivityIndicator size="small" color={colors.accentBright} /> : <ConnectorIcon provider={item.provider} />}</View>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>{item.label}</Text>
               <Text style={styles.rowDescription}>
@@ -135,36 +201,29 @@ export function ConnectorsScreen() {
         )}
       />
 
-      <Modal visible={whatsappModalOpen} transparent animationType="fade" onRequestClose={() => setWhatsappModalOpen(false)}>
+      <Modal visible={!!manualProvider} transparent animationType="fade" onRequestClose={() => setManualProvider(null)}>
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Connect WhatsApp</Text>
-            <Text style={styles.modalSubtitle}>
-              WhatsApp Cloud API doesn't use a login popup — copy these from Meta Business Suite / your WhatsApp Business Platform dashboard.
-            </Text>
-            <TextInput style={styles.input} placeholder="Business name" placeholderTextColor={colors.textMuted} value={businessName} onChangeText={setBusinessName} />
-            <TextInput
-              style={styles.input}
-              placeholder="Phone number ID"
-              placeholderTextColor={colors.textMuted}
-              value={phoneNumberId}
-              onChangeText={setPhoneNumberId}
-              autoCapitalize="none"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Permanent access token"
-              placeholderTextColor={colors.textMuted}
-              value={accessToken}
-              onChangeText={setAccessToken}
-              autoCapitalize="none"
-              secureTextEntry
-            />
+            <Text style={styles.modalTitle}>Connect {manualProvider && connectors.find((c) => c.provider === manualProvider)?.label}</Text>
+            <Text style={styles.modalSubtitle}>{manualProvider ? MANUAL_ENTRY_SUBTITLE[manualProvider] : ""}</Text>
+            {manualProvider &&
+              MANUAL_ENTRY_FIELDS[manualProvider].map((f) => (
+                <TextInput
+                  key={f.key}
+                  style={styles.input}
+                  placeholder={f.placeholder}
+                  placeholderTextColor={colors.textMuted}
+                  value={fields[f.key] ?? ""}
+                  onChangeText={(t) => setFields((prev) => ({ ...prev, [f.key]: t }))}
+                  autoCapitalize="none"
+                  secureTextEntry={f.secure}
+                />
+              ))}
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setWhatsappModalOpen(false)}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setManualProvider(null)}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.modalConnectButton} onPress={submitWhatsAppManual} disabled={submitting}>
+              <TouchableOpacity style={styles.modalConnectButton} onPress={submitManualEntry} disabled={submitting}>
                 {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalConnectText}>Connect</Text>}
               </TouchableOpacity>
             </View>
@@ -179,6 +238,19 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   title: { ...typography.h1, color: colors.textPrimary },
   subtitle: { ...typography.body, color: colors.textSecondary, paddingHorizontal: spacing.lg, marginTop: spacing.sm },
+  searchWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    backgroundColor: colors.bgCardAlt,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 10,
+  },
+  searchInput: { flex: 1, color: colors.textPrimary, ...typography.body },
+  emptyText: { ...typography.body, color: colors.textMuted, textAlign: "center", marginTop: spacing.lg },
   list: { padding: spacing.lg, gap: spacing.sm },
   row: {
     flexDirection: "row",
@@ -191,6 +263,8 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   iconWrap: { width: 40, height: 40, borderRadius: radii.md, backgroundColor: colors.bgCardAlt, alignItems: "center", justifyContent: "center" },
+  brandBadge: { width: 26, height: 26, borderRadius: radii.sm, alignItems: "center", justifyContent: "center" },
+  brandBadgeText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   rowText: { flex: 1, gap: 2 },
   rowLabel: { ...typography.bodyBold, color: colors.textPrimary },
   rowDescription: { ...typography.caption, color: colors.textMuted },

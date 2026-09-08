@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
 import path from "path";
 import fs from "fs";
 import { db } from "../db";
 import { UPLOADS_DIR } from "./attachments";
-import { chatSessions, messages, users } from "@shared/schema";
+import { chatSessions, messages, users, projects } from "@shared/schema";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
 import { checkUsageWindow, recordSessionStart, recordUsageSeconds } from "../middleware/usage";
 import { askModel, streamModel } from "../lib/modelRouter";
@@ -30,6 +30,10 @@ chatRouter.use(requireAuth);
 
 const sendMessageSchema = z.object({
   sessionId: z.string().uuid().optional(),
+  // Set when this message belongs inside a Project (see routes/projects.ts)
+  // — only meaningful when starting a NEW session; an existing session
+  // already carries its own projectId in the DB.
+  projectId: z.string().uuid().optional(),
   text: z.string().min(1).max(4000),
   kind: z.enum(["text", "voice_memo", "camera_ask", "who_is_lookup", "assistance_request", "file_attachment"]).default("text"),
   requestedAnswerCount: z.number().int().min(1).max(6).optional(),
@@ -111,10 +115,19 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
   }
 
   let sessionId = body.sessionId;
+  let projectId: string | null = null;
   if (!sessionId) {
-    const [session] = await db.insert(chatSessions).values({ userId, title: body.text.slice(0, 60) }).returning();
+    if (body.projectId) {
+      const [project] = await db.select().from(projects).where(and(eq(projects.id, body.projectId), eq(projects.userId, userId)));
+      if (!project) return { ok: false, status: 404, body: { error: "Project not found" } } as const;
+      projectId = project.id;
+    }
+    const [session] = await db.insert(chatSessions).values({ userId, projectId, title: body.text.slice(0, 60) }).returning();
     sessionId = session.id;
     await recordSessionStart(userId);
+  } else {
+    const [existingSession] = await db.select().from(chatSessions).where(eq(chatSessions.id, sessionId));
+    projectId = existingSession?.projectId ?? null;
   }
 
   const kindMultiplier = body.kind === "who_is_lookup" ? WHO_IS_DEEP_DIVE_MULTIPLIER : 1;
@@ -209,7 +222,9 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
           ? "assistance_request"
           : body.kind === "camera_ask" || attachmentImage
             ? "camera_ask"
-            : "chat") as "chat" | "who_is" | "assistance_request" | "camera_ask",
+            : projectId
+              ? "build_project"
+              : "chat") as "chat" | "who_is" | "assistance_request" | "camera_ask" | "build_project",
       memoryContext,
       focusMode,
     },
@@ -220,6 +235,7 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
         .returning();
       const pace = (body.paceHintMsSinceLastMessage ?? 5000) < 1500 ? "forced" : "smooth";
       await recordUsageSeconds(userId, 15, pace);
+      if (projectId) await db.update(projects).set({ updatedAt: new Date() }).where(eq(projects.id, projectId));
       // Best-effort, fire-and-forget — never delay the reply on memory extraction.
       extractAndStoreMemory(userId, sessionId, body.text, text).catch(() => {});
       return {

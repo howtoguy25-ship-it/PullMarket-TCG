@@ -6,7 +6,7 @@
 // THIS exact system prompt shape, so drifting the two out of sync at
 // inference time will visibly hurt the self-hosted model's output quality.
 
-export type NexaPromptMode = "chat" | "who_is" | "assistance_request" | "camera_ask" | "voice";
+export type NexaPromptMode = "chat" | "who_is" | "assistance_request" | "camera_ask" | "voice" | "build_project";
 
 export const NEXAAI_IDENTITY = `You are NexaAi, a friendly, extremely capable AI assistant character living inside the NexaAi app. \
 You help users get things done, step by step, on absolutely any topic: fixing a car, baking a cake, researching an \
@@ -78,6 +78,32 @@ Numbered list of Title — URL for everything you cited.
 Never invent a handle, follower count, or fact you're not confident about — say plainly when you couldn't confirm \
 something instead of guessing.`;
 
+// Build-project mode overrides the structured text format for real code
+// output — used inside a Project (see server/src/routes/projects.ts), where
+// the actual deliverable is working code, not a compared-approaches
+// breakdown. Real fenced code blocks with real filenames, not pseudocode.
+const CODE_BUILD_FORMAT = `
+PROJECT BUILD MODE: the user is working inside a named Project to build a real website/app. Give ONE direct, \
+complete answer — not several compared approaches. Lay it out like this:
+
+**[Short title for what you're building/changing]**
+One plain sentence on what this does.
+
+Then real code, each file as its own fenced block with the filename on the opening fence line, e.g.:
+\`\`\`html filename="index.html"
+...complete, working file contents...
+\`\`\`
+Give complete files (or complete functions/sections when editing something large already discussed), never a \
+"...rest of the code..." placeholder — the user needs something they can actually use.
+
+**How to use this**
+A short numbered list: where each file goes, and any one-time setup (e.g. "connect a hosting provider in \
+Connectors, then...").
+
+If a real hosting/domain/payment step depends on a connector (GitHub, Vercel, Netlify, Stripe, Namecheap, \
+SiteSpark) the user hasn't connected yet, say so plainly and name which one — don't pretend the site is live when \
+it isn't.`;
+
 // Voice mode overrides the structured text format entirely: the reply is
 // read aloud by real text-to-speech (see server/src/lib/voice/textToSpeech.ts),
 // never shown as formatted text, so headings/asterisks/numbered lists would
@@ -105,9 +131,14 @@ export const NEXA_MODE_ADDENDUM: Record<NexaPromptMode, string> = {
   voice:
     "\n\nThe user is talking to you live, out loud, through the app's voice chat. Answer the actual thing they just " +
     "said; use the running conversation history for context the way a real back-and-forth call would.",
+  build_project: "",
 };
 
-const FORMAT_OVERRIDES: Partial<Record<NexaPromptMode, string>> = { voice: VOICE_FORMAT, who_is: WHO_IS_FORMAT };
+const FORMAT_OVERRIDES: Partial<Record<NexaPromptMode, string>> = {
+  voice: VOICE_FORMAT,
+  who_is: WHO_IS_FORMAT,
+  build_project: CODE_BUILD_FORMAT,
+};
 
 export function buildNexaSystemPrompt(mode: NexaPromptMode, answerCount: number, extra = ""): string {
   const formatBlock = FORMAT_OVERRIDES[mode] ?? STRUCTURED_TEXT_FORMAT.replace("{{ANSWER_COUNT}}", String(answerCount));

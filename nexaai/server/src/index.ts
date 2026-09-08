@@ -16,6 +16,15 @@ import { paddleWebhookRouter } from "./routes/webhooks/paddle";
 import { metaWebhookRouter } from "./routes/webhooks/meta";
 import { googleConnectorCallbackRouter } from "./lib/connectors/google";
 import { metaConnectorCallbackRouter } from "./lib/connectors/meta";
+import { siteSparkConnectorCallbackRouter } from "./lib/connectors/sitespark";
+import { githubConnectorCallbackRouter } from "./lib/connectors/github";
+import { vercelConnectorCallbackRouter } from "./lib/connectors/vercel";
+import { netlifyConnectorCallbackRouter } from "./lib/connectors/netlify";
+import { stripeConnectorCallbackRouter } from "./lib/connectors/stripe";
+import { projectsRouter } from "./routes/projects";
+import { apiKeysRouter } from "./routes/apiKeys";
+import { publicApiRouter } from "./routes/publicApi";
+import { ownerRouter } from "./routes/owner";
 import { isChatConfigured } from "./lib/anthropic";
 
 const app = express();
@@ -55,10 +64,19 @@ app.use("/api/memory", memoryRouter);
 app.use("/api/connectors", connectorsRouter);
 app.use("/api/voice", voiceRouter);
 app.use("/api/attachments", attachmentsRouter);
+app.use("/api/projects", projectsRouter);
+app.use("/api/api-keys", apiKeysRouter);
+app.use("/api/v1", publicApiRouter);
+app.use("/api/owner", ownerRouter);
 app.use("/api/webhooks/paddle", paddleWebhookRouter);
 app.use("/api/webhooks/meta", metaWebhookRouter);
 app.use("/api/connectors/google/callback", googleConnectorCallbackRouter);
 app.use("/api/connectors/meta/callback", metaConnectorCallbackRouter);
+app.use("/api/connectors/sitespark/callback", siteSparkConnectorCallbackRouter);
+app.use("/api/connectors/github/callback", githubConnectorCallbackRouter);
+app.use("/api/connectors/vercel/callback", vercelConnectorCallbackRouter);
+app.use("/api/connectors/netlify/callback", netlifyConnectorCallbackRouter);
+app.use("/api/connectors/stripe/callback", stripeConnectorCallbackRouter);
 
 // The website (credits top-up + settings) is a small static site — see nexaai/website.
 app.use("/account", express.static(path.join(__dirname, "../../website")));

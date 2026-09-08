@@ -48,6 +48,12 @@ export const connectorProviderEnum = pgEnum("connector_provider", [
   "slack",
   "instagram",
   "whatsapp",
+  "sitespark",
+  "github",
+  "vercel",
+  "netlify",
+  "stripe",
+  "namecheap",
 ]);
 export const connectorStatusEnum = pgEnum("connector_status", ["disconnected", "connected", "not_configured"]);
 
@@ -101,6 +107,10 @@ export const users = pgTable("nexaai_users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   displayName: text("display_name").notNull(),
+  // Optional — used for the owner-panel allowlist check (see
+  // server/src/middleware/owner.ts) and available as a profile field.
+  // Never used for auth by itself (no SMS/OTP login exists).
+  phone: text("phone"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 
   // Plan / trial state
@@ -152,6 +162,32 @@ export const usersRelations = relations(users, ({ many }) => ({
   memoryEntries: many(memoryEntries),
   connectors: many(connectors),
   voiceConversations: many(voiceConversations),
+  projects: many(projects),
+  apiKeys: many(apiKeys),
+}));
+
+// ---------------------------------------------------------------------------
+// API keys — real developer keys a user can generate on the website
+// (Settings/Developer -> API keys) so an external app they build (e.g. their
+// own SiteSpark) can call NexaAi's authenticated public API directly (see
+// routes/publicApi.ts) instead of going through the OAuth connector flow.
+// Only a bcrypt hash + a short unhashed prefix (for display, e.g.
+// "nxa_a1b2...") are ever stored — the raw key is shown once, at creation.
+// ---------------------------------------------------------------------------
+
+export const apiKeys = pgTable("nexaai_api_keys", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  label: text("label").notNull(),
+  keyPrefix: text("key_prefix").notNull(), // first chars of the real key, shown in lists so a user can tell keys apart
+  keyHash: text("key_hash").notNull(), // bcrypt hash of the full key — the real key is never stored in plain text
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  lastUsedAt: timestamp("last_used_at"),
+  revokedAt: timestamp("revoked_at"),
+});
+
+export const apiKeysRelations = relations(apiKeys, ({ one }) => ({
+  user: one(users, { fields: [apiKeys.userId], references: [users.id] }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -208,6 +244,9 @@ export const creditTransactions = pgTable("nexaai_credit_transactions", {
 export const chatSessions = pgTable("nexaai_chat_sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // Nullable — set when this session was started from inside a Project
+  // (see routes/projects.ts). A plain Chat-tab session leaves this null.
+  projectId: uuid("project_id").references(() => projects.id, { onDelete: "cascade" }),
   title: text("title").notNull().default("New chat"),
   startedAt: timestamp("started_at").notNull().defaultNow(),
   endedAt: timestamp("ended_at"),
@@ -217,7 +256,28 @@ export const chatSessions = pgTable("nexaai_chat_sessions", {
 
 export const chatSessionsRelations = relations(chatSessions, ({ one, many }) => ({
   user: one(users, { fields: [chatSessions.userId], references: [users.id] }),
+  project: one(projects, { fields: [chatSessions.projectId], references: [projects.id] }),
   messages: many(messages),
+}));
+
+// ---------------------------------------------------------------------------
+// Projects — a named workspace for building a specific website/app/task
+// (see routes/projects.ts). Each project owns one or more chat sessions
+// (chatSessions.projectId above) so "recent chats" and full history are
+// real, queryable rows, not client-side-only state.
+// ---------------------------------------------------------------------------
+
+export const projects = pgTable("nexaai_projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const projectsRelations = relations(projects, ({ one, many }) => ({
+  user: one(users, { fields: [projects.userId], references: [users.id] }),
+  sessions: many(chatSessions),
 }));
 
 export const messages = pgTable("nexaai_messages", {

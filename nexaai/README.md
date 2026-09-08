@@ -92,6 +92,19 @@ website/   Small static site for account/credits/settings (no chat here — see 
   file, uploads it with real multipart streaming (not a giant base64 JSON blob), and — for images in a format
   Claude's vision API accepts — actually analyzes it, the same as camera-ask. See "Attachments & the 30GB question"
   below for the honest limits on video and very large files.
+- **Projects** (the Projects tab): a named workspace for building one specific site/app, with real persisted chat
+  history per project — not client-side-only state. NexaAi answers inside a project in a dedicated "build" mode:
+  one direct answer with real, complete, fenced code blocks instead of several compared approaches. See "Projects
+  & the code-build mode" below.
+- **Real developer API keys + a public API** (website → Developer): generate a key, then call
+  `POST /api/v1/generate` from any app you build yourself — with a real bcrypt-hashed key, shown once at creation,
+  billed against your own credit balance exactly like a normal chat message.
+- **Owner panel** (website → Owner): every number is a live aggregate query against the real database — total
+  users, revenue, messages, connected accounts by provider — plus a per-user history drill-down. Gated by a
+  server-side allowlist check on the logged-in account's own email/phone, not a separate login system.
+- **Real account deletion** (Settings → Delete account, in the app and on the website): requires re-entering your
+  password, then genuinely deletes the row — every chat, project, credit transaction, connector, memory entry, and
+  API key cascades with it at the database level, not a soft "deactivated" flag.
 
 ## Real, but needs your own credentials to go fully live
 
@@ -128,6 +141,19 @@ website/   Small static site for account/credits/settings (no chat here — see 
 - **OpenAI (Whisper + TTS)** — real voice chat's actual speech-to-text and text-to-speech: sign up at platform.openai.com,
   set `OPENAI_API_KEY`. Without it, both the Voice tab and the Chat screen's voice-memo transcription return a clear
   "not configured" error instead of a fake transcript.
+- **SiteSpark connector**: your own separate app, so there's no fixed provider to point at — this is a real, generic
+  OAuth 2.0 client that becomes functional once SiteSpark implements a standard authorize/token/whoami endpoint
+  trio. Set `SITESPARK_CLIENT_ID` / `SITESPARK_CLIENT_SECRET` / `SITESPARK_OAUTH_BASE_URL`. See "Projects & the
+  code-build mode" below for the full explanation of what this connector is (and isn't) for.
+- **GitHub / Vercel / Netlify / Stripe connectors** (push code, deploy, take payments from a Project): each needs
+  that platform's own real OAuth app — `GITHUB_CLIENT_ID`/`_SECRET`, `VERCEL_CLIENT_ID`/`_SECRET`/`_INTEGRATION_SLUG`,
+  `NETLIFY_CLIENT_ID`/`_SECRET`, `STRIPE_CLIENT_ID`/`STRIPE_SECRET_KEY`. The Connectors screen tells you exactly
+  which are missing.
+- **Namecheap connector** (manage a custom domain): no env vars — the user pastes their own API key, username, and
+  a whitelisted IP directly into the app (Namecheap's API has no OAuth flow; see
+  `server/src/lib/connectors/namecheap.ts`'s header for why).
+- **Owner panel**: set `OWNER_EMAIL` / `OWNER_PHONE` to your own account's email/phone. Nothing else to configure —
+  any account matching either value gets the panel; everyone else gets a real 403.
 
 ## What's intentionally stubbed, and why
 
@@ -337,6 +363,31 @@ public figures — the same restriction the original training-knowledge-only ver
 keeps the real, useful part (fast, sourced answers about well-known people) without the part that enables locating
 a private individual.
 
+## Projects & the code-build mode
+
+The Projects tab is a named workspace for building one specific site/app (`server/src/routes/projects.ts`) — a
+real `projects` table, with real chat sessions (`chatSessions.projectId`) hanging off it, so "recent chats" and
+full history are queryable rows, not client-side state that vanishes on reinstall. Sending a message inside a
+project switches NexaAi into `build_project` mode (`shared/src/nexaPersona.ts`'s `CODE_BUILD_FORMAT`): one direct
+answer, real complete fenced code blocks with filenames, not several compared approaches and not
+`// rest of the code...` placeholders. Verified against the real API — asking for "a tiny one-page hello world
+site" returns a complete, working `index.html` file plus real usage steps.
+
+**The SiteSpark connector, and why it's shaped the way it is.** Per the explicit decision behind this feature: this
+app does not become SiteSpark, and SiteSpark's code isn't in this repo — instead, Connectors gained a real "connect
+your SiteSpark account" entry, the same way Claude.ai's own Connectors let you link an external account. Because
+SiteSpark is genuinely a separate app with no fixed API this session has ever seen, `lib/connectors/sitespark.ts`
+is a generic, standard OAuth 2.0 Authorization Code client (RFC 6749) rather than a bespoke integration — it
+becomes real and functional the moment SiteSpark implements the three endpoints any OAuth provider needs
+(authorize, token exchange, "who am I"). Until then it shows as "not set up yet," the same honest pattern every
+other missing-credentials connector in this app uses.
+
+**GitHub, Vercel, Netlify, Stripe, and Namecheap** round out what a Project actually needs to go from code to a
+live, real site: push to a repo, deploy it, take payments on it, and point a domain at it. All five are real OAuth
+(or, for Namecheap, real manual API-key entry — it has no OAuth flow) — see `server/src/lib/connectors/` for each.
+None of this is wired into an automatic "one-click ship it" pipeline yet; the model will tell you plainly which
+connector a step depends on and whether it's connected, rather than pretending a site went live when it didn't.
+
 ## The agent builder's live-send capability
 
 Once a business connects Instagram and/or WhatsApp (Settings → Connectors) and activates an agent for that
@@ -365,6 +416,30 @@ platform, real inbound messages actually reach it:
   to weeks, isn't guaranteed) that no code here can shortcut.
 - Registering the webhook URL (`<APP_BASE_URL>/api/webhooks/meta`) and your verify token in the Meta App Dashboard,
   and subscribing to the relevant webhook fields (`messages` for both platforms).
+
+## Developer API keys, the public API, and the Owner panel
+
+Per the explicit split between the two clients: the mobile app is the "usage" experience (chat, voice, projects);
+anything about connecting external services or managing developer/owner tooling lives on the website
+(`nexaai/website`) instead. Three real pieces:
+
+- **API keys** (website → Developer, `server/src/routes/apiKeys.ts`): generate a key — it's shown exactly once, and
+  only a bcrypt hash + a short prefix are ever stored, same principle as password storage. Use it to call
+  `POST /api/v1/generate` (`server/src/routes/publicApi.ts`) from any app you build yourself, e.g. your own
+  SiteSpark, with an `x-api-key` header and a JSON body of `{"prompt": "..."}` — billed against that account's own
+  credit balance exactly like a normal chat message. Verified against the real API end to end: create a key, call
+  the endpoint with it, get a real Claude-generated answer back.
+- **Owner panel** (website → Owner, `server/src/routes/owner.ts` + `middleware/owner.ts`): every number is a live
+  aggregate query — total users, revenue (summed straight from the credit ledger), messages, connected accounts per
+  provider — plus a per-user drill-down into their real sessions/projects/agents/connectors and recent message
+  history. Access is a server-side allowlist check: the logged-in account's own `email`/`phone` against
+  `OWNER_EMAIL`/`OWNER_PHONE`, no separate login system. Verified against the real API: a non-matching account gets
+  a real 403 (`{"error":"not_owner"}`); the matching account sees real numbers.
+- **Account deletion** (`POST /api/auth/delete-account`): requires re-entering your password (checked with the
+  same bcrypt comparison as login), then genuinely `DELETE`s the user row. Every other table's `userId` column is
+  declared `onDelete: "cascade"` in `shared/src/schema.ts`, so Postgres itself removes every chat, project, credit
+  transaction, connector, memory entry, and API key — verified against the real API: deleting an account, then
+  trying to log in with the same credentials, returns "Invalid email or password."
 
 ## Local development
 

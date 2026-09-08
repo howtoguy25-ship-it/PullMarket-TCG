@@ -20,6 +20,8 @@ import { PermissionsScreen } from "../screens/PermissionsScreen";
 import { CapabilitiesScreen } from "../screens/CapabilitiesScreen";
 import { MemoryFilesScreen } from "../screens/MemoryFilesScreen";
 import { ConnectorsScreen } from "../screens/ConnectorsScreen";
+import { ProjectsScreen } from "../screens/ProjectsScreen";
+import { ProjectChatScreen } from "../screens/ProjectChatScreen";
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -29,6 +31,7 @@ const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   Chat: "chatbubble-ellipses",
   Camera: "camera",
   Voice: "call",
+  Projects: "code-slash",
   Plans: "flash",
   Credits: "wallet",
   Agents: "hardware-chip",
@@ -51,6 +54,7 @@ function MainTabs() {
       <Tab.Screen name="Chat" component={ChatScreen} />
       <Tab.Screen name="Camera" component={CameraAskScreen} options={{ title: "Ask with camera" }} />
       <Tab.Screen name="Voice" component={VoiceChatScreen} options={{ title: "Voice chat" }} />
+      <Tab.Screen name="Projects" component={ProjectsScreen} />
       <Tab.Screen name="Plans" component={PlansScreen} />
       <Tab.Screen name="Credits" component={CreditsScreen} />
       <Tab.Screen name="Agents" component={AgentBuilderScreen} options={{ title: "My agents" }} />
@@ -77,6 +81,7 @@ function HomeFlow() {
       <HomeStack.Screen name="Capabilities" component={CapabilitiesScreen} options={headerOptions} />
       <HomeStack.Screen name="MemoryFiles" component={MemoryFilesScreen} options={{ ...headerOptions, title: "Memory files" }} />
       <HomeStack.Screen name="Connectors" component={ConnectorsScreen} options={headerOptions} />
+      <HomeStack.Screen name="ProjectChat" component={ProjectChatScreen} options={headerOptions} />
     </HomeStack.Navigator>
   );
 }

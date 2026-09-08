@@ -1,0 +1,132 @@
+<title>NexaAi Connectors</title>
+<link rel="stylesheet" href="./style.css" />
+<div class="wrap">
+  <div class="nav">
+    <span class="brand">✦ NexaAi</span>
+    <a href="./credits.html">Credits</a>
+    <a href="./settings.html">Settings</a>
+    <a class="active" href="./connectors.html">Connectors</a>
+    <a href="./apikeys.html">Developer</a>
+    <a href="#" id="logout">Log out</a>
+  </div>
+
+  <div class="card">
+    <h1>Connectors</h1>
+    <h2>Same real connectors as the app — connecting from the web is often easier since OAuth approval happens in a browser anyway.</h2>
+    <div id="list"></div>
+    <p class="error" id="error" style="display:none"></p>
+  </div>
+
+  <div class="card" id="manualCard" style="display:none">
+    <h1 id="manualTitle"></h1>
+    <div id="manualFields"></div>
+    <button id="manualSubmit">Connect</button>
+    <button class="secondary" id="manualCancel">Cancel</button>
+  </div>
+</div>
+<script src="./api.js"></script>
+<script>
+  requireLoginOrRedirect();
+
+  const MANUAL_FIELDS = {
+    whatsapp: [
+      { key: "businessName", label: "Business name" },
+      { key: "phoneNumberId", label: "Phone number ID" },
+      { key: "accessToken", label: "Permanent access token", type: "password" },
+    ],
+    namecheap: [
+      { key: "apiUser", label: "Namecheap username" },
+      { key: "apiKey", label: "API key", type: "password" },
+      { key: "clientIp", label: "Whitelisted IP address" },
+    ],
+  };
+  let manualProvider = null;
+
+  function openManual(provider, label) {
+    manualProvider = provider;
+    document.getElementById("manualTitle").textContent = `Connect ${label}`;
+    const fieldsEl = document.getElementById("manualFields");
+    fieldsEl.innerHTML = "";
+    MANUAL_FIELDS[provider].forEach((f) => {
+      const wrap = document.createElement("div");
+      wrap.innerHTML = `<label>${f.label}</label><input id="mf_${f.key}" type="${f.type || "text"}" />`;
+      fieldsEl.appendChild(wrap);
+    });
+    document.getElementById("manualCard").style.display = "block";
+  }
+
+  document.getElementById("manualCancel").addEventListener("click", () => {
+    document.getElementById("manualCard").style.display = "none";
+    manualProvider = null;
+  });
+
+  document.getElementById("manualSubmit").addEventListener("click", async () => {
+    const errorEl = document.getElementById("error");
+    errorEl.style.display = "none";
+    const body = {};
+    MANUAL_FIELDS[manualProvider].forEach((f) => (body[f.key] = document.getElementById(`mf_${f.key}`).value));
+    try {
+      await api(`/api/connectors/${manualProvider}/manual`, { method: "POST", body: JSON.stringify(body) });
+      document.getElementById("manualCard").style.display = "none";
+      load();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
+  });
+
+  async function connect(connector) {
+    const errorEl = document.getElementById("error");
+    errorEl.style.display = "none";
+    try {
+      const result = await api(`/api/connectors/${connector.provider}/connect`, { method: "POST" });
+      if (result.manualEntry) return openManual(connector.provider, connector.label);
+      if (result.authUrl) window.location.href = result.authUrl;
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
+  }
+
+  async function disconnect(provider) {
+    if (!confirm("Disconnect this connector?")) return;
+    await api(`/api/connectors/${provider}`, { method: "DELETE" });
+    load();
+  }
+
+  async function load() {
+    const { connectors } = await api("/api/connectors");
+    const listEl = document.getElementById("list");
+    listEl.innerHTML = "";
+    connectors.forEach((c) => {
+      const row = document.createElement("div");
+      row.className = "toggle-row";
+      const statusLabel = c.status === "connected" ? `Connected as ${c.externalAccountLabel}` : c.status === "not_configured" ? "Not set up yet" : c.description;
+      row.innerHTML = `<span><strong>${c.label}</strong><br/><span class="muted">${statusLabel}</span></span>`;
+      const btn = document.createElement("button");
+      btn.style.width = "auto";
+      btn.style.marginTop = "0";
+      if (c.status === "connected") {
+        btn.textContent = "Disconnect";
+        btn.className = "secondary";
+        btn.addEventListener("click", () => disconnect(c.provider));
+      } else if (c.status === "not_configured") {
+        btn.textContent = "Not set up";
+        btn.disabled = true;
+      } else {
+        btn.textContent = "Connect";
+        btn.addEventListener("click", () => connect(c));
+      }
+      row.appendChild(btn);
+      listEl.appendChild(row);
+    });
+  }
+
+  document.getElementById("logout").addEventListener("click", (e) => {
+    e.preventDefault();
+    clearToken();
+    window.location.href = "./index.html";
+  });
+
+  load();
+</script>

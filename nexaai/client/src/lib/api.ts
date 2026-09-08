@@ -44,6 +44,7 @@ export async function api<T = any>(path: string, options: RequestInit = {}): Pro
 
 export interface StreamChatBody {
   sessionId?: string;
+  projectId?: string;
   text: string;
   kind?: "text" | "voice_memo" | "camera_ask" | "who_is_lookup" | "assistance_request" | "file_attachment";
   requestedAnswerCount?: number;

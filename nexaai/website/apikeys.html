@@ -1,0 +1,98 @@
+<title>NexaAi Developer</title>
+<link rel="stylesheet" href="./style.css" />
+<div class="wrap">
+  <div class="nav">
+    <span class="brand">✦ NexaAi</span>
+    <a href="./credits.html">Credits</a>
+    <a href="./settings.html">Settings</a>
+    <a href="./connectors.html">Connectors</a>
+    <a class="active" href="./apikeys.html">Developer</a>
+    <a href="#" id="logout">Log out</a>
+  </div>
+
+  <div class="card">
+    <h1>API keys</h1>
+    <h2>
+      Call NexaAi from an app you build yourself — e.g. your own SiteSpark — without a user logging into NexaAi
+      directly. Send the key as an <code>x-api-key</code> header to <code>POST /api/v1/generate</code> with a
+      JSON body of <code>{"prompt": "..."}</code>. Billed against this account's own credit balance, same as chat.
+    </h2>
+    <label>Key label</label>
+    <input id="label" type="text" placeholder="e.g. SiteSpark integration" />
+    <button id="create">Generate new key</button>
+    <div class="card" id="rawKeyCard" style="display:none; margin-top:16px; border-color: var(--warning)">
+      <h1 style="font-size:16px">Copy this now — it won't be shown again</h1>
+      <input id="rawKey" readonly style="font-family: monospace" />
+      <button id="copyKey" class="secondary">Copy to clipboard</button>
+    </div>
+    <p class="error" id="error" style="display:none"></p>
+  </div>
+
+  <div class="card">
+    <h1>Existing keys</h1>
+    <div id="list"></div>
+  </div>
+</div>
+<script src="./api.js"></script>
+<script>
+  requireLoginOrRedirect();
+
+  async function load() {
+    const { apiKeys } = await api("/api/api-keys");
+    const listEl = document.getElementById("list");
+    listEl.innerHTML = "";
+    if (!apiKeys.length) {
+      listEl.innerHTML = '<p class="muted">No keys yet.</p>';
+      return;
+    }
+    apiKeys.forEach((k) => {
+      const row = document.createElement("div");
+      row.className = "toggle-row";
+      const status = k.revokedAt ? "Revoked" : k.lastUsedAt ? `Last used ${new Date(k.lastUsedAt).toLocaleDateString()}` : "Never used yet";
+      row.innerHTML = `<span><strong>${k.label}</strong><br/><span class="muted">${k.keyPrefix}… · ${status}</span></span>`;
+      if (!k.revokedAt) {
+        const btn = document.createElement("button");
+        btn.textContent = "Revoke";
+        btn.className = "secondary";
+        btn.style.width = "auto";
+        btn.style.marginTop = "0";
+        btn.addEventListener("click", async () => {
+          if (!confirm("Revoke this key? Anything using it will stop working immediately.")) return;
+          await api(`/api/api-keys/${k.id}`, { method: "DELETE" });
+          load();
+        });
+        row.appendChild(btn);
+      }
+      listEl.appendChild(row);
+    });
+  }
+
+  document.getElementById("create").addEventListener("click", async () => {
+    const errorEl = document.getElementById("error");
+    errorEl.style.display = "none";
+    const label = document.getElementById("label").value.trim();
+    if (!label) return;
+    try {
+      const { rawKey } = await api("/api/api-keys", { method: "POST", body: JSON.stringify({ label }) });
+      document.getElementById("rawKey").value = rawKey;
+      document.getElementById("rawKeyCard").style.display = "block";
+      document.getElementById("label").value = "";
+      load();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
+  });
+
+  document.getElementById("copyKey").addEventListener("click", () => {
+    navigator.clipboard.writeText(document.getElementById("rawKey").value);
+  });
+
+  document.getElementById("logout").addEventListener("click", (e) => {
+    e.preventDefault();
+    clearToken();
+    window.location.href = "./index.html";
+  });
+
+  load();
+</script>
