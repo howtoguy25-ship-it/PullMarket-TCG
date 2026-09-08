@@ -510,6 +510,17 @@ anything about connecting external services or managing developer/owner tooling 
   transaction, connector, memory entry, and API key — verified against the real API: deleting an account, then
   trying to log in with the same credentials, returns "Invalid email or password."
 
+## The app icon/logo
+
+`assets/icon.png` is the official NexaAi logo, used as-is (never recolored, cropped, or otherwise altered) for the
+real iOS icon (`app.config.js`'s `icon`/`ios.icon`), the Android adaptive icon (`android.adaptiveIcon`, foreground
++ a white `backgroundColor` matching the logo's own background), the splash screen (`expo-splash-screen` plugin,
+same reasoning — its `backgroundColor` is white to match rather than trying to key the logo onto something else),
+and the website's favicon/nav mark (`website/favicon.png`, a real downscaled copy — the website's Express static
+route only serves `nexaai/website`, not `nexaai/assets`, so a copy lives there too). One real attempt at a
+transparent version for the splash screen (`ffmpeg colorkey`) silently faded out the "AI" wordmark's thin strokes,
+so that was reverted rather than shipping an altered version of the official asset.
+
 ## Local development
 
 ```bash
