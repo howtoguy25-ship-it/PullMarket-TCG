@@ -54,20 +54,13 @@ Catches mechanical problems (empty fields, missing `**bold heading**` formatting
 prints a per-category count. **This does not replace actually reading ~20-30 examples yourself** — synthetic data
 inherits whatever quirks/biases the teacher model has, and the only way to catch that is to read it.
 
-### 3. Fine-tune (outside this repo)
+### 3. Fine-tune + 4. Serve
 
-Once you have a validated `.jsonl`, hand it to [Axolotl](https://github.com/OpenAccess-AI-Collective/axolotl) or
-[Unsloth](https://github.com/unslothai/unsloth) running on a rented GPU (RunPod recommended — on-demand and
-serverless A100/H100 pods with ready-made Axolotl/Unsloth templates, pay-per-second). QLoRA on Llama 3.1 8B is the
-practical starting point: a few hours per training run, tens of dollars in GPU time. A minimal Axolotl config
-points `datasets.path` at your `.jsonl`, `datasets.type` at `chat_template`, and `base_model` at
-`meta-llama/Meta-Llama-3.1-8B-Instruct` — see Axolotl's own example configs for the rest (LoRA rank, learning
-rate, epochs).
-
-### 4. Serve it
-
-Run [vLLM](https://github.com/vllm-project/vllm) with your fine-tuned checkpoint — it exposes a real
-`/v1/chat/completions` endpoint compatible with the OpenAI SDK, so the app-side change is small (next step).
+`axolotl-llama3-8b-qlora.yml` is a real starting config (QLoRA on Llama 3.1 8B Instruct) pointed at this
+pipeline's dataset format. `RUNPOD_SETUP.md` walks through renting the GPU, running the training job, merging
+the LoRA adapter, and serving the result with vLLM behind a real OpenAI-compatible endpoint — plus a budget
+table showing what a ~$10K budget actually covers (short version: the fine-tuning itself is cheap, tens to low
+hundreds of dollars; hosting an always-on 8B endpoint is the real ongoing cost, roughly $1,100-1,800/month).
 
 ### Wiring it into NexaAi
 

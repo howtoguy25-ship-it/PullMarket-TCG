@@ -1,0 +1,65 @@
+# Real Axolotl QLoRA config for fine-tuning Llama 3.1 8B Instruct on the
+# dataset finetune/generateSyntheticData.ts produces. This is a realistic
+# starting point, not a guaranteed-exact match for whatever Axolotl version
+# you install — config field names shift between Axolotl releases, so cross-
+# check this against the current examples in Axolotl's own repo
+# (github.com/axolotl-ai-cloud/axolotl/tree/main/examples/llama-3) before a
+# real run, especially if any field errors out on load.
+
+base_model: meta-llama/Meta-Llama-3.1-8B-Instruct
+model_type: LlamaForCausalLM
+tokenizer_type: AutoTokenizer
+
+load_in_4bit: true
+strict: false
+
+# Point this at your generated + validated dataset. Concatenate multiple
+# generation runs into one file first if you ran generateSyntheticData.ts
+# more than once: `cat finetune/data/synthetic-*.jsonl > finetune/data/combined.jsonl`
+datasets:
+  - path: finetune/data/combined.jsonl
+    type: chat_template
+    chat_template: llama3
+    field_messages: messages
+    message_field_role: role
+    message_field_content: content
+
+dataset_prepared_path: finetune/outputs/last_run_prepared
+val_set_size: 0.05
+output_dir: finetune/outputs/nexaai-llama3-8b-qlora
+
+adapter: qlora
+lora_r: 32
+lora_alpha: 16
+lora_dropout: 0.05
+lora_target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+  - gate_proj
+  - down_proj
+  - up_proj
+
+sequence_len: 4096
+sample_packing: true
+pad_to_sequence_len: true
+
+gradient_accumulation_steps: 4
+micro_batch_size: 2
+num_epochs: 3
+optimizer: paged_adamw_8bit
+lr_scheduler: cosine
+learning_rate: 0.0002
+
+bf16: auto
+tf32: true
+flash_attention: true
+
+warmup_steps: 10
+evals_per_epoch: 2
+saves_per_epoch: 1
+weight_decay: 0.0
+
+special_tokens:
+  pad_token: "<|end_of_text|>"
