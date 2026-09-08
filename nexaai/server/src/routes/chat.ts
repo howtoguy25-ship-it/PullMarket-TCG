@@ -26,6 +26,7 @@ import { resolveCapabilities } from "../lib/capabilities";
 import { getMemoryContext, extractAndStoreMemory } from "../lib/memory";
 import { extractFileText } from "../lib/extractFileText";
 import { detectAgentBuildRequest } from "../lib/agents/detectAgentRequest";
+import { buildMcpToolBridge } from "../lib/mcp/toolBridge";
 import { agents } from "@shared/schema";
 
 export const chatRouter = Router();
@@ -249,6 +250,11 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
 
   const memoryContext = await getMemoryContext(userId);
 
+  // Real MCP tools from the user's connected connectors (routes/mcp.ts) —
+  // who_is_lookup never reaches this (it bypasses askParams entirely via
+  // deepWhoIsLookup's own web_search tool loop), so no conflict there.
+  const mcpBridge = await buildMcpToolBridge(userId);
+
   return {
     ok: true,
     sessionId,
@@ -269,6 +275,8 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
               : "chat") as "chat" | "who_is" | "assistance_request" | "camera_ask" | "build_project",
       memoryContext,
       focusMode,
+      mcpTools: mcpBridge.tools.length ? mcpBridge.tools : undefined,
+      mcpToolRunner: mcpBridge.runner,
     },
     finish: async (text: string) => {
       // NOTE: this key is `message`, not `assistantMsg` — the client

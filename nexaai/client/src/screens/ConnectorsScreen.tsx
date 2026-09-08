@@ -7,6 +7,179 @@ import { GalaxyBackground } from "../components/GalaxyBackground";
 import { FadeInUp } from "../components/FadeInUp";
 import { colors, radii, spacing, typography } from "../theme/colors";
 import { api, ApiError } from "../lib/api";
+import { openOnWeb } from "../lib/webLinks";
+
+interface McpServerVM {
+  id: string;
+  name: string;
+  url: string;
+  enabled: boolean;
+  status: "connected" | "error" | "unverified";
+  lastError: string | null;
+  toolCount: number;
+}
+
+const MCP_STATUS_LABEL: Record<McpServerVM["status"], string> = {
+  connected: "Connected",
+  error: "Connection error",
+  unverified: "Not verified yet",
+};
+
+/**
+ * Real, generic MCP connectors — the user pastes any real Model Context
+ * Protocol server URL and NexaAi connects to it for real (server/src/lib/mcp/client.ts),
+ * discovers its actual tools, and can call them live during chat. Same idea
+ * as Claude's own "Add custom connector".
+ */
+function McpConnectorsSection() {
+  const [servers, setServers] = useState<McpServerVM[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [url, setUrl] = useState("");
+  const [token, setToken] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(() => {
+    api<{ servers: McpServerVM[] }>("/api/mcp").then((r) => {
+      setServers(r.servers);
+      setLoaded(true);
+    });
+  }, []);
+
+  useFocusEffect(load);
+
+  const submit = async () => {
+    if (!name.trim() || !url.trim()) return;
+    setSubmitting(true);
+    try {
+      await api("/api/mcp", { method: "POST", body: JSON.stringify({ name: name.trim(), url: url.trim(), bearerToken: token.trim() || undefined }) });
+      setModalOpen(false);
+      setName("");
+      setUrl("");
+      setToken("");
+      load();
+    } catch (err) {
+      Alert.alert("Couldn't add connector", err instanceof ApiError ? err.message : "Check the server URL and try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const reconnect = async (server: McpServerVM) => {
+    setBusyId(server.id);
+    try {
+      await api(`/api/mcp/${server.id}/reconnect`, { method: "POST" });
+    } finally {
+      setBusyId(null);
+      load();
+    }
+  };
+
+  const remove = (server: McpServerVM) => {
+    Alert.alert(`Remove ${server.name}?`, "NexaAi will stop being able to call its tools.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          await api(`/api/mcp/${server.id}`, { method: "DELETE" });
+          load();
+        },
+      },
+    ]);
+  };
+
+  if (!loaded) return null;
+
+  return (
+    <View style={styles.mcpSection}>
+      <View style={styles.mcpHeaderRow}>
+        <Text style={styles.mcpTitle}>MCP connectors</Text>
+        <TouchableOpacity testID="mcp-add-button" style={styles.mcpAddButton} onPress={() => setModalOpen(true)}>
+          <Ionicons name="add" size={16} color="#fff" />
+          <Text style={styles.mcpAddButtonText}>Add custom</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.mcpSubtitle}>
+        Paste any real MCP server's URL — NexaAi connects to it and can use its real tools during chat, the same way Claude's
+        custom connectors work.
+      </Text>
+
+      {servers.map((server, index) => (
+        <FadeInUp key={server.id} delayMs={index * 45}>
+          <View style={styles.mcpRow}>
+            <Ionicons name="hardware-chip-outline" size={20} color={colors.accentBright} />
+            <View style={styles.mcpRowText}>
+              <Text style={styles.rowLabel}>{server.name}</Text>
+              <Text style={styles.rowDescription} numberOfLines={1}>
+                {server.status === "error" && server.lastError ? server.lastError : server.url}
+              </Text>
+            </View>
+            <View style={[styles.badge, server.status === "connected" && styles.badgeConnected, server.status === "error" && styles.badgeError]}>
+              <Text style={[styles.badgeText, server.status === "connected" && styles.badgeTextConnected]}>
+                {server.status === "connected" ? `${server.toolCount} tool${server.toolCount === 1 ? "" : "s"}` : MCP_STATUS_LABEL[server.status]}
+              </Text>
+            </View>
+            {busyId === server.id ? (
+              <ActivityIndicator size="small" color={colors.accentBright} />
+            ) : (
+              <TouchableOpacity onPress={() => reconnect(server)} style={styles.mcpIconButton}>
+                <Ionicons name="refresh" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={() => remove(server)} style={styles.mcpIconButton}>
+              <Ionicons name="trash-outline" size={16} color={colors.danger} />
+            </TouchableOpacity>
+          </View>
+        </FadeInUp>
+      ))}
+
+      <TouchableOpacity onPress={() => openOnWeb("mcp.html")}>
+        <Text style={styles.mcpWebLink}>View full tool schemas & advanced options on web →</Text>
+      </TouchableOpacity>
+
+      <Modal visible={modalOpen} transparent animationType="fade" onRequestClose={() => setModalOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Add a custom MCP connector</Text>
+            <Text style={styles.modalSubtitle}>Any real Model Context Protocol server — your own tools, or a public one.</Text>
+            <TextInput testID="mcp-name-input" style={styles.input} placeholder="Name" placeholderTextColor={colors.textMuted} value={name} onChangeText={setName} />
+            <TextInput
+              testID="mcp-url-input"
+              style={styles.input}
+              placeholder="https://example.com/mcp"
+              placeholderTextColor={colors.textMuted}
+              value={url}
+              onChangeText={setUrl}
+              autoCapitalize="none"
+              keyboardType="url"
+            />
+            <TextInput
+              testID="mcp-token-input"
+              style={styles.input}
+              placeholder="Bearer token (optional)"
+              placeholderTextColor={colors.textMuted}
+              value={token}
+              onChangeText={setToken}
+              autoCapitalize="none"
+              secureTextEntry
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setModalOpen(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity testID="mcp-submit-button" style={styles.modalConnectButton} onPress={submit} disabled={submitting}>
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalConnectText}>Connect</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
 
 interface ConnectorVM {
   provider: string;
@@ -182,6 +355,7 @@ export function ConnectorsScreen() {
         data={filtered}
         keyExtractor={(c) => c.provider}
         contentContainerStyle={styles.list}
+        ListHeaderComponent={<McpConnectorsSection />}
         ListEmptyComponent={<Text style={styles.emptyText}>No connectors match "{search}".</Text>}
         renderItem={({ item, index }) => (
           <FadeInUp delayMs={index * 45}>
@@ -285,4 +459,24 @@ const styles = StyleSheet.create({
   modalCancelText: { color: colors.textSecondary, fontWeight: "700" },
   modalConnectButton: { flex: 1, backgroundColor: colors.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
   modalConnectText: { color: "#fff", fontWeight: "700" },
+  mcpSection: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },
+  mcpHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  mcpTitle: { ...typography.h2, color: colors.textPrimary },
+  mcpSubtitle: { ...typography.caption, color: colors.textMuted },
+  mcpAddButton: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.accent, borderRadius: radii.pill, paddingHorizontal: spacing.md, paddingVertical: 6 },
+  mcpAddButtonText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+  mcpRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  mcpRowText: { flex: 1, gap: 2 },
+  mcpIconButton: { padding: 6 },
+  mcpWebLink: { ...typography.caption, color: colors.accentBright, textAlign: "center", marginTop: spacing.xs },
+  badgeError: { backgroundColor: colors.danger },
 });

@@ -9,6 +9,7 @@ import { useAuth } from "../lib/AuthContext";
 import { api, ApiError } from "../lib/api";
 import { VOICE_CHARACTERS, speak } from "../lib/voice";
 import type { MapsApp } from "../lib/maps";
+import { openOnWeb } from "../lib/webLinks";
 
 const MAPS_OPTIONS: { id: MapsApp; label: string }[] = [
   { id: "apple", label: "Apple Maps" },
@@ -128,11 +129,25 @@ export function SettingsScreen() {
           </View>
         </Section>
 
-        <Section title="Developer">
+        <Section title="Continue on web">
           <Text style={styles.disclaimer}>
-            API keys and third-party integration management need a browser — open your account website (Settings on the login
-            page) to generate a key or manage Connectors from there.
+            A few things are genuinely richer in a browser — same idea as Claude's own web vs. mobile split. Tapping any of
+            these opens NexaAi's account website, already signed in as you.
           </Text>
+          <TouchableOpacity testID="settings-web-apikeys" style={styles.row} onPress={() => openOnWeb("apikeys.html")}>
+            <Text style={styles.rowLabel}>Developer & API keys</Text>
+            <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity testID="settings-web-mcp" style={styles.row} onPress={() => openOnWeb("mcp.html")}>
+            <Text style={styles.rowLabel}>Full MCP tool schemas</Text>
+            <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+          {user.isOwner && (
+            <TouchableOpacity testID="settings-web-owner" style={styles.row} onPress={() => openOnWeb("owner.html")}>
+              <Text style={styles.rowLabel}>Owner panel</Text>
+              <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
         </Section>
 
         <TouchableOpacity testID="settings-logout-button" style={styles.logoutButton} onPress={confirmLogout}>

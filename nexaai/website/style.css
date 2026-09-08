@@ -86,3 +86,17 @@ button:disabled { opacity: 0.6; cursor: default; }
 .error { color: var(--danger); font-size: 13px; margin-top: 10px; }
 .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .toggle-row:last-child { border-bottom: none; }
+
+.pill { display: inline-block; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--bg-card-alt); color: var(--text-secondary); }
+.pill.ok { background: var(--success); color: #08130e; }
+.pill.err { background: var(--danger); color: #1a0508; }
+.mcp-item { border-bottom: 1px solid var(--border); padding: 16px 0; }
+.mcp-item:last-child { border-bottom: none; }
+.mcp-item-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.mcp-item-head .name { font-weight: 700; }
+.mcp-item .url { color: var(--text-muted); font-size: 13px; word-break: break-all; }
+.mcp-actions { display: flex; gap: 8px; margin-top: 10px; }
+.mcp-actions button { width: auto; margin-top: 0; padding: 8px 14px; font-size: 13px; }
+details.tool { margin-top: 10px; }
+details.tool summary { cursor: pointer; color: var(--accent-bright); font-size: 13px; font-weight: 600; }
+pre.schema { background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px; font-size: 12px; overflow-x: auto; color: var(--text-secondary); margin-top: 8px; }

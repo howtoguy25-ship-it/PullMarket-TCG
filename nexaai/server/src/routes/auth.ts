@@ -7,6 +7,7 @@ import { users, usageWindows } from "@shared/schema";
 import { signUserToken, requireAuth, type AuthedRequest } from "../middleware/auth";
 import { grantCredits } from "../lib/credits";
 import { resolveCapabilities } from "../lib/capabilities";
+import { isOwnerAccount } from "../middleware/owner";
 
 export const authRouter = Router();
 
@@ -134,5 +135,5 @@ authRouter.post("/delete-account", requireAuth, async (req: AuthedRequest, res) 
 
 function publicUser(user: typeof users.$inferSelect) {
   const { passwordHash, ...rest } = user;
-  return { ...rest, capabilities: resolveCapabilities(user.capabilities) };
+  return { ...rest, capabilities: resolveCapabilities(user.capabilities), isOwner: isOwnerAccount(user.email, user.phone) };
 }

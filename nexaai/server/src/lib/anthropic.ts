@@ -24,6 +24,10 @@ export interface AskParams {
   /** Formatted memory-recall block from lib/memory.ts's getMemoryContext, or "" if memory/reference is off. */
   memoryContext?: string;
   focusMode: FocusMode;
+  /** Real tools discovered from the user's connected MCP servers (routes/mcp.ts) — see mcpToolRunner for how a call is actually dispatched. */
+  mcpTools?: Anthropic.Tool[];
+  /** Dispatches one real tool_use block to whichever MCP server owns that (namespaced) tool name and returns its result as text. */
+  mcpToolRunner?: (toolName: string, input: unknown) => Promise<string>;
 }
 
 export interface AskResult {
@@ -31,11 +35,53 @@ export interface AskResult {
 }
 
 function buildSystemPrompt(params: AskParams): string {
-  return buildNexaSystemPrompt(
+  const base = buildNexaSystemPrompt(
     params.mode,
     params.answerCount,
     FOCUS_MODE_DEFINITIONS[params.focusMode].promptAddendum + (params.memoryContext ?? ""),
   );
+  if (!params.mcpTools?.length) return base;
+  return (
+    base +
+    "\n\nYou also have real external tools connected via the user's MCP connectors (Settings > Connectors) — " +
+    "actually call one whenever it would genuinely help answer the request, rather than only describing what " +
+    "you'd do with it."
+  );
+}
+
+// Bounds the real tool-use loop below the same way lib/whoIsSearch.ts bounds
+// its own pause_turn loop — a tool could misbehave and keep asking to be
+// called again; this guarantees the turn still finishes.
+const MAX_MCP_TOOL_ITERATIONS = 5;
+
+/** Runs every tool_use block in a response through mcpToolRunner and returns the matching tool_result content blocks. */
+async function runMcpTools(
+  content: Anthropic.ContentBlock[],
+  runner: (toolName: string, input: unknown) => Promise<string>,
+): Promise<Anthropic.ToolResultBlockParam[]> {
+  const toolUses = content.filter((block): block is Anthropic.ToolUseBlock => block.type === "tool_use");
+  return Promise.all(
+    toolUses.map(async (block) => {
+      try {
+        const result = await runner(block.name, block.input);
+        return { type: "tool_result" as const, tool_use_id: block.id, content: result };
+      } catch (err) {
+        return {
+          type: "tool_result" as const,
+          tool_use_id: block.id,
+          content: err instanceof Error ? err.message : "That tool call failed.",
+          is_error: true,
+        };
+      }
+    }),
+  );
+}
+
+function joinTextBlocks(content: Anthropic.ContentBlock[]): string {
+  return content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((b) => b.text)
+    .join("");
 }
 
 const NOT_CONFIGURED_TEXT =
@@ -65,11 +111,12 @@ function buildMessagesRequest(params: AskParams) {
     model: params.plan.model,
     max_tokens: maxTokens,
     ...(budgetTokens ? { thinking: { type: "enabled" as const, budget_tokens: budgetTokens } } : {}),
+    ...(params.mcpTools?.length ? { tools: params.mcpTools } : {}),
     system: buildSystemPrompt(params),
     messages: [
       ...params.history.map((m) => ({ role: m.role, content: m.content })),
       { role: "user" as const, content: userContent },
-    ],
+    ] as Anthropic.MessageParam[],
   };
 }
 
@@ -77,13 +124,19 @@ export async function askNexaAi(params: AskParams): Promise<AskResult> {
   const anthropic = getClient();
   if (!anthropic) return { text: NOT_CONFIGURED_TEXT };
 
-  const response = await anthropic.messages.create(buildMessagesRequest(params));
-  const text = response.content
-    .map((block) => (block.type === "text" ? block.text : ""))
-    .join("")
-    .trim();
+  const request = buildMessagesRequest(params);
+  let allText = "";
+  for (let iteration = 0; ; iteration++) {
+    const response = await anthropic.messages.create(request);
+    const text = joinTextBlocks(response.content);
+    allText += allText && text ? `\n\n${text}` : text;
 
-  return { text };
+    if (response.stop_reason !== "tool_use" || !params.mcpToolRunner || iteration >= MAX_MCP_TOOL_ITERATIONS) {
+      return { text: allText.trim() };
+    }
+    request.messages.push({ role: "assistant", content: response.content });
+    request.messages.push({ role: "user", content: await runMcpTools(response.content, params.mcpToolRunner) });
+  }
 }
 
 /**
@@ -99,13 +152,19 @@ export async function streamNexaAi(params: AskParams, onDelta: (deltaText: strin
     return { text: NOT_CONFIGURED_TEXT };
   }
 
-  const stream = anthropic.messages.stream(buildMessagesRequest(params));
-  stream.on("text", (delta) => onDelta(delta));
-  const final = await stream.finalMessage();
-  const text = final.content
-    .map((block) => (block.type === "text" ? block.text : ""))
-    .join("")
-    .trim();
+  const request = buildMessagesRequest(params);
+  let allText = "";
+  for (let iteration = 0; ; iteration++) {
+    const stream = anthropic.messages.stream(request);
+    stream.on("text", onDelta);
+    const final = await stream.finalMessage();
+    const text = joinTextBlocks(final.content);
+    allText += allText && text ? `\n\n${text}` : text;
 
-  return { text };
+    if (final.stop_reason !== "tool_use" || !params.mcpToolRunner || iteration >= MAX_MCP_TOOL_ITERATIONS) {
+      return { text: allText.trim() };
+    }
+    request.messages.push({ role: "assistant", content: final.content });
+    request.messages.push({ role: "user", content: await runMcpTools(final.content, params.mcpToolRunner) });
+  }
 }

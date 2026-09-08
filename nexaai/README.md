@@ -439,6 +439,48 @@ platform, real inbound messages actually reach it:
 - Registering the webhook URL (`<APP_BASE_URL>/api/webhooks/meta`) and your verify token in the Meta App Dashboard,
   and subscribing to the relevant webhook fields (`messages` for both platforms).
 
+## Real MCP connectors
+
+`server/src/lib/mcp/client.ts` is a real Model Context Protocol client (`@modelcontextprotocol/sdk`, not a
+hand-rolled stand-in) — the same idea as Claude's own "Add custom connector": paste any real MCP server's URL
+(plus an optional bearer token) in Settings → Connectors or the website's MCP page, and NexaAi actually connects
+to it, discovers its real tools, and can call them live during a normal chat turn.
+
+- `shared/src/schema.ts`'s `mcpServers` table stores each connector (name, URL, optional bearer token, cached
+  tool list, connection status/error). `routes/mcp.ts` is plain CRUD plus a real "reconnect" endpoint that
+  re-discovers tools on demand.
+- Connects fresh per call rather than pooling a persistent session (simpler and correct for a stateless HTTP
+  server); tries the modern Streamable HTTP transport first and falls back to the older HTTP+SSE transport for
+  servers that predate it.
+- At chat time, `lib/mcp/toolBridge.ts` turns every enabled, currently-connected server's tools into real
+  Anthropic tool definitions (namespaced per server so two servers can't collide on a tool name) and
+  `lib/anthropic.ts` runs a real bounded tool-use loop — the model calls a tool, the result goes back in as a
+  `tool_result`, and the loop continues until the model gives a final answer (same shape as `lib/whoIsSearch.ts`'s
+  own `pause_turn` loop for web search, capped at 5 iterations so a misbehaving tool can't hang a turn forever).
+  Only ever wired in for the Anthropic-provider path — the self-hosted Beginner-tier model has no tool-calling
+  support at all, same limitation already documented for images.
+
+## Web vs. mobile: what's mobile-only, what's web-only, and why
+
+Same split Claude's own apps use: the phone is the fast "get something done" surface (chat, voice, projects,
+camera/QR); anything that's easier or safer to do in a real browser lives on the account website
+(`nexaai/website`) instead, and the app *links out* to it rather than rebuilding it natively — it doesn't just
+mention that the website exists. `client/src/lib/webLinks.ts`'s `openOnWeb(path)` opens the right website page
+with the current session handed off via a one-time `?token=` query param (`website/api.js` reads it into
+`localStorage` and strips it from the URL), so the user lands already signed in instead of hitting a second login
+screen. Settings → "Continue on web" uses this for:
+
+- **Developer & API keys** and **full MCP tool schemas** (the mobile Connectors screen only shows a tool count —
+  the website's MCP page shows every tool's actual JSON input schema, useful for checking exactly what you're
+  giving NexaAi access to).
+- **Owner panel** — only shown at all when `/api/auth/me`'s real `isOwner` field (an allowlist check, see below)
+  says this account is the owner; a non-owner never even sees the link.
+
+Buying credits already worked this way before this pass: iOS always opens the website's real Paddle checkout
+(`CreditsScreen.tsx` → `WebBrowser.openBrowserAsync`) rather than a native card form, both because Apple's rules
+require it for external purchase links and because it's what lets the website's checkout offer a custom dollar
+amount that a fixed-tier Apple IAP product can't.
+
 ## Developer API keys, the public API, and the Owner panel
 
 Per the explicit split between the two clients: the mobile app is the "usage" experience (chat, voice, projects);

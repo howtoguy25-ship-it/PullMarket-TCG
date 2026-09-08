@@ -403,6 +403,39 @@ export const connectorsRelations = relations(connectors, ({ one }) => ({
 }));
 
 // ---------------------------------------------------------------------------
+// Real MCP connectors — generic, user-added Model Context Protocol servers
+// (any real MCP server URL, not one of the fixed OAuth providers above),
+// same idea as Claude's own "custom connector": the user pastes a server
+// URL (+ optional bearer token), NexaAi connects with the real MCP SDK,
+// discovers its actual tools, and can call them live during chat (see
+// lib/mcp/client.ts and lib/anthropic.ts's tool-use loop).
+// ---------------------------------------------------------------------------
+
+export const mcpConnectionStatusEnum = pgEnum("mcp_connection_status", ["connected", "error", "unverified"]);
+
+export const mcpServers = pgTable("nexaai_mcp_servers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+  url: text("url").notNull(),
+  bearerToken: text("bearer_token"),
+  enabled: boolean("enabled").notNull().default(true),
+  status: mcpConnectionStatusEnum("status").notNull().default("unverified"),
+  lastError: text("last_error"),
+  // Cached tool list from the last successful discovery — [{name, description, inputSchema}]
+  // — read at chat time instead of connecting to every MCP server on every message.
+  tools: jsonb("tools").notNull().default([]),
+  lastConnectedAt: timestamp("last_connected_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const mcpServersRelations = relations(mcpServers, ({ one }) => ({
+  user: one(users, { fields: [mcpServers.userId], references: [users.id] }),
+}));
+
+export type McpServerRow = typeof mcpServers.$inferSelect;
+
+// ---------------------------------------------------------------------------
 // Agent pending drafts — when a connected agent's autoSend is off, an
 // incoming Instagram DM / WhatsApp message doesn't get replied to
 // automatically; instead the drafted reply lands here for the business

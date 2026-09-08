@@ -1,0 +1,135 @@
+<title>NexaAi MCP Connectors</title>
+<link rel="stylesheet" href="./style.css" />
+<div class="wrap">
+  <div class="nav">
+    <span class="brand">✦ NexaAi</span>
+    <a href="./credits.html">Credits</a>
+    <a href="./settings.html">Settings</a>
+    <a href="./connectors.html">Connectors</a>
+    <a class="active" href="./mcp.html">MCP</a>
+    <a href="./apikeys.html">Developer</a>
+    <a href="#" id="logout">Log out</a>
+  </div>
+
+  <div class="card">
+    <h1>MCP connectors</h1>
+    <h2>
+      Paste any real Model Context Protocol server's URL and NexaAi connects to it for real — the same idea as
+      Claude's own custom connectors. Full tool schemas (shown here, not on mobile) help you check exactly what
+      you're giving NexaAi access to before you rely on it in chat.
+    </h2>
+    <div id="list"></div>
+    <p class="error" id="error" style="display:none"></p>
+  </div>
+
+  <div class="card">
+    <h1>Add a connector</h1>
+    <label>Name</label>
+    <input id="name" placeholder="My tools server" />
+    <label>Server URL</label>
+    <input id="url" placeholder="https://example.com/mcp" autocapitalize="off" />
+    <label>Bearer token (optional)</label>
+    <input id="token" type="password" placeholder="Only if the server requires auth" />
+    <button id="add">Connect</button>
+  </div>
+</div>
+<script src="./api.js"></script>
+<script>
+  requireLoginOrRedirect();
+
+  function statusPill(server) {
+    if (server.status === "connected") return `<span class="pill ok">${server.toolCount} tool${server.toolCount === 1 ? "" : "s"}</span>`;
+    if (server.status === "error") return `<span class="pill err">Connection error</span>`;
+    return `<span class="pill">Not verified yet</span>`;
+  }
+
+  function renderTools(server) {
+    if (!server.tools || !server.tools.length) return "";
+    return server.tools
+      .map(
+        (t) => `
+      <details class="tool">
+        <summary>${t.name}${t.description ? ` — ${t.description}` : ""}</summary>
+        <pre class="schema">${JSON.stringify(t.inputSchema ?? {}, null, 2).replace(/</g, "&lt;")}</pre>
+      </details>`,
+      )
+      .join("");
+  }
+
+  async function load() {
+    const errorEl = document.getElementById("error");
+    errorEl.style.display = "none";
+    const { servers } = await api("/api/mcp");
+    const listEl = document.getElementById("list");
+    if (!servers.length) {
+      listEl.innerHTML = `<p class="muted">No MCP connectors yet — add one below.</p>`;
+      return;
+    }
+    listEl.innerHTML = servers
+      .map(
+        (s) => `
+      <div class="mcp-item" data-id="${s.id}">
+        <div class="mcp-item-head">
+          <div>
+            <div class="name">${s.name}</div>
+            <div class="url">${s.url}</div>
+            ${s.status === "error" && s.lastError ? `<div class="url" style="color:var(--danger)">${s.lastError}</div>` : ""}
+          </div>
+          ${statusPill(s)}
+        </div>
+        ${renderTools(s)}
+        <div class="mcp-actions">
+          <button class="secondary" data-action="reconnect" data-id="${s.id}">Reconnect</button>
+          <button class="secondary" data-action="remove" data-id="${s.id}">Remove</button>
+        </div>
+      </div>`,
+      )
+      .join("");
+
+    listEl.querySelectorAll("[data-action='reconnect']").forEach((btn) =>
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "Reconnecting…";
+        try {
+          await api(`/api/mcp/${btn.dataset.id}/reconnect`, { method: "POST" });
+        } finally {
+          load();
+        }
+      }),
+    );
+    listEl.querySelectorAll("[data-action='remove']").forEach((btn) =>
+      btn.addEventListener("click", async () => {
+        if (!confirm("Remove this MCP connector? NexaAi will stop being able to call its tools.")) return;
+        await api(`/api/mcp/${btn.dataset.id}`, { method: "DELETE" });
+        load();
+      }),
+    );
+  }
+
+  document.getElementById("add").addEventListener("click", async () => {
+    const errorEl = document.getElementById("error");
+    errorEl.style.display = "none";
+    const name = document.getElementById("name").value.trim();
+    const url = document.getElementById("url").value.trim();
+    const token = document.getElementById("token").value.trim();
+    if (!name || !url) return;
+    try {
+      await api("/api/mcp", { method: "POST", body: JSON.stringify({ name, url, bearerToken: token || undefined }) });
+      document.getElementById("name").value = "";
+      document.getElementById("url").value = "";
+      document.getElementById("token").value = "";
+      load();
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.style.display = "block";
+    }
+  });
+
+  document.getElementById("logout").addEventListener("click", (e) => {
+    e.preventDefault();
+    clearToken();
+    window.location.href = "./index.html";
+  });
+
+  load();
+</script>

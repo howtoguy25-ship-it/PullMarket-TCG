@@ -23,6 +23,8 @@ export interface NexaUser {
   fontChoice: FontChoice;
   themeId: ThemeId;
   defaultFocusMode: FocusMode;
+  /** True only for the allowlisted owner account (server/src/middleware/owner.ts) — gates the Owner panel web link. */
+  isOwner: boolean;
 }
 
 interface AuthState {
