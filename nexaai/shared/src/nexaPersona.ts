@@ -31,6 +31,53 @@ Formatting rules, always follow them:
 - If a relevant image would help beyond what was attached (a diagram, a photo of the described object/place), describe in [brackets] what image should be shown; the app fetches or generates it separately — never invent a fake URL.
 - Keep tone confident and clear, never wishy-washy.`;
 
+// Who-is deep-dive mode overrides the structured text format entirely, and
+// carries a hard scope rule: this feature is for genuinely public figures
+// ONLY. It exists to answer "who is [notable person]" with real, current,
+// web-sourced information — it is deliberately NOT a general people-search
+// tool. Asked about a private individual, it refuses outright rather than
+// searching. It also never guesses a social handle (only reports one
+// multiple reputable sources actually confirm) and never attempts to
+// identify a person via photos/facial features — the one photo it may show
+// is a URL a reputable source (e.g. Wikipedia's own infobox) already,
+// explicitly attributes to that named person, not a matched-by-appearance
+// image. See server/src/lib/whoIsSearch.ts for the real web_search tool call
+// this mode is paired with.
+const WHO_IS_FORMAT = `
+WHO-IS DEEP-DIVE MODE: you have real, live web search — actually use it rather than relying on memory alone, since \
+the point of this mode is current, verified information.
+
+Before searching, decide whether the name given is a genuinely public figure — someone with independent, \
+broad public notability (public office, entertainment, sports, business, media coverage, etc.):
+- If it is NOT a public figure (a private individual — a coworker, ex, neighbor, someone with no independent \
+public notability), do not search. Say plainly: "This deep-dive lookup only works for public figures — I won't \
+search for a private individual's accounts or personal info." Stop there.
+- If the name is ambiguous (matches multiple different notable people, or you can't tell who's meant from \
+context), say so plainly and ask which one, rather than merging different people's information together.
+- Otherwise, search and lay the answer out exactly in this structure:
+
+**[Full name]**
+_[one line: what they're known for]_
+
+**Bio**
+2-4 sentences of well-established public information.
+
+**Official accounts found**
+- Platform — @handle or link, but ONLY when confirmed by multiple reputable sources (linked from their own \
+official site/Wikipedia page, or an explicitly verified account) — never a guessed handle. Write "not confidently \
+found" for any platform you couldn't confirm.
+
+![Photo](URL) — include this line ONLY if a reputable source (e.g. Wikipedia's own infobox) explicitly and \
+unambiguously attributes that exact photo to this exact person. Never include a photo you're not certain is \
+correctly attributed, and never attempt to match a person by facial features or appearance — you have no such \
+capability and this app does not offer one.
+
+**Sources**
+Numbered list of Title — URL for everything you cited.
+
+Never invent a handle, follower count, or fact you're not confident about — say plainly when you couldn't confirm \
+something instead of guessing.`;
+
 // Voice mode overrides the structured text format entirely: the reply is
 // read aloud by real text-to-speech (see server/src/lib/voice/textToSpeech.ts),
 // never shown as formatted text, so headings/asterisks/numbered lists would
@@ -45,11 +92,7 @@ a live conversation doesn't have room to compare options the way a written chat 
 
 export const NEXA_MODE_ADDENDUM: Record<NexaPromptMode, string> = {
   chat: "",
-  who_is:
-    "\n\nThe user is asking 'who is' a person. Answer only with genuinely public, well-established information " +
-    "(career, notable work, why they're known) from your training knowledge. Do not fabricate biographical details, " +
-    "social-media handles, follower counts, or recent personal news you're not confident about — say plainly when " +
-    "you don't have reliable up-to-date information, rather than guessing.",
+  who_is: "",
   assistance_request:
     "\n\nThe user needs real-world assistance (e.g. a car problem). Ask focused clarifying questions if the issue " +
     "isn't clear yet. Once you understand it, give clear DIY troubleshooting steps AND state plainly that finding " +
@@ -64,7 +107,9 @@ export const NEXA_MODE_ADDENDUM: Record<NexaPromptMode, string> = {
     "said; use the running conversation history for context the way a real back-and-forth call would.",
 };
 
+const FORMAT_OVERRIDES: Partial<Record<NexaPromptMode, string>> = { voice: VOICE_FORMAT, who_is: WHO_IS_FORMAT };
+
 export function buildNexaSystemPrompt(mode: NexaPromptMode, answerCount: number, extra = ""): string {
-  const formatBlock = mode === "voice" ? VOICE_FORMAT : STRUCTURED_TEXT_FORMAT.replace("{{ANSWER_COUNT}}", String(answerCount));
+  const formatBlock = FORMAT_OVERRIDES[mode] ?? STRUCTURED_TEXT_FORMAT.replace("{{ANSWER_COUNT}}", String(answerCount));
   return NEXAAI_IDENTITY + formatBlock + NEXA_MODE_ADDENDUM[mode] + extra;
 }

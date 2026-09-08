@@ -87,6 +87,14 @@ function FormattedAnswer({ text }: { text: string }) {
             </Text>
           );
         }
+        // A real attributed photo from the who-is deep dive (see
+        // shared/src/nexaPersona.ts's WHO_IS_FORMAT) — the model only emits
+        // this when a source explicitly attributes that exact photo to that
+        // exact person, so this renders it as a real image, not a hint.
+        const photoMatch = trimmed.match(/^!\[.*?\]\((https?:\/\/[^\s)]+)\)$/);
+        if (photoMatch) {
+          return <Image key={i} source={{ uri: photoMatch[1] }} style={styles.attributedPhoto} resizeMode="cover" />;
+        }
         const stepMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
         if (stepMatch) {
           return (
@@ -172,6 +180,7 @@ const styles = StyleSheet.create({
   imageHintText: { ...typography.caption, color: colors.textMuted },
   cursor: { fontWeight: "700" },
   attachmentImage: { width: "100%", height: 160, borderRadius: radii.md, marginBottom: spacing.sm, backgroundColor: colors.bgCardAlt },
+  attributedPhoto: { width: "100%", height: 180, borderRadius: radii.md, marginVertical: spacing.sm, backgroundColor: colors.bgCardAlt },
   attachmentFile: {
     flexDirection: "row",
     alignItems: "center",

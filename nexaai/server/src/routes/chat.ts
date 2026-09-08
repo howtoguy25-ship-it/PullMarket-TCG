@@ -9,6 +9,8 @@ import { chatSessions, messages, users } from "@shared/schema";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
 import { checkUsageWindow, recordSessionStart, recordUsageSeconds } from "../middleware/usage";
 import { askModel, streamModel } from "../lib/modelRouter";
+import { deepWhoIsLookup } from "../lib/whoIsSearch";
+import type { AskParams, AskResult } from "../lib/anthropic";
 import {
   PLAN_DEFINITIONS,
   ANSWER_MODE_DEFINITIONS,
@@ -52,6 +54,12 @@ const sendMessageSchema = z.object({
 // Roughly 1 credit-cent per 350 output-adjusted tokens; a real deployment
 // should meter this off the Anthropic response's actual usage.output_tokens.
 const CENTS_PER_ANSWER_SET = 2;
+
+// who_is_lookup's real deep-dive (lib/whoIsSearch.ts) runs a multi-step
+// web-search tool loop against Anthropic directly, regardless of plan tier
+// — several real API calls per question, not one — so it's metered higher
+// than a normal answer.
+const WHO_IS_DEEP_DIVE_MULTIPLIER = 3;
 
 type SendMessageBody = z.infer<typeof sendMessageSchema>;
 
@@ -109,7 +117,8 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
     await recordSessionStart(userId);
   }
 
-  const creditCostCents = Math.round(CENTS_PER_ANSWER_SET * FOCUS_MODE_DEFINITIONS[focusMode].creditMultiplier);
+  const kindMultiplier = body.kind === "who_is_lookup" ? WHO_IS_DEEP_DIVE_MULTIPLIER : 1;
+  const creditCostCents = Math.round(CENTS_PER_ANSWER_SET * FOCUS_MODE_DEFINITIONS[focusMode].creditMultiplier * kindMultiplier);
   const spend = await spendCredits(db, userId, creditCostCents, `chat:${body.kind}:${focusMode}`);
   if (!spend.allowed) {
     return {
@@ -225,6 +234,23 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
   } as const;
 }
 
+// who_is_lookup always goes through the real web-search deep dive
+// (lib/whoIsSearch.ts) instead of the normal plan-tier model — see that
+// file's header comment for why this bypasses modelRouter entirely.
+async function resolveAnswer(askParams: AskParams, kind: SendMessageBody["kind"], onDelta?: (delta: string) => void): Promise<AskResult> {
+  if (kind === "who_is_lookup") {
+    const result = await deepWhoIsLookup({
+      plan: askParams.plan,
+      userMessage: askParams.userMessage,
+      history: askParams.history,
+      memoryContext: askParams.memoryContext,
+    });
+    onDelta?.(result.text); // no partial streaming — the search tool loop must finish before any text exists
+    return result;
+  }
+  return onDelta ? streamModel(askParams, onDelta) : askModel(askParams);
+}
+
 chatRouter.post("/messages", async (req: AuthedRequest, res) => {
   const parsed = sendMessageSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
@@ -232,7 +258,7 @@ chatRouter.post("/messages", async (req: AuthedRequest, res) => {
   const turn = await prepareTurn(req.userId!, parsed.data);
   if (!turn.ok) return res.status(turn.status).json(turn.body);
 
-  const result = await askModel(turn.askParams);
+  const result = await resolveAnswer(turn.askParams, parsed.data.kind);
   const outcome = await turn.finish(result.text);
 
   res.json({ sessionId: turn.sessionId, ...outcome });
@@ -258,7 +284,7 @@ chatRouter.post("/messages/stream", async (req: AuthedRequest, res) => {
   const send = (payload: Record<string, unknown>) => res.write(`data: ${JSON.stringify(payload)}\n\n`);
 
   try {
-    const result = await streamModel(turn.askParams, (delta) => send({ delta }));
+    const result = await resolveAnswer(turn.askParams, parsed.data.kind, (delta) => send({ delta }));
     const outcome = await turn.finish(result.text);
     send({ done: true, sessionId: turn.sessionId, ...outcome });
   } catch (err) {

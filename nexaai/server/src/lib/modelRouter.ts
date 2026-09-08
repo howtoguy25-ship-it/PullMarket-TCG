@@ -13,7 +13,7 @@ import { askNexaAi, streamNexaAi, type AskParams, type AskResult } from "./anthr
 import { askSelfHostedModel, streamSelfHostedModel, isSelfHostedConfigured } from "./selfHostedModel";
 import type { PlanDefinition } from "./plans";
 
-const FALLBACK_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
+export const FALLBACK_ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
 function anthropicFallbackPlan(plan: PlanDefinition): PlanDefinition {
   return { ...plan, provider: "anthropic", model: FALLBACK_ANTHROPIC_MODEL };

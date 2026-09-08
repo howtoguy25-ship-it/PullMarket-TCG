@@ -11,7 +11,7 @@ import { useAuth, type NexaCapabilities } from "../lib/AuthContext";
 const CAPABILITY_ROWS: { key: keyof NexaCapabilities; label: string; description: string }[] = [
   { key: "cameraAsk", label: "Camera ask", description: "Snap a photo and ask NexaAi about it." },
   { key: "webLookup", label: "Find nearest assistance", description: "Look up the closest matching business for a real-world problem." },
-  { key: "whoIsLookup", label: "“Who is…” lookups", description: "Answer public-figure questions from training knowledge." },
+  { key: "whoIsLookup", label: "“Who is…” lookups", description: "Real live web search for public figures — bio, sources, and confirmed accounts. Refuses private individuals." },
   { key: "agentBuilder", label: "Agent builder", description: "Build and test custom auto-reply agents." },
   { key: "voiceChat", label: "Voice chat", description: "Talk to NexaAi out loud with real transcription and spoken replies." },
   { key: "autoSpeak", label: "Auto-speak replies", description: "Read NexaAi's answers out loud automatically." },

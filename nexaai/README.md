@@ -41,6 +41,10 @@ website/   Small static site for account/credits/settings (no chat here — see 
 - **Real live voice chat** (the Voice tab): an actual spoken back-and-forth conversation with NexaAi — record,
   real transcription, a real answer, real spoken reply audio, saved turn-by-turn as a "live memo" you can revisit.
   See "Real voice chat & the Gemini speed lane" below for exactly how it works and its one honest limitation.
+- **Real "who is" deep dive**: asking about a public figure now triggers actual live web search (Anthropic's own
+  web-search tool, not guesswork), returning a current, sourced, neatly structured profile — bio, officially
+  confirmed accounts, cited sources. Deliberately scoped to public figures only; see "The 'who is' deep dive" below
+  for exactly where that line is and why.
 - Three plan tiers (Beginner/Pro/Max), each backed by a real, different model — not a fake label. Pro/Max call the
   real Anthropic API (Max gets a stronger model, a bigger thinking budget, more output tokens). **Beginner runs on
   your own self-hosted fine-tuned Llama model** (see "The hybrid model architecture" below) — this caps the
@@ -297,6 +301,41 @@ approximation of "second by second" rather than the literal thing.
 
 Without `OPENAI_API_KEY` set, both the transcribe and speak steps return a clear "not configured" error — voice
 chat won't pretend to work with fake transcripts or silent replies.
+
+## The "who is" deep dive
+
+Asking a "who is X" question (`server/src/lib/whoIsSearch.ts`) now runs Anthropic's real, server-side web-search
+tool — genuinely current results, not a recall of training data — and lays the answer out in a fixed structure:
+name, one-line "known for," a short bio, officially confirmed accounts, and a numbered source list of everything
+cited. This always calls Anthropic directly (the plan's own model for Pro/Max, the same cheap fallback model
+Beginner already uses elsewhere), bypassing the self-hosted/Anthropic router entirely, because the self-hosted
+Llama model has no tool-use capability at all — there's no self-hosted path for a feature that depends on live
+search. It costs more credit than a normal message (3x) for the same reason: it's a multi-step tool-use loop
+against the real API, not one call.
+
+**This is deliberately not a general people-search tool, and that's a real design line, not a technical
+shortcoming:**
+- The prompt (`shared/src/nexaPersona.ts`'s `WHO_IS_FORMAT`) requires the model to decide, before searching, whether
+  the name given is a genuinely public figure. If it isn't — a coworker, an ex, a neighbor, anyone without
+  independent public notability — it refuses outright and says so, rather than searching. Verified against the real
+  API: asking about "my coworker Jessica Martinez" gets an explicit refusal, no search ever runs.
+- It never invents or guesses a social-media handle. An account is only reported when multiple reputable sources
+  actually confirm it (their own official site, Wikipedia, a verified badge); anything it can't confirm is labeled
+  "not confidently found," not filled in with a plausible-looking guess.
+- **There is no photo/face-matching of any kind, anywhere in this feature.** The model may include exactly one
+  photo, and only when a reputable source (e.g. Wikipedia's own infobox) explicitly attributes that exact image
+  file to that exact named person — it is never the result of the model trying to identify someone by appearance,
+  because it has no such capability and none was built. `MessageBubble.tsx`'s `FormattedAnswer` renders that one
+  attributed-photo line (`![Photo](url)`) as a real image; every other line stays plain structured text.
+- An ambiguous name (matches more than one notable person) gets a clarifying question instead of a merged,
+  guessed-at profile.
+
+The underlying reason this exists as a hard scope line: "search the web and social media for a named person and
+return their accounts, photos, and personal info" is a people-search/OSINT capability regardless of how it's
+framed, and building it without a public-figure restriction would make this app a doxxing tool. Restricting it to
+public figures — the same restriction the original training-knowledge-only version of this feature already had —
+keeps the real, useful part (fast, sourced answers about well-known people) without the part that enables locating
+a private individual.
 
 ## The agent builder's live-send capability
 
