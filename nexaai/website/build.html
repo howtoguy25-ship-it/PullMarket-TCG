@@ -1,0 +1,233 @@
+<title>NexaAi Build</title>
+<link rel="stylesheet" href="./style.css" />
+<div class="wrap build-wrap">
+  <div class="nav">
+    <span class="brand">✦ NexaAi</span>
+    <a class="active" href="./build.html">Build</a>
+    <a href="./credits.html">Credits</a>
+    <a href="./settings.html">Settings</a>
+    <a href="./connectors.html">Connectors</a>
+    <a href="./mcp.html">MCP</a>
+    <a href="./apikeys.html">Developer</a>
+    <a href="#" id="logout">Log out</a>
+  </div>
+
+  <div class="card">
+    <h1>Build</h1>
+    <h2>The same Projects + real streaming chat as the app — build a site/app from web, not just manage the account.</h2>
+
+    <div class="build-layout">
+      <div>
+        <label>New project</label>
+        <input id="newProjectTitle" placeholder="e.g. Portfolio site" />
+        <button id="createProjectBtn">Create project</button>
+        <div id="projectList" class="project-list" style="margin-top:16px"></div>
+      </div>
+
+      <div class="chat-panel">
+        <div id="chatMessages" class="chat-messages">
+          <p class="empty-hint" id="emptyHint">Create or pick a project, then describe what you want to build.</p>
+        </div>
+        <div class="chat-input-row">
+          <textarea id="chatInput" placeholder="Describe what to build or change…" disabled></textarea>
+          <button id="sendBtn" disabled>Send</button>
+        </div>
+      </div>
+    </div>
+    <p class="error" id="error" style="display:none"></p>
+  </div>
+</div>
+<script src="./api.js"></script>
+<script>
+  requireLoginOrRedirect();
+
+  let projects = [];
+  let currentProjectId = null;
+  let currentSessionId = null;
+  let sending = false;
+
+  const messagesEl = document.getElementById("chatMessages");
+  const emptyHint = document.getElementById("emptyHint");
+  const inputEl = document.getElementById("chatInput");
+  const sendBtn = document.getElementById("sendBtn");
+  const errorEl = document.getElementById("error");
+
+  function showError(msg) {
+    errorEl.textContent = msg;
+    errorEl.style.display = "block";
+  }
+
+  // Renders fenced code blocks (CODE_BUILD_FORMAT's real output shape, e.g.
+  // ```html filename="index.html" ... ```) as real <pre> blocks instead of
+  // one unreadable run of plain text — the whole point of this page is
+  // getting usable code back.
+  function renderContent(container, text) {
+    const parts = text.split(/```([\w-]*)\s*(?:filename="([^"]*)")?\n?([\s\S]*?)```/g);
+    for (let i = 0; i < parts.length; i += 4) {
+      if (parts[i]) container.appendChild(document.createTextNode(parts[i]));
+      const filename = parts[i + 2];
+      const code = parts[i + 3];
+      if (code !== undefined) {
+        if (filename) {
+          const label = document.createElement("div");
+          label.style.cssText = "font-size:11px;color:var(--text-muted);margin-top:8px;";
+          label.textContent = filename;
+          container.appendChild(label);
+        }
+        const pre = document.createElement("pre");
+        pre.className = "schema";
+        pre.textContent = code.replace(/\n$/, "");
+        container.appendChild(pre);
+      }
+    }
+  }
+
+  function renderMessages(list) {
+    messagesEl.innerHTML = "";
+    if (!list.length) {
+      messagesEl.appendChild(emptyHint);
+      return;
+    }
+    list.forEach((m) => {
+      const div = document.createElement("div");
+      div.className = `msg ${m.role}`;
+      renderContent(div, m.content);
+      messagesEl.appendChild(div);
+    });
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  async function loadProjects() {
+    const { projects: rows } = await api("/api/projects");
+    projects = rows;
+    const listEl = document.getElementById("projectList");
+    listEl.innerHTML = "";
+    rows.forEach((p) => {
+      const item = document.createElement("div");
+      item.className = `project-item${p.id === currentProjectId ? " active" : ""}`;
+      item.innerHTML = `<div class="title">${p.title}</div><div class="preview">${p.lastMessagePreview ?? "No messages yet"}</div>`;
+      item.addEventListener("click", () => selectProject(p.id, p.title));
+      listEl.appendChild(item);
+    });
+  }
+
+  async function selectProject(id, title) {
+    currentProjectId = id;
+    currentSessionId = null;
+    inputEl.disabled = false;
+    sendBtn.disabled = false;
+    await loadProjects();
+    const { sessions } = await api(`/api/projects/${id}/sessions`);
+    if (sessions.length) {
+      currentSessionId = sessions[0].id;
+      const { messages } = await api(`/api/chat/sessions/${sessions[0].id}/messages`);
+      renderMessages(messages);
+    } else {
+      renderMessages([]);
+    }
+  }
+
+  document.getElementById("createProjectBtn").addEventListener("click", async () => {
+    const title = document.getElementById("newProjectTitle").value.trim();
+    if (!title) return;
+    errorEl.style.display = "none";
+    try {
+      const { project } = await api("/api/projects", { method: "POST", body: JSON.stringify({ title }) });
+      document.getElementById("newProjectTitle").value = "";
+      await selectProject(project.id, project.title);
+    } catch (err) {
+      showError(err.message);
+    }
+  });
+
+  // Real Server-Sent Events streaming, same wire format as
+  // client/src/lib/api.ts's streamChatMessage — one `data: {...}` JSON
+  // object per event, `delta` chunks then a final `done` payload.
+  async function sendMessage() {
+    const text = inputEl.value.trim();
+    if (!text || sending || !currentProjectId) return;
+    sending = true;
+    errorEl.style.display = "none";
+    inputEl.value = "";
+
+    const currentMessages = Array.from(messagesEl.querySelectorAll(".msg")).map((el) => ({
+      role: el.classList.contains("user") ? "user" : "assistant",
+      content: el.textContent,
+    }));
+    currentMessages.push({ role: "user", content: text });
+    renderMessages(currentMessages);
+
+    const assistantDiv = document.createElement("div");
+    assistantDiv.className = "msg assistant";
+    messagesEl.appendChild(assistantDiv);
+
+    try {
+      const token = localStorage.getItem("nexaai_token");
+      const response = await fetch(`${API_URL}/api/chat/messages/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          sessionId: currentSessionId ?? undefined,
+          projectId: currentSessionId ? undefined : currentProjectId,
+          text,
+          kind: "text",
+        }),
+      });
+      if (!response.ok || !response.body) {
+        const body = await response.json().catch(() => null);
+        throw new Error(body?.message ?? body?.error ?? `Request failed (${response.status})`);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let assistantText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let sepIndex = buffer.indexOf("\n\n");
+        while (sepIndex !== -1) {
+          const rawEvent = buffer.slice(0, sepIndex);
+          buffer = buffer.slice(sepIndex + 2);
+          const dataLine = rawEvent.split("\n").find((line) => line.startsWith("data: "));
+          if (dataLine) {
+            const payload = JSON.parse(dataLine.slice("data: ".length));
+            if (payload.error) throw new Error(payload.error);
+            if (payload.done) {
+              currentSessionId = payload.sessionId;
+              assistantDiv.innerHTML = "";
+              renderContent(assistantDiv, assistantText);
+              await loadProjects();
+            } else if (typeof payload.delta === "string") {
+              assistantText += payload.delta;
+              assistantDiv.textContent = assistantText;
+              messagesEl.scrollTop = messagesEl.scrollHeight;
+            }
+          }
+          sepIndex = buffer.indexOf("\n\n");
+        }
+      }
+    } catch (err) {
+      showError(err.message);
+    } finally {
+      sending = false;
+    }
+  }
+
+  sendBtn.addEventListener("click", sendMessage);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  document.getElementById("logout").addEventListener("click", (e) => {
+    e.preventDefault();
+    clearToken();
+    window.location.href = "./index.html";
+  });
+
+  loadProjects();
+</script>

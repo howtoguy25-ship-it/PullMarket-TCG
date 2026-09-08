@@ -109,3 +109,23 @@ pre.schema { background: var(--bg); border: 1px solid var(--border); border-radi
 .mcp-status.success .icon, .mcp-status.error .icon { animation: mcp-pop 0.35s ease; border-radius: 50%; text-align: center; line-height: 16px; font-size: 11px; color: #fff; }
 .mcp-status.success .icon { background: var(--success); color: #08130e; }
 .mcp-status.error .icon { background: var(--danger); }
+
+/* Build page — real Projects + real streaming chat on web */
+.build-wrap { max-width: 1000px; }
+.build-layout { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 720px) { .build-layout { grid-template-columns: 1fr; } }
+.project-list { display: flex; flex-direction: column; gap: 8px; max-height: 480px; overflow-y: auto; }
+.project-item { background: var(--bg-card-alt); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: pointer; }
+.project-item.active { border-color: var(--accent); background: rgba(143, 108, 255, 0.12); }
+.project-item .title { font-weight: 700; font-size: 14px; }
+.project-item .preview { color: var(--text-muted); font-size: 12px; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-panel { display: flex; flex-direction: column; height: 560px; min-width: 0; }
+.chat-messages { flex: 1; overflow-x: hidden; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 85%; min-width: 0; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: break-word; }
+.msg pre.schema { max-width: 100%; overflow-x: auto; white-space: pre; }
+.msg.user { align-self: flex-end; background: var(--accent); color: #fff; }
+.msg.assistant { align-self: flex-start; background: var(--bg-card-alt); border: 1px solid var(--border); }
+.chat-input-row { display: flex; gap: 8px; margin-top: 12px; }
+.chat-input-row textarea { flex: 1; resize: none; min-height: 44px; max-height: 120px; font-family: inherit; }
+.chat-input-row button { width: auto; margin-top: 0; padding: 0 20px; }
+.empty-hint { color: var(--text-muted); font-size: 13px; text-align: center; margin-top: 40px; }
