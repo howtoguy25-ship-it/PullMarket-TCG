@@ -35,8 +35,10 @@ website/   Small static site for account/credits/settings (no chat here — see 
 - Camera "ask about this photo": snap a photo, ask a question, the photo + question go to Claude together
 - Voice memo recording (real audio capture via `expo-av`) with an edit-before-send step
 - On-device text-to-speech playback of NexaAi's replies, with 4 switchable voice characters (gender + tone presets)
-- Three plan tiers (Beginner/Pro/Max) mapped to real, different Claude models + token budgets — not a fake label:
-  Max genuinely gets a stronger model, a bigger thinking budget, and more output tokens than Beginner
+- Three plan tiers (Beginner/Pro/Max), each backed by a real, different model — not a fake label. Pro/Max call the
+  real Anthropic API (Max gets a stronger model, a bigger thinking budget, more output tokens). **Beginner runs on
+  your own self-hosted fine-tuned Llama model** (see "The hybrid model architecture" below) — this caps the
+  cost of the tier that doesn't pay you, while Pro/Max keep frontier quality funded by subscription revenue.
 - Real credit ledger (every purchase/spend is its own row, balance is always summed — it can't drift), a $1 grace
   overage before a session is paused, weekly session-time limits that reset every Monday 05:00 **Australia/Sydney**
   time regardless of the user's own timezone, and a daily session-count cap — with an in-app banner (Claude-style)
@@ -44,8 +46,10 @@ website/   Small static site for account/credits/settings (no chat here — see 
 - "Find nearest assistance" flow: describe a problem (e.g. a car issue), NexaAi asks clarifying questions, then
   the app looks up the nearest matching business from its own directory and hands off to Apple Maps / Google Maps /
   your own TrackLine app for directions
-- Custom agent builder: describe an automation in your own words (e.g. "reply to Instagram DMs about pricing"), and
-  safely preview what it would reply via a real Claude-generated draft — before connecting it to any real account
+- Custom agent builder: describe an automation in your own words (e.g. "reply to Instagram DMs about pricing"),
+  safely preview what it would reply via a real Claude-generated draft, then genuinely connect and run it — real
+  inbound webhooks from Instagram/WhatsApp, real drafts, and real sends via Meta's Graph API once connected. See
+  "The agent builder's live-send capability" below for what that needs from you and Meta's App Review.
 - A companion account website (`/website`) for logging in, buying credit packs or a custom amount, and changing
   settings — separate from the chat experience, which lives in the app, per the product spec
 - **Permissions screen** (Settings → Permissions): real OS permission status for Camera, Microphone, Location,
@@ -60,10 +64,10 @@ website/   Small static site for account/credits/settings (no chat here — see 
   a separate "Reference past chats" toggle for whether saved memory is read back into future conversations, and an
   "Include sensitive topics" toggle (off by default) for health/religion/political/etc-adjacent facts. A dedicated
   "Memory files" screen lists everything saved, individually deletable or clearable all at once.
-- **Connectors screen** (Settings → Connectors): links a user's account to other platforms. Google is wired
-  end-to-end with a real OAuth 2.0 Authorization Code flow (Calendar read access); Notion/Slack/Instagram/WhatsApp
-  are real UI rows that honestly report "not set up yet" with exactly which env vars an admin needs to add, the same
-  pattern as this README's Paddle/Apple IAP sections.
+- **Connectors screen** (Settings → Connectors): links a user's account to other platforms. Google and Instagram
+  are wired end-to-end with real OAuth 2.0 flows; WhatsApp uses a real (non-OAuth — see below) manual
+  credential-entry flow; Notion/Slack are real UI rows that honestly report "not set up yet" with exactly which
+  env vars an admin needs to add, the same pattern as this README's Paddle/Apple IAP sections.
 - **3 real fonts, pickable** (Settings → Appearance): Inter (clean/modern), Fraunces (fancy/editorial, the closest
   free equivalent to Claude's own serif prose font), and Space Grotesk (techy). Switching applies instantly across
   the whole app — see "How the font switch works" below for the real mechanism and its one honest limitation.
@@ -96,17 +100,19 @@ website/   Small static site for account/credits/settings (no chat here — see 
 - **TrackLine** (your own maps app): set `EXPO_PUBLIC_TRACKLINE_URL_SCHEME` (its custom URL scheme) and
   `EXPO_PUBLIC_TRACKLINE_APP_STORE_URL` once it's built/published; `client/src/lib/maps.ts` already builds real deep
   links and falls back to the App Store page if TrackLine isn't installed.
-- **Meta Graph API** (actually running an Instagram DM or WhatsApp agent against a real account): needs a reviewed
-  Meta Developer app with `instagram_manage_messages` or WhatsApp Cloud API access — see the comments in
-  `server/src/lib/agents/agentRunner.ts`. The agent builder itself, and safe reply-drafting, work today without this.
+- **Meta Graph API / agent builder live-send** (actually running an Instagram DM or WhatsApp agent against a real
+  account): set `META_APP_ID` / `META_APP_SECRET` / `APP_BASE_URL` / `META_WEBHOOK_VERIFY_TOKEN` — see "The agent
+  builder's live-send capability" below for the full setup and the real App Review requirement.
 - **Google connector** (Settings → Connectors, Calendar read access): create a Google Cloud project, enable the
   Calendar API, add an OAuth Web application client with `<APP_BASE_URL>/api/connectors/google/callback` as an
   authorized redirect URI, and set `GOOGLE_CONNECTOR_CLIENT_ID` / `GOOGLE_CONNECTOR_CLIENT_SECRET` / `APP_BASE_URL`.
   Deliberately a separate OAuth client from the root PullMarket TCG app's own Google Sign-In. Token storage in
   `nexaai_connectors` is plain text in this scaffold — **encrypt at rest before a real launch.**
-- **Notion / Slack / Instagram / WhatsApp connectors**: each needs that platform's own developer app credentials
-  (`NOTION_CLIENT_ID`/`_SECRET`, `SLACK_CLIENT_ID`/`_SECRET`, `META_APP_ID`/`_SECRET`) — the Connectors screen tells
-  you exactly which env vars are missing per connector; none of them have OAuth wired up yet beyond Google.
+- **Notion / Slack connectors**: each needs that platform's own developer app credentials (`NOTION_CLIENT_ID`/`_SECRET`,
+  `SLACK_CLIENT_ID`/`_SECRET`) — the Connectors screen tells you exactly which env vars are missing; neither has
+  OAuth wired up yet (Google/Instagram/WhatsApp do).
+- **Your self-hosted model** (Beginner tier): set `SELF_HOSTED_MODEL_BASE_URL` to your deployed vLLM endpoint — see
+  "The hybrid model architecture" below and `finetune/RUNPOD_SETUP.md` for training + deploying it.
 
 ## What's intentionally stubbed, and why
 
@@ -132,10 +138,11 @@ one and exactly what's in its place:
   `client/src/lib/voice.ts`. Until that's wired up, a recorded memo prompts the user to type what they said, which
   they can then edit before sending (the "edit back with interaction text" feature from the spec still works on that
   typed text).
-- **Custom ML model training** ("build your own model"). Claude can write real PyTorch/TensorFlow training code and
-  data-prep scripts on request — that's a coding task, and this repo doesn't need one yet since the app's own AI
-  answers come from the Claude API, not a locally trained model. If/when a specific custom model is needed (e.g. a
-  bespoke classifier), ask for that as its own task with a concrete dataset and goal.
+- **A fine-tuned model that matches Claude's general capability.** `finetune/` is real, working tooling (synthetic
+  data generation, an Axolotl QLoRA config, a RunPod deployment guide — see "The hybrid model architecture" below),
+  but fine-tuning teaches a model your app's *tasks and format*, not general intelligence the base model lacked.
+  An 8B self-hosted Llama will visibly underperform Claude on anything outside what it was fine-tuned on — that's
+  not a bug to fix, it's the real tradeoff of a much smaller model.
 - **Submitting to the App Store.** Needs your own Apple Developer account, signing certificates, and a human
   clicking through App Store Connect — `eas build`/`eas submit` (already used by the root PullMarket TCG app) is the
   real path once `nexaai/eas.json` is filled in with your Apple Team ID.
@@ -208,6 +215,61 @@ Two honest limits, stated plainly rather than silently capped:
   can't view it directly, so it answers based on what the user describes instead of pretending to have watched it.
   Images in a format Claude's vision API accepts (JPEG/PNG/WebP/GIF) get real analysis; unsupported formats (e.g.
   HEIC) get the same honest "can't open this" note as video.
+
+## The hybrid model architecture
+
+Beginner and Pro/Max don't just get different settings on the same model — they call genuinely different
+providers, dispatched by `server/src/lib/modelRouter.ts`:
+- **Beginner** → your own self-hosted, fine-tuned Llama (`server/src/lib/selfHostedModel.ts`, an OpenAI-compatible
+  client pointed at `SELF_HOSTED_MODEL_BASE_URL` — your vLLM endpoint from `finetune/RUNPOD_SETUP.md`).
+- **Pro/Max** → the real Anthropic API, unchanged.
+
+This is deliberate cost allocation: Beginner is the free/trial tier that doesn't generate revenue, so its cost is
+capped by what you spend on GPU hosting rather than scaling per-token with usage; Pro/Max keep paying for frontier
+quality because their subscription revenue funds it.
+
+Two things `modelRouter.ts` handles honestly rather than silently:
+- **Self-hosted endpoint not deployed yet** → Beginner tier transparently falls back to the Anthropic API (a fixed
+  cheap model) instead of the app just being broken for free-tier users while you're still training/deploying.
+  You'll want to remove this fallback (or budget for it) once real Beginner traffic exists, since it does spend
+  real Anthropic API credits until your own endpoint is live.
+- **Beginner tier + an image attachment** → Llama 3.1 8B Instruct has no vision. Rather than silently ignoring the
+  image or quietly upgrading the request to a paid Claude call, the image is dropped with an honest note telling
+  the model (and, in its reply, the user) that image analysis needs Pro/Max.
+
+The exact same system prompt (`shared/src/nexaPersona.ts`) is used both when generating fine-tuning data
+(`finetune/generateSyntheticData.ts`) and at inference time (`lib/anthropic.ts`, `lib/selfHostedModel.ts`) — kept
+as one shared module specifically so the two can't drift out of sync, since a fine-tuned model's quality depends
+on being prompted the same way it was trained.
+
+## The agent builder's live-send capability
+
+Once a business connects Instagram and/or WhatsApp (Settings → Connectors) and activates an agent for that
+platform, real inbound messages actually reach it:
+
+1. Meta calls `POST /api/webhooks/meta` (real signature-verified webhook — `server/src/routes/webhooks/meta.ts`)
+   with the incoming DM/message.
+2. The message is matched to the connected account (by Instagram business account ID or WhatsApp
+   `phone_number_id`) and that account's active agent.
+3. Claude drafts a reply (`lib/agents/agentRunner.ts`'s `dryRunAgent`, same function the safe-preview button uses).
+4. If the agent's "autoSend" is on, the reply is sent immediately via `lib/agents/metaGraph.ts`'s real Graph API
+   call. If it's off, the draft lands in the Agents screen's "Waiting for your approval" list instead, for the
+   business owner to approve (sends it) or reject (discards it) by hand.
+
+**What you need before any of this works with real customers:**
+- Your own Meta Developer app (`META_APP_ID` / `META_APP_SECRET` / `APP_BASE_URL` / `META_WEBHOOK_VERIFY_TOKEN`).
+- **Instagram**: connects via a real OAuth flow (Settings → Connectors → Instagram) — Facebook Login for Business,
+  discovering the Page + linked Instagram professional account you manage.
+- **WhatsApp**: connects via a manual credential-entry form (Settings → Connectors → WhatsApp), not OAuth — that's
+  the real, standard way third-party apps use WhatsApp Cloud API without Meta's separate, more heavily gated
+  "Embedded Signup" product. You paste the permanent access token and phone_number_id Meta Business Suite gives
+  you when you set up WhatsApp Cloud API there.
+- **Meta App Review.** Both `instagram_manage_messages` and `whatsapp_business_messaging` are restricted
+  permissions — until Meta approves your app's review submission for them, this only works with accounts you've
+  explicitly added as Testers/Developers on your Meta app. That review is a real external process (can take days
+  to weeks, isn't guaranteed) that no code here can shortcut.
+- Registering the webhook URL (`<APP_BASE_URL>/api/webhooks/meta`) and your verify token in the Meta App Dashboard,
+  and subscribing to the relevant webhook fields (`messages` for both platforms).
 
 ## Local development
 

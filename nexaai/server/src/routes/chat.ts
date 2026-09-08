@@ -8,7 +8,7 @@ import { UPLOADS_DIR } from "./attachments";
 import { chatSessions, messages, users } from "@shared/schema";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
 import { checkUsageWindow, recordSessionStart, recordUsageSeconds } from "../middleware/usage";
-import { askNexaAi, streamNexaAi } from "../lib/anthropic";
+import { askModel, streamModel } from "../lib/modelRouter";
 import {
   PLAN_DEFINITIONS,
   ANSWER_MODE_DEFINITIONS,
@@ -194,10 +194,13 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       userMessage: body.text + extraContext,
       imageBase64: attachmentImage,
       history: orderedHistory,
-      mode: (body.kind === "who_is_lookup" ? "who_is" : body.kind === "assistance_request" ? "assistance_request" : "chat") as
-        | "chat"
-        | "who_is"
-        | "assistance_request",
+      mode: (body.kind === "who_is_lookup"
+        ? "who_is"
+        : body.kind === "assistance_request"
+          ? "assistance_request"
+          : body.kind === "camera_ask" || attachmentImage
+            ? "camera_ask"
+            : "chat") as "chat" | "who_is" | "assistance_request" | "camera_ask",
       memoryContext,
       focusMode,
     },
@@ -229,7 +232,7 @@ chatRouter.post("/messages", async (req: AuthedRequest, res) => {
   const turn = await prepareTurn(req.userId!, parsed.data);
   if (!turn.ok) return res.status(turn.status).json(turn.body);
 
-  const result = await askNexaAi(turn.askParams);
+  const result = await askModel(turn.askParams);
   const outcome = await turn.finish(result.text);
 
   res.json({ sessionId: turn.sessionId, ...outcome });
@@ -255,7 +258,7 @@ chatRouter.post("/messages/stream", async (req: AuthedRequest, res) => {
   const send = (payload: Record<string, unknown>) => res.write(`data: ${JSON.stringify(payload)}\n\n`);
 
   try {
-    const result = await streamNexaAi(turn.askParams, (delta) => send({ delta }));
+    const result = await streamModel(turn.askParams, (delta) => send({ delta }));
     const outcome = await turn.finish(result.text);
     send({ done: true, sessionId: turn.sessionId, ...outcome });
   } catch (err) {

@@ -328,9 +328,41 @@ export const connectors = pgTable("nexaai_connectors", {
   refreshToken: text("refresh_token"),
   tokenExpiresAt: timestamp("token_expires_at"),
   connectedAt: timestamp("connected_at"),
+  // Provider-specific extra fields a plain access token isn't enough to
+  // send messages with — e.g. Instagram's connected Facebook Page ID / IG
+  // user ID, or WhatsApp's phone_number_id. Shape varies per provider.
+  providerMetadata: jsonb("provider_metadata").notNull().default({}),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const connectorsRelations = relations(connectors, ({ one }) => ({
   user: one(users, { fields: [connectors.userId], references: [users.id] }),
+}));
+
+// ---------------------------------------------------------------------------
+// Agent pending drafts — when a connected agent's autoSend is off, an
+// incoming Instagram DM / WhatsApp message doesn't get replied to
+// automatically; instead the drafted reply lands here for the business
+// owner to approve or reject from the Agents screen. autoSend agents skip
+// this table entirely and send immediately (see routes/webhooks/meta.ts).
+// ---------------------------------------------------------------------------
+
+export const agentDraftStatusEnum = pgEnum("agent_draft_status", ["pending", "approved", "rejected", "auto_sent"]);
+
+export const agentPendingDrafts = pgTable("nexaai_agent_pending_drafts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  agentId: uuid("agent_id").notNull().references(() => agents.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  platform: connectorProviderEnum("platform").notNull(), // "instagram" | "whatsapp"
+  externalConversationId: text("external_conversation_id").notNull(), // IGSID or WhatsApp phone number
+  incomingMessage: text("incoming_message").notNull(),
+  draftReply: text("draft_reply").notNull(),
+  status: agentDraftStatusEnum("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  resolvedAt: timestamp("resolved_at"),
+});
+
+export const agentPendingDraftsRelations = relations(agentPendingDrafts, ({ one }) => ({
+  agent: one(agents, { fields: [agentPendingDrafts.agentId], references: [agents.id] }),
+  user: one(users, { fields: [agentPendingDrafts.userId], references: [users.id] }),
 }));

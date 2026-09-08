@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { colors, radii, spacing, typography } from "../theme/colors";
-import { api } from "../lib/api";
+import { api, ApiError } from "../lib/api";
 
 type AgentKind = "instagram_dm" | "whatsapp_autoresponder" | "generic_webhook" | "custom";
 
@@ -14,6 +15,16 @@ interface Agent {
   config: { instructions: string; autoSend: boolean };
 }
 
+interface PendingDraft {
+  id: string;
+  agentId: string;
+  platform: "instagram" | "whatsapp";
+  externalConversationId: string;
+  incomingMessage: string;
+  draftReply: string;
+  createdAt: string;
+}
+
 const KIND_LABELS: Record<AgentKind, string> = {
   instagram_dm: "Instagram DM replies",
   whatsapp_autoresponder: "WhatsApp autoresponder",
@@ -22,7 +33,10 @@ const KIND_LABELS: Record<AgentKind, string> = {
 };
 
 export function AgentBuilderScreen() {
+  const navigation = useNavigation<any>();
   const [agents, setAgents] = useState<Agent[]>([]);
+  const [pendingDrafts, setPendingDrafts] = useState<PendingDraft[]>([]);
+  const [resolvingDraft, setResolvingDraft] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [kind, setKind] = useState<AgentKind>("instagram_dm");
   const [instructions, setInstructions] = useState("");
@@ -31,7 +45,10 @@ export function AgentBuilderScreen() {
   const [testOutput, setTestOutput] = useState<Record<string, string>>({});
   const [testing, setTesting] = useState<string | null>(null);
 
-  const load = () => api<{ agents: Agent[] }>("/api/agents").then((r) => setAgents(r.agents));
+  const load = () => {
+    api<{ agents: Agent[] }>("/api/agents").then((r) => setAgents(r.agents));
+    api<{ drafts: PendingDraft[] }>("/api/agents/pending-drafts").then((r) => setPendingDrafts(r.drafts));
+  };
   useEffect(() => {
     load();
   }, []);
@@ -67,14 +84,48 @@ export function AgentBuilderScreen() {
     }
   };
 
+  const resolveDraft = async (draft: PendingDraft, action: "approve" | "reject") => {
+    setResolvingDraft(draft.id);
+    try {
+      await api(`/api/agents/pending-drafts/${draft.id}/${action}`, { method: "POST" });
+      setPendingDrafts((prev) => prev.filter((d) => d.id !== draft.id));
+    } catch (err) {
+      Alert.alert("Error", err instanceof ApiError ? err.message : `Couldn't ${action} that draft.`);
+    } finally {
+      setResolvingDraft(null);
+    }
+  };
+
   return (
     <GalaxyBackground>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Build an agent</Text>
         <Text style={styles.subtitle}>
           Describe an automation in your own words — e.g. "reply to Instagram DMs asking about pricing with our price list".
-          You can safely test drafts here before connecting a real account.
+          You can safely test drafts here before connecting a real account in Settings → Connectors.
         </Text>
+
+        {pendingDrafts.length > 0 && (
+          <View>
+            <Text style={styles.sectionLabel}>Waiting for your approval</Text>
+            {pendingDrafts.map((draft) => (
+              <View key={draft.id} style={styles.draftCard}>
+                <Text style={styles.draftPlatform}>{draft.platform === "instagram" ? "Instagram DM" : "WhatsApp message"}</Text>
+                <Text style={styles.draftIncoming}>"{draft.incomingMessage}"</Text>
+                <Text style={styles.draftReplyLabel}>NexaAi's drafted reply:</Text>
+                <Text style={styles.draftReply}>{draft.draftReply}</Text>
+                <View style={styles.draftButtons}>
+                  <TouchableOpacity style={styles.rejectButton} onPress={() => resolveDraft(draft, "reject")} disabled={resolvingDraft === draft.id}>
+                    <Text style={styles.rejectButtonText}>Reject</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.approveButton} onPress={() => resolveDraft(draft, "approve")} disabled={resolvingDraft === draft.id}>
+                    {resolvingDraft === draft.id ? <ActivityIndicator color="#fff" /> : <Text style={styles.approveButtonText}>Send it</Text>}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
 
         <View style={styles.form}>
           <TextInput style={styles.input} placeholder="Agent name" placeholderTextColor={colors.textMuted} value={name} onChangeText={setName} />
@@ -107,11 +158,13 @@ export function AgentBuilderScreen() {
               </View>
               <Switch value={agent.isActive} onValueChange={() => toggleActive(agent)} trackColor={{ true: colors.accent }} />
             </View>
-            {agent.isActive && agent.kind !== "custom" && (
-              <Text style={styles.notConnectedNote}>
-                Not connected to a real {agent.kind === "instagram_dm" ? "Instagram" : "WhatsApp"} account yet — needs your own
-                Meta Developer credentials (see server/src/lib/agents/agentRunner.ts).
-              </Text>
+            {agent.isActive && (agent.kind === "instagram_dm" || agent.kind === "whatsapp_autoresponder") && (
+              <TouchableOpacity onPress={() => navigation.navigate("Connectors")}>
+                <Text style={styles.notConnectedNote}>
+                  Make sure {agent.kind === "instagram_dm" ? "Instagram" : "WhatsApp"} is connected in Settings → Connectors, or real
+                  messages won't get a reply. {agent.config.autoSend ? "Auto-send is ON — replies go out immediately." : "Auto-send is off — replies wait above for your approval."}
+                </Text>
+              </TouchableOpacity>
             )}
             <TextInput
               style={styles.input}
@@ -135,6 +188,7 @@ const styles = StyleSheet.create({
   container: { padding: spacing.lg, gap: spacing.lg },
   title: { ...typography.h1, color: colors.textPrimary },
   subtitle: { ...typography.body, color: colors.textSecondary },
+  sectionLabel: { ...typography.caption, color: colors.textMuted, textTransform: "uppercase", marginBottom: spacing.sm },
   form: { backgroundColor: colors.bgCard, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.border },
   input: { backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: colors.textPrimary },
   multiline: { minHeight: 70, textAlignVertical: "top" },
@@ -153,4 +207,13 @@ const styles = StyleSheet.create({
   agentKind: { ...typography.caption, color: colors.textMuted },
   notConnectedNote: { ...typography.caption, color: colors.warning, fontStyle: "italic" },
   draftReply: { ...typography.body, color: colors.textPrimary, backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md },
+  draftCard: { backgroundColor: colors.bgCard, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.warning, marginBottom: spacing.sm },
+  draftPlatform: { ...typography.bodyBold, color: colors.textPrimary },
+  draftIncoming: { ...typography.body, color: colors.textSecondary, fontStyle: "italic" },
+  draftReplyLabel: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
+  draftButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  rejectButton: { flex: 1, backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  rejectButtonText: { color: colors.danger, fontWeight: "700" },
+  approveButton: { flex: 1, backgroundColor: colors.success, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  approveButtonText: { color: "#08130E", fontWeight: "700" },
 });

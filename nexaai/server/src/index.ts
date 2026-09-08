@@ -12,11 +12,23 @@ import { memoryRouter } from "./routes/memory";
 import { connectorsRouter } from "./routes/connectors";
 import { attachmentsRouter, UPLOADS_DIR } from "./routes/attachments";
 import { paddleWebhookRouter } from "./routes/webhooks/paddle";
+import { metaWebhookRouter } from "./routes/webhooks/meta";
 import { googleConnectorCallbackRouter } from "./lib/connectors/google";
+import { metaConnectorCallbackRouter } from "./lib/connectors/meta";
 import { isChatConfigured } from "./lib/anthropic";
 
 const app = express();
-app.use(express.json({ limit: "10mb" })); // camera-ask images ride in as base64
+// `verify` stashes the raw body so routes/webhooks/meta.ts can check Meta's
+// X-Hub-Signature-256 header — HMAC verification needs the exact bytes
+// Meta signed, not the re-serialized parsed object.
+app.use(
+  express.json({
+    limit: "10mb", // camera-ask images ride in as base64
+    verify: (req, _res, buf) => {
+      (req as unknown as { rawBody?: Buffer }).rawBody = buf;
+    },
+  }),
+);
 
 // Permissive CORS so the standalone /website static site (and the mobile
 // app's web build, on a different port in dev) can call this API directly.
@@ -42,7 +54,9 @@ app.use("/api/memory", memoryRouter);
 app.use("/api/connectors", connectorsRouter);
 app.use("/api/attachments", attachmentsRouter);
 app.use("/api/webhooks/paddle", paddleWebhookRouter);
+app.use("/api/webhooks/meta", metaWebhookRouter);
 app.use("/api/connectors/google/callback", googleConnectorCallbackRouter);
+app.use("/api/connectors/meta/callback", metaConnectorCallbackRouter);
 
 // The website (credits top-up + settings) is a small static site — see nexaai/website.
 app.use("/account", express.static(path.join(__dirname, "../../website")));

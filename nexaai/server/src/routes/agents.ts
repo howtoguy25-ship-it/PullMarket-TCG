@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db";
-import { agents, users } from "@shared/schema";
+import { agents, agentPendingDrafts, users } from "@shared/schema";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
-import { dryRunAgent, type AgentConfig } from "../lib/agents/agentRunner";
+import { dryRunAgent, sendPlatformMessage, type AgentConfig } from "../lib/agents/agentRunner";
 import { resolveCapabilities } from "../lib/capabilities";
 
 export const agentsRouter = Router();
@@ -85,4 +85,52 @@ agentsRouter.post("/:id/dry-run", requireAgentBuilderCapability, async (req: Aut
 
   const draftReply = await dryRunAgent(agent.kind, agent.config as AgentConfig, parsed.data.incomingMessage);
   res.json({ draftReply });
+});
+
+// Pending drafts — real inbound messages a connected agent drafted a reply
+// to but didn't send automatically (autoSend is off), waiting for the
+// business owner's approval. See routes/webhooks/meta.ts for where these
+// get created.
+agentsRouter.get("/pending-drafts", async (req: AuthedRequest, res) => {
+  const rows = await db
+    .select()
+    .from(agentPendingDrafts)
+    .where(and(eq(agentPendingDrafts.userId, req.userId!), eq(agentPendingDrafts.status, "pending")))
+    .orderBy(desc(agentPendingDrafts.createdAt));
+  res.json({ drafts: rows });
+});
+
+agentsRouter.post("/pending-drafts/:id/approve", async (req: AuthedRequest, res) => {
+  const [draft] = await db
+    .select()
+    .from(agentPendingDrafts)
+    .where(and(eq(agentPendingDrafts.id, req.params.id), eq(agentPendingDrafts.userId, req.userId!)));
+  if (!draft) return res.status(404).json({ error: "Draft not found" });
+  if (draft.status !== "pending") return res.status(409).json({ error: "Draft already resolved" });
+
+  const [agent] = await db.select().from(agents).where(eq(agents.id, draft.agentId));
+  if (!agent) return res.status(404).json({ error: "Agent no longer exists" });
+
+  try {
+    await sendPlatformMessage(req.userId!, agent.kind, draft.externalConversationId, draft.draftReply);
+  } catch (err: any) {
+    return res.status(502).json({ error: "send_failed", message: err.message ?? "Failed to send the reply." });
+  }
+
+  const [updated] = await db
+    .update(agentPendingDrafts)
+    .set({ status: "approved", resolvedAt: new Date() })
+    .where(eq(agentPendingDrafts.id, draft.id))
+    .returning();
+  res.json({ draft: updated });
+});
+
+agentsRouter.post("/pending-drafts/:id/reject", async (req: AuthedRequest, res) => {
+  const [updated] = await db
+    .update(agentPendingDrafts)
+    .set({ status: "rejected", resolvedAt: new Date() })
+    .where(and(eq(agentPendingDrafts.id, req.params.id), eq(agentPendingDrafts.userId, req.userId!)))
+    .returning();
+  if (!updated) return res.status(404).json({ error: "Draft not found" });
+  res.json({ draft: updated });
 });

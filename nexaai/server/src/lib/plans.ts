@@ -5,15 +5,23 @@
 
 export type PlanTier = "beginner" | "pro" | "max";
 
+// Beginner runs on your own self-hosted fine-tuned Llama (see
+// finetune/ and lib/selfHostedModel.ts) — it costs you GPU-hosting money
+// per hour regardless of usage, so capping it to the free tier bounds your
+// cost there. Pro/Max keep calling the real Anthropic API, funded by those
+// users' subscription revenue, so paying users get frontier-model quality.
+export type ModelProvider = "self_hosted" | "anthropic";
+
 export interface PlanDefinition {
   tier: PlanTier;
   displayName: string;
   tagline: string;
   priceCentsPerMonth: number | null; // null = not sold as a subscription (beginner is free-trial + pay-as-you-go credits)
   strengthMultiplier: number; // 1x / 3x / 5x per the product spec
-  model: string; // Claude model id used for this tier
+  provider: ModelProvider;
+  model: string; // Claude model id, or your self-hosted vLLM served-model-name
   maxOutputTokens: number;
-  extendedThinking: boolean;
+  extendedThinking: boolean; // only meaningful for provider: "anthropic" — self-hosted Llama has no equivalent API param
   weeklySessionSecondsCap: number; // "12-15 session minutes a week"
   dailySessionCountCap: number; // "3-4 uses of session limit every day"
   colors: { primary: string; secondary: string; glow: string };
@@ -26,7 +34,8 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     tagline: "2 days free, full access — then pay-as-you-go credits",
     priceCentsPerMonth: null,
     strengthMultiplier: 1,
-    model: "claude-haiku-4-5-20251001",
+    provider: "self_hosted",
+    model: "nexaai-llama3-8b",
     maxOutputTokens: 1024,
     extendedThinking: false,
     weeklySessionSecondsCap: 12 * 60,
@@ -39,6 +48,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     tagline: "3x faster, sharper answers",
     priceCentsPerMonth: 2999,
     strengthMultiplier: 3,
+    provider: "anthropic",
     model: "claude-sonnet-5",
     maxOutputTokens: 2048,
     extendedThinking: false,
@@ -52,6 +62,7 @@ export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
     tagline: "5x stronger — the smartest, most confident version of NexaAi",
     priceCentsPerMonth: 7999,
     strengthMultiplier: 5,
+    provider: "anthropic",
     model: "claude-opus-5",
     maxOutputTokens: 4096,
     extendedThinking: true,

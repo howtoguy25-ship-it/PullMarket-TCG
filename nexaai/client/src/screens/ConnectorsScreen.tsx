@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
@@ -11,6 +11,7 @@ interface ConnectorVM {
   provider: string;
   label: string;
   description: string;
+  connectMethod: "oauth" | "manual_entry";
   status: "connected" | "disconnected" | "not_configured";
   externalAccountLabel: string | null;
   notConfiguredHint: string | null;
@@ -27,6 +28,11 @@ const PROVIDER_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
 export function ConnectorsScreen() {
   const [connectors, setConnectors] = useState<ConnectorVM[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const [accessToken, setAccessToken] = useState("");
+  const [phoneNumberId, setPhoneNumberId] = useState("");
+  const [businessName, setBusinessName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(() => {
     api<{ connectors: ConnectorVM[] }>("/api/connectors").then((r) => setConnectors(r.connectors));
@@ -37,14 +43,37 @@ export function ConnectorsScreen() {
   const connect = async (connector: ConnectorVM) => {
     setBusy(connector.provider);
     try {
-      const { authUrl } = await api<{ authUrl: string }>(`/api/connectors/${connector.provider}/connect`, { method: "POST" });
-      await WebBrowser.openBrowserAsync(authUrl);
-      load(); // refresh once the user returns from the browser
+      const result = await api<{ authUrl?: string; manualEntry?: boolean }>(`/api/connectors/${connector.provider}/connect`, { method: "POST" });
+      if (result.manualEntry) {
+        setWhatsappModalOpen(true);
+        return;
+      }
+      if (result.authUrl) {
+        await WebBrowser.openBrowserAsync(result.authUrl);
+        load(); // refresh once the user returns from the browser
+      }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Couldn't start the connection.";
       Alert.alert(connector.label, message);
     } finally {
       setBusy(null);
+    }
+  };
+
+  const submitWhatsAppManual = async () => {
+    if (!accessToken.trim() || !phoneNumberId.trim() || !businessName.trim()) return;
+    setSubmitting(true);
+    try {
+      await api("/api/connectors/whatsapp/manual", { method: "POST", body: JSON.stringify({ accessToken, phoneNumberId, businessName }) });
+      setWhatsappModalOpen(false);
+      setAccessToken("");
+      setPhoneNumberId("");
+      setBusinessName("");
+      load();
+    } catch (err) {
+      Alert.alert("Couldn't connect WhatsApp", err instanceof ApiError ? err.message : "Check your access token and phone number ID and try again.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -84,7 +113,11 @@ export function ConnectorsScreen() {
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.row} onPress={() => onPressRow(item)} disabled={busy === item.provider}>
             <View style={styles.iconWrap}>
-              <Ionicons name={PROVIDER_ICON[item.provider] ?? "link"} size={20} color={colors.accentBright} />
+              {busy === item.provider ? (
+                <ActivityIndicator size="small" color={colors.accentBright} />
+              ) : (
+                <Ionicons name={PROVIDER_ICON[item.provider] ?? "link"} size={20} color={colors.accentBright} />
+              )}
             </View>
             <View style={styles.rowText}>
               <Text style={styles.rowLabel}>{item.label}</Text>
@@ -101,6 +134,43 @@ export function ConnectorsScreen() {
           </TouchableOpacity>
         )}
       />
+
+      <Modal visible={whatsappModalOpen} transparent animationType="fade" onRequestClose={() => setWhatsappModalOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Connect WhatsApp</Text>
+            <Text style={styles.modalSubtitle}>
+              WhatsApp Cloud API doesn't use a login popup — copy these from Meta Business Suite / your WhatsApp Business Platform dashboard.
+            </Text>
+            <TextInput style={styles.input} placeholder="Business name" placeholderTextColor={colors.textMuted} value={businessName} onChangeText={setBusinessName} />
+            <TextInput
+              style={styles.input}
+              placeholder="Phone number ID"
+              placeholderTextColor={colors.textMuted}
+              value={phoneNumberId}
+              onChangeText={setPhoneNumberId}
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Permanent access token"
+              placeholderTextColor={colors.textMuted}
+              value={accessToken}
+              onChangeText={setAccessToken}
+              autoCapitalize="none"
+              secureTextEntry
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalCancelButton} onPress={() => setWhatsappModalOpen(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalConnectButton} onPress={submitWhatsAppManual} disabled={submitting}>
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalConnectText}>Connect</Text>}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </GalaxyBackground>
   );
 }
@@ -128,4 +198,14 @@ const styles = StyleSheet.create({
   badgeConnected: { backgroundColor: colors.success },
   badgeText: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
   badgeTextConnected: { color: "#08130E" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
+  modalCard: { width: "100%", maxWidth: 380, backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
+  modalTitle: { ...typography.h2, color: colors.textPrimary },
+  modalSubtitle: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.sm },
+  input: { backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: colors.textPrimary },
+  modalButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+  modalCancelButton: { flex: 1, backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  modalCancelText: { color: colors.textSecondary, fontWeight: "700" },
+  modalConnectButton: { flex: 1, backgroundColor: colors.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  modalConnectText: { color: "#fff", fontWeight: "700" },
 });

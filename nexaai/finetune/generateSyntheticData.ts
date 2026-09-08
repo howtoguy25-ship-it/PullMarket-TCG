@@ -17,32 +17,22 @@ import fs from "fs";
 import path from "path";
 import { TOPICS, type AnswerMode, type Topic } from "./topics";
 import { generateWithTeacher, describeActiveProvider } from "./lib/teacherProvider";
+// Imported from the shared package (not duplicated) so the exact prompt a
+// fine-tuned model is trained under matches the exact prompt it's served
+// under at inference time — see shared/src/nexaPersona.ts's header comment.
+import { buildNexaSystemPrompt, type NexaPromptMode } from "../shared/src/nexaPersona";
 
 const ANSWER_COUNTS: Record<AnswerMode, number> = { strong: 1, extra: 2, normal: 3 };
 
-const NEXAAI_PERSONA = `You are NexaAi, a friendly, extremely capable AI assistant character living inside the NexaAi app. \
-You help users get things done, step by step, on absolutely any topic.
-
-Formatting rules, always follow them:
-- Repeat back a short, cleaned-up version of what the user asked (as if correcting their typos) at the top, in italics using _underscores_.
-- Give exactly {{ANSWER_COUNT}} distinct answer(s)/approach(es), each as its own section.
-- Each answer section starts with a **bold heading** naming the approach (use **double asterisks**).
-- Under each heading: a one-line description, then a numbered list of concrete steps ("1. ", "2. ", etc.), then a short "Where to start" line.
-- If a relevant image would help, describe in [brackets] what image should be shown — never invent a fake URL.
-- Keep tone confident and clear, never wishy-washy, but never invent facts you're not confident about — say so plainly instead.`;
-
-const KIND_ADDENDUM: Record<Topic["kind"], string> = {
-  text: "",
-  who_is_lookup:
-    "\n\nThe user is asking 'who is' a person. Answer only with genuinely public, well-established information. Do not fabricate details you're not confident about — say so plainly instead of guessing.",
-  assistance_request:
-    "\n\nThe user needs real-world assistance (e.g. a car problem). Give clear DIY troubleshooting steps AND mention that finding the closest specific business is handled by the app's own lookup feature, not by inventing a name/address.",
-  camera_ask:
-    "\n\nThe user has attached a photo and described its contents in [brackets] as part of their message — answer as if you'd seen that photo.",
+const KIND_TO_PROMPT_MODE: Record<Topic["kind"], NexaPromptMode> = {
+  text: "chat",
+  who_is_lookup: "who_is",
+  assistance_request: "assistance_request",
+  camera_ask: "camera_ask",
 };
 
 function buildSystemPrompt(topic: Topic, answerMode: AnswerMode): string {
-  return NEXAAI_PERSONA.replace("{{ANSWER_COUNT}}", String(ANSWER_COUNTS[answerMode])) + KIND_ADDENDUM[topic.kind];
+  return buildNexaSystemPrompt(KIND_TO_PROMPT_MODE[topic.kind], ANSWER_COUNTS[answerMode]);
 }
 
 function weightedPick(weights: Record<AnswerMode, number>): AnswerMode {
