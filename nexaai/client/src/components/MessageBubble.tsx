@@ -139,38 +139,44 @@ interface MessageBubbleProps {
   isStreaming?: boolean;
   /** Assistant avatar mood — "talking" while tokens are arriving or TTS is playing, "happy" once settled. */
   avatarMood?: "idle" | "thinking" | "happy" | "talking";
+  /** Renders a thin divider above this message — marks the start of a new turn (a fresh user message after at least one earlier exchange). */
+  showSeparatorAbove?: boolean;
 }
 
-export function MessageBubble({ message, isStreaming, avatarMood }: MessageBubbleProps) {
+export function MessageBubble({ message, isStreaming, avatarMood, showSeparatorAbove }: MessageBubbleProps) {
   const { palette } = useTheme();
   const isUser = message.role === "user";
   return (
-    <FadeInUp style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
-      {!isUser && <BotAvatar size={32} mood={avatarMood ?? "happy"} />}
-      <View style={[styles.bubble, isUser ? [styles.bubbleUser, { backgroundColor: palette.accent }] : styles.bubbleAssistant]}>
-        {message.attachment && <AttachmentPreview attachment={message.attachment} />}
-        {isUser ? (
-          <Text style={styles.userText}>{message.content}</Text>
-        ) : isStreaming ? (
-          <View>
-            <Text style={styles.bodyText}>
-              {message.content}
-              <BlinkingCursor />
-            </Text>
-            {message.content.length > 0 && (
-              <Text style={[styles.liveStatus, { color: palette.accentBright }]}>{deriveLiveStatus(message.content)}</Text>
-            )}
-          </View>
-        ) : (() => {
-          const profile = parseWhoIsProfile(message.content);
-          return profile ? <WhoIsProfileCard profile={profile} /> : <FormattedAnswer text={message.content} />;
-        })()}
-      </View>
-    </FadeInUp>
+    <>
+      {showSeparatorAbove && <View style={[styles.separator, { backgroundColor: palette.border }]} />}
+      <FadeInUp style={[styles.row, isUser ? styles.rowUser : styles.rowAssistant]}>
+        {!isUser && <BotAvatar size={32} mood={avatarMood ?? "happy"} />}
+        <View style={[styles.bubble, isUser ? [styles.bubbleUser, { backgroundColor: palette.accent }] : styles.bubbleAssistant]}>
+          {message.attachment && <AttachmentPreview attachment={message.attachment} />}
+          {isUser ? (
+            <Text style={styles.userText}>{message.content}</Text>
+          ) : isStreaming ? (
+            <View>
+              <Text style={styles.bodyText}>
+                {message.content}
+                <BlinkingCursor />
+              </Text>
+              {message.content.length > 0 && (
+                <Text style={[styles.liveStatus, { color: palette.accentBright }]}>{deriveLiveStatus(message.content)}</Text>
+              )}
+            </View>
+          ) : (() => {
+            const profile = parseWhoIsProfile(message.content);
+            return profile ? <WhoIsProfileCard profile={profile} /> : <FormattedAnswer text={message.content} />;
+          })()}
+        </View>
+      </FadeInUp>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  separator: { height: 1, alignSelf: "stretch", marginVertical: spacing.md, opacity: 0.6 },
   row: { flexDirection: "row", gap: spacing.sm, marginVertical: spacing.sm, alignItems: "flex-end" },
   rowUser: { justifyContent: "flex-end" },
   rowAssistant: { justifyContent: "flex-start" },

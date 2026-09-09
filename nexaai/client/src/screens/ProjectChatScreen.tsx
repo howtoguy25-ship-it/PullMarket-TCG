@@ -120,7 +120,9 @@ export function ProjectChatScreen() {
             ListEmptyComponent={
               <Text style={styles.emptyText}>Describe what you want to build — e.g. "a one-page portfolio site with a contact form".</Text>
             }
-            renderItem={({ item }) => <MessageBubble message={item} isStreaming={item.id === streamingMessageId} />}
+            renderItem={({ item, index }) => (
+              <MessageBubble message={item} isStreaming={item.id === streamingMessageId} showSeparatorAbove={index > 0 && item.role === "user"} />
+            )}
             ListFooterComponent={sending && !streamingMessageId ? <ThinkingIndicator phrases={BUILD_THINKING_PHRASES} /> : null}
           />
         )}

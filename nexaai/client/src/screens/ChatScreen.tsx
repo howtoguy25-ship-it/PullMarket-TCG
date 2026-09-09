@@ -296,11 +296,12 @@ export function ChatScreen() {
           data={messages}
           keyExtractor={(m) => m.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <MessageBubble
               message={item}
               isStreaming={item.id === streamingMessageId}
               avatarMood={item.id === streamingMessageId ? "talking" : "happy"}
+              showSeparatorAbove={index > 0 && item.role === "user"}
             />
           )}
           ListFooterComponent={
