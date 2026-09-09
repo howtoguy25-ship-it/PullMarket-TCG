@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { FadeInUp } from "./FadeInUp";
 
 interface WhoIsAccount {
@@ -140,6 +141,7 @@ function iconForPlatform(platform: string): keyof typeof Ionicons.glyphMap {
  */
 export function WhoIsProfileCard({ profile }: { profile: WhoIsProfile }) {
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [sourcesOpen, setSourcesOpen] = useState(false);
 
   return (
@@ -182,7 +184,7 @@ export function WhoIsProfileCard({ profile }: { profile: WhoIsProfile }) {
       {profile.sources.length > 0 && (
         <FadeInUp delayMs={320 + profile.accounts.length * 90 + 100}>
           <TouchableOpacity style={styles.sourcesToggle} onPress={() => setSourcesOpen((v) => !v)}>
-            <Ionicons name={sourcesOpen ? "chevron-down" : "chevron-forward"} size={14} color={colors.textMuted} />
+            <Ionicons name={sourcesOpen ? "chevron-down" : "chevron-forward"} size={14} color={palette.textMuted} />
             <Text style={styles.sourcesToggleText}>
               {sourcesOpen ? "Hide" : "Show"} {profile.sources.length} source{profile.sources.length === 1 ? "" : "s"}
             </Text>
@@ -204,19 +206,21 @@ export function WhoIsProfileCard({ profile }: { profile: WhoIsProfile }) {
   );
 }
 
-const styles = StyleSheet.create({
-  card: { gap: spacing.sm },
-  name: { ...typography.h1, fontSize: 22 },
-  knownFor: { ...typography.body, fontStyle: "italic", marginTop: 2 },
-  photo: { width: "100%", height: 200, borderRadius: radii.lg, marginTop: spacing.sm, backgroundColor: colors.bgCardAlt },
-  sectionLabel: { ...typography.caption, color: colors.textMuted, textTransform: "uppercase", marginTop: spacing.sm, marginBottom: 4 },
-  bio: { ...typography.body, color: colors.textPrimary, lineHeight: 21 },
-  accountsBlock: { marginTop: spacing.xs },
-  accountRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 6 },
-  accountPlatform: { ...typography.bodyBold, color: colors.textPrimary },
-  accountDetail: { ...typography.caption, color: colors.textSecondary, flex: 1 },
-  sourcesToggle: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.sm },
-  sourcesToggleText: { ...typography.caption, color: colors.textMuted, fontWeight: "700" },
-  sourcesList: { marginTop: spacing.xs, gap: 4 },
-  sourceLine: { ...typography.caption, color: colors.textSecondary },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    card: { gap: spacing.sm },
+    name: { ...typography.h1, fontSize: 22 },
+    knownFor: { ...typography.body, fontStyle: "italic", marginTop: 2 },
+    photo: { width: "100%", height: 200, borderRadius: radii.lg, marginTop: spacing.sm, backgroundColor: palette.bgCardAlt },
+    sectionLabel: { ...typography.caption, color: palette.textMuted, textTransform: "uppercase", marginTop: spacing.sm, marginBottom: 4 },
+    bio: { ...typography.body, color: palette.textPrimary, lineHeight: 21 },
+    accountsBlock: { marginTop: spacing.xs },
+    accountRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 6 },
+    accountPlatform: { ...typography.bodyBold, color: palette.textPrimary },
+    accountDetail: { ...typography.caption, color: palette.textSecondary, flex: 1 },
+    sourcesToggle: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.sm },
+    sourcesToggleText: { ...typography.caption, color: palette.textMuted, fontWeight: "700" },
+    sourcesList: { marginTop: spacing.xs, gap: 4 },
+    sourceLine: { ...typography.caption, color: palette.textSecondary },
+  });
+}

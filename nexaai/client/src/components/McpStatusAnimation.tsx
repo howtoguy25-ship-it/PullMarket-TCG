@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
 
 export type McpConnectPhase = "connecting" | "success" | "error";
 
@@ -12,6 +12,7 @@ export type McpConnectPhase = "connecting" | "success" | "error";
  * (routes/mcp.ts's tryDiscover outcome), not a cosmetic delay.
  */
 export function McpStatusAnimation({ phase, size = 20 }: { phase: McpConnectPhase; size?: number }) {
+  const { palette } = useTheme();
   const spin = useRef(new Animated.Value(0)).current;
   const pop = useRef(new Animated.Value(0)).current;
 
@@ -30,14 +31,14 @@ export function McpStatusAnimation({ phase, size = 20 }: { phase: McpConnectPhas
     const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] });
     return (
       <Animated.View style={{ transform: [{ rotate }] }}>
-        <Ionicons name="sync" size={size} color={colors.accentBright} />
+        <Ionicons name="sync" size={size} color={palette.accentBright} />
       </Animated.View>
     );
   }
   const scale = pop.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0.3, 1.15, 1] });
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
-      <Ionicons name={phase === "success" ? "checkmark-circle" : "close-circle"} size={size} color={phase === "success" ? colors.success : colors.danger} />
+      <Ionicons name={phase === "success" ? "checkmark-circle" : "close-circle"} size={size} color={phase === "success" ? palette.success : palette.danger} />
     </Animated.View>
   );
 }

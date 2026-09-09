@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { BotAvatar } from "../components/BotAvatar";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api } from "../lib/api";
 import { useAuth } from "../lib/AuthContext";
 
@@ -56,6 +57,7 @@ function TypewriterText({ text, style }: { text: string; style: any }) {
 export function OnboardingScreen() {
   const { refreshUser } = useAuth();
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [stepIndex, setStepIndex] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
   const step = STEPS[stepIndex];
@@ -113,19 +115,21 @@ export function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.lg, justifyContent: "space-between" },
-  skip: { alignSelf: "flex-end" },
-  skipText: { ...typography.body, color: colors.textMuted },
-  content: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.xl },
-  bubble: { backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.xl, maxWidth: 320 },
-  stepTitle: { ...typography.h2, color: colors.textPrimary, marginBottom: spacing.sm },
-  stepBody: { ...typography.body, color: colors.textSecondary, minHeight: 66 },
-  dots: { flexDirection: "row", justifyContent: "center", gap: spacing.sm, marginBottom: spacing.lg },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.bgCardAlt },
-  footer: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  primaryButton: { flex: 1, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "700" },
-  secondaryButton: { flex: 1, backgroundColor: colors.bgCard, borderRadius: radii.md, padding: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.border },
-  secondaryButtonText: { color: colors.textSecondary, fontWeight: "700" },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    container: { flex: 1, padding: spacing.lg, justifyContent: "space-between" },
+    skip: { alignSelf: "flex-end" },
+    skipText: { ...typography.body, color: palette.textMuted },
+    content: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.xl },
+    bubble: { backgroundColor: palette.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: palette.border, padding: spacing.xl, maxWidth: 320 },
+    stepTitle: { ...typography.h2, color: palette.textPrimary, marginBottom: spacing.sm },
+    stepBody: { ...typography.body, color: palette.textSecondary, minHeight: 66 },
+    dots: { flexDirection: "row", justifyContent: "center", gap: spacing.sm, marginBottom: spacing.lg },
+    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: palette.bgCardAlt },
+    footer: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+    primaryButton: { flex: 1, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+    primaryButtonText: { color: "#fff", fontWeight: "700" },
+    secondaryButton: { flex: 1, backgroundColor: palette.bgCard, borderRadius: radii.md, padding: spacing.md, alignItems: "center", borderWidth: 1, borderColor: palette.border },
+    secondaryButtonText: { color: palette.textSecondary, fontWeight: "700" },
+  });
+}

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Platform, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -8,8 +8,9 @@ import * as Location from "expo-location";
 import * as Calendar from "expo-calendar";
 import * as Linking from "expo-linking";
 import { GalaxyBackground } from "../components/GalaxyBackground";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 
 type PermStatus = "granted" | "denied" | "undetermined" | "unsupported";
 
@@ -86,6 +87,7 @@ function statusLabel(status: PermStatus): string {
 
 export function PermissionsScreen() {
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [statuses, setStatuses] = useState<Record<string, PermStatus>>({});
 
   const refresh = useCallback(() => {
@@ -147,17 +149,19 @@ export function PermissionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  title: { ...typography.h1, color: colors.textPrimary },
-  subtitle: { ...typography.body, color: colors.textSecondary },
-  card: { backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  iconWrap: { width: 36, height: 36, borderRadius: radii.md, backgroundColor: colors.bgCardAlt, alignItems: "center", justifyContent: "center" },
-  rowText: { flex: 1, gap: 2 },
-  rowLabel: { ...typography.bodyBold, color: colors.textPrimary },
-  rowDescription: { ...typography.caption, color: colors.textMuted },
-  rowStatus: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  rowStatusGranted: { color: colors.success },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    title: { ...typography.h1, color: palette.textPrimary },
+    subtitle: { ...typography.body, color: palette.textSecondary },
+    card: { backgroundColor: palette.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: palette.border, overflow: "hidden" },
+    row: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md },
+    rowBorder: { borderBottomWidth: 1, borderBottomColor: palette.border },
+    iconWrap: { width: 36, height: 36, borderRadius: radii.md, backgroundColor: palette.bgCardAlt, alignItems: "center", justifyContent: "center" },
+    rowText: { flex: 1, gap: 2 },
+    rowLabel: { ...typography.bodyBold, color: palette.textPrimary },
+    rowDescription: { ...typography.caption, color: palette.textMuted },
+    rowStatus: { ...typography.caption, color: palette.textSecondary, marginTop: 2 },
+    rowStatusGranted: { color: palette.success },
+  });
+}

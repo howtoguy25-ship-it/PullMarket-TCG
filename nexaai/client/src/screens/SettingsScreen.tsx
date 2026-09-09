@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Modal, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { useAuth } from "../lib/AuthContext";
 import { api, ApiError } from "../lib/api";
 import { VOICE_CHARACTERS, speak } from "../lib/voice";
@@ -20,6 +21,7 @@ const MAPS_OPTIONS: { id: MapsApp; label: string }[] = [
 export function SettingsScreen() {
   const { user, logout, refreshUser } = useAuth();
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const navigation = useNavigation<any>();
   const [proactive, setProactive] = useState(user?.proactiveCheckInEnabled ?? true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
@@ -98,19 +100,19 @@ export function SettingsScreen() {
         <Section title="Access & control">
           <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("Appearance")}>
             <Text style={styles.rowLabel}>Appearance</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            <Ionicons name="chevron-forward" size={16} color={palette.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("Permissions")}>
             <Text style={styles.rowLabel}>Permissions</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            <Ionicons name="chevron-forward" size={16} color={palette.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.row} onPress={() => navigation.navigate("Capabilities")}>
             <Text style={styles.rowLabel}>Capabilities & memory</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            <Ionicons name="chevron-forward" size={16} color={palette.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity testID="settings-connectors-row" style={styles.row} onPress={() => navigation.navigate("Connectors")}>
             <Text style={styles.rowLabel}>Connectors</Text>
-            <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+            <Ionicons name="chevron-forward" size={16} color={palette.textMuted} />
           </TouchableOpacity>
         </Section>
 
@@ -136,16 +138,16 @@ export function SettingsScreen() {
           </Text>
           <TouchableOpacity testID="settings-web-apikeys" style={styles.row} onPress={() => openOnWeb("apikeys.html")}>
             <Text style={styles.rowLabel}>Developer & API keys</Text>
-            <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+            <Ionicons name="open-outline" size={16} color={palette.textMuted} />
           </TouchableOpacity>
           <TouchableOpacity testID="settings-web-mcp" style={styles.row} onPress={() => openOnWeb("mcp.html")}>
             <Text style={styles.rowLabel}>Full MCP tool schemas</Text>
-            <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+            <Ionicons name="open-outline" size={16} color={palette.textMuted} />
           </TouchableOpacity>
           {user.isOwner && (
             <TouchableOpacity testID="settings-web-owner" style={styles.row} onPress={() => openOnWeb("owner.html")}>
               <Text style={styles.rowLabel}>Owner panel</Text>
-              <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+              <Ionicons name="open-outline" size={16} color={palette.textMuted} />
             </TouchableOpacity>
           )}
         </Section>
@@ -171,7 +173,7 @@ export function SettingsScreen() {
               testID="delete-account-password-input"
               style={styles.input}
               placeholder="Password"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={palette.textMuted}
               value={deletePassword}
               onChangeText={setDeletePassword}
               secureTextEntry
@@ -193,6 +195,8 @@ export function SettingsScreen() {
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -201,30 +205,32 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
   container: { padding: spacing.lg, gap: spacing.lg },
-  title: { ...typography.h1, color: colors.textPrimary },
+  title: { ...typography.h1, color: palette.textPrimary },
   section: { gap: spacing.sm },
-  sectionTitle: { ...typography.bodyBold, color: colors.textSecondary },
-  sectionCard: { backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden", padding: spacing.md },
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.border },
-  rowActive: { backgroundColor: colors.bgCardAlt },
-  rowLabel: { ...typography.body, color: colors.textPrimary },
-  rowValue: { ...typography.caption, color: colors.textMuted },
+  sectionTitle: { ...typography.bodyBold, color: palette.textSecondary },
+  sectionCard: { backgroundColor: palette.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: palette.border, overflow: "hidden", padding: spacing.md },
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: spacing.md, borderBottomWidth: 1, borderBottomColor: palette.border },
+  rowActive: { backgroundColor: palette.bgCardAlt },
+  rowLabel: { ...typography.body, color: palette.textPrimary },
+  rowValue: { ...typography.caption, color: palette.textMuted },
   checkmark: { fontWeight: "700" },
-  disclaimer: { ...typography.caption, color: colors.textMuted },
+  disclaimer: { ...typography.caption, color: palette.textMuted },
   logoutButton: { alignItems: "center", padding: spacing.md },
-  logoutText: { color: colors.danger, fontWeight: "700" },
+  logoutText: { color: palette.danger, fontWeight: "700" },
   deleteButton: { alignItems: "center", padding: spacing.md },
-  deleteText: { color: colors.danger, fontWeight: "700", opacity: 0.7 },
+  deleteText: { color: palette.danger, fontWeight: "700", opacity: 0.7 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
-  modalCard: { width: "100%", maxWidth: 380, backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
-  modalTitle: { ...typography.h2, color: colors.textPrimary },
-  modalSubtitle: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.sm },
-  input: { backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: colors.textPrimary },
+  modalCard: { width: "100%", maxWidth: 380, backgroundColor: palette.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: palette.border, padding: spacing.lg, gap: spacing.sm },
+  modalTitle: { ...typography.h2, color: palette.textPrimary },
+  modalSubtitle: { ...typography.caption, color: palette.textMuted, marginBottom: spacing.sm },
+  input: { backgroundColor: palette.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: palette.textPrimary },
   modalButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-  modalCancelButton: { flex: 1, backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-  modalCancelText: { color: colors.textSecondary, fontWeight: "700" },
-  modalDeleteButton: { flex: 1, backgroundColor: colors.danger, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  modalCancelButton: { flex: 1, backgroundColor: palette.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  modalCancelText: { color: palette.textSecondary, fontWeight: "700" },
+  modalDeleteButton: { flex: 1, backgroundColor: palette.danger, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
   modalDeleteText: { color: "#fff", fontWeight: "700" },
-});
+  });
+}

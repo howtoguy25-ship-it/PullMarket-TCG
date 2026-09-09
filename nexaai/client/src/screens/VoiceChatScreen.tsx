@@ -1,12 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import { useNavigation } from "@react-navigation/native";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { BotAvatar } from "../components/BotAvatar";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { API_URL, api, ApiError, getToken } from "../lib/api";
 import { appendRecordingToForm } from "../lib/voice";
 
@@ -49,6 +50,7 @@ const PHASE_LABEL: Record<CallPhase, string> = {
  */
 export function VoiceChatScreen() {
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const navigation = useNavigation<any>();
   const [mode, setMode] = useState<"list" | "call">("list");
   const [conversations, setConversations] = useState<VoiceConversation[]>([]);
@@ -221,7 +223,7 @@ export function VoiceChatScreen() {
                   <Text style={styles.convoTitle}>{item.title}</Text>
                   <Text style={styles.convoMeta}>{new Date(item.startedAt).toLocaleString()}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                <Ionicons name="chevron-forward" size={16} color={palette.textMuted} />
               </TouchableOpacity>
             )}
           />
@@ -263,7 +265,7 @@ export function VoiceChatScreen() {
       <View style={styles.micRow}>
         <TouchableOpacity
           testID="voice-mic-button"
-          style={[styles.micButton, { backgroundColor: phase === "recording" ? colors.danger : palette.accent }]}
+          style={[styles.micButton, { backgroundColor: phase === "recording" ? palette.danger : palette.accent }]}
           onPress={phase === "recording" ? stopRecording : phase === "idle" ? startRecording : undefined}
           disabled={phase !== "idle" && phase !== "recording"}
         >
@@ -278,50 +280,52 @@ export function VoiceChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  header: { padding: spacing.lg, gap: spacing.xs },
-  title: { ...typography.h1, color: colors.textPrimary },
-  subtitle: { ...typography.body, color: colors.textSecondary },
-  startButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    borderRadius: radii.pill,
-    paddingVertical: spacing.md,
-  },
-  startButtonText: { color: "#fff", fontWeight: "700" },
-  callButton: { backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border, marginTop: spacing.sm },
-  listLoading: { marginTop: spacing.lg },
-  list: { padding: spacing.lg, gap: spacing.sm },
-  emptyText: { ...typography.body, color: colors.textMuted, textAlign: "center", marginTop: spacing.lg },
-  convoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
-  convoText: { flex: 1, gap: 2 },
-  convoTitle: { ...typography.bodyBold, color: colors.textPrimary },
-  convoMeta: { ...typography.caption, color: colors.textMuted },
-  callHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    padding: spacing.lg,
-    justifyContent: "space-between",
-  },
-  callHeaderText: { ...typography.body, color: colors.textSecondary, flex: 1, textAlign: "center", fontStyle: "italic" },
-  endText: { fontWeight: "700" },
-  turnCard: { backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.xs },
-  turnYou: { ...typography.caption, color: colors.textMuted, fontStyle: "italic" },
-  turnReply: { ...typography.body, color: colors.textPrimary },
-  noAudioNote: { ...typography.caption, color: colors.warning },
-  micRow: { alignItems: "center", paddingVertical: spacing.lg },
-  micButton: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    header: { padding: spacing.lg, gap: spacing.xs },
+    title: { ...typography.h1, color: palette.textPrimary },
+    subtitle: { ...typography.body, color: palette.textSecondary },
+    startButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      marginHorizontal: spacing.lg,
+      borderRadius: radii.pill,
+      paddingVertical: spacing.md,
+    },
+    startButtonText: { color: "#fff", fontWeight: "700" },
+    callButton: { backgroundColor: palette.bgCard, borderWidth: 1, borderColor: palette.border, marginTop: spacing.sm },
+    listLoading: { marginTop: spacing.lg },
+    list: { padding: spacing.lg, gap: spacing.sm },
+    emptyText: { ...typography.body, color: palette.textMuted, textAlign: "center", marginTop: spacing.lg },
+    convoRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      backgroundColor: palette.bgCard,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: palette.border,
+      padding: spacing.md,
+    },
+    convoText: { flex: 1, gap: 2 },
+    convoTitle: { ...typography.bodyBold, color: palette.textPrimary },
+    convoMeta: { ...typography.caption, color: palette.textMuted },
+    callHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      padding: spacing.lg,
+      justifyContent: "space-between",
+    },
+    callHeaderText: { ...typography.body, color: palette.textSecondary, flex: 1, textAlign: "center", fontStyle: "italic" },
+    endText: { fontWeight: "700" },
+    turnCard: { backgroundColor: palette.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: palette.border, padding: spacing.md, gap: spacing.xs },
+    turnYou: { ...typography.caption, color: palette.textMuted, fontStyle: "italic" },
+    turnReply: { ...typography.body, color: palette.textPrimary },
+    noAudioNote: { ...typography.caption, color: palette.warning },
+    micRow: { alignItems: "center", paddingVertical: spacing.lg },
+    micButton: { width: 72, height: 72, borderRadius: 36, alignItems: "center", justifyContent: "center" },
+  });
+}

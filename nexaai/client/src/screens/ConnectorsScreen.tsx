@@ -5,7 +5,9 @@ import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { FadeInUp } from "../components/FadeInUp";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api, ApiError } from "../lib/api";
 import { openOnWeb } from "../lib/webLinks";
 import { McpStatusAnimation, type McpConnectPhase } from "../components/McpStatusAnimation";
@@ -35,6 +37,8 @@ const MCP_STATUS_LABEL: Record<McpServerVM["status"], string> = {
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 function McpConnectorsSection() {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [servers, setServers] = useState<McpServerVM[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -138,7 +142,7 @@ function McpConnectorsSection() {
       {servers.map((server, index) => (
         <FadeInUp key={server.id} delayMs={index * 45}>
           <View style={styles.mcpRow}>
-            <Ionicons name="hardware-chip-outline" size={20} color={colors.accentBright} />
+            <Ionicons name="hardware-chip-outline" size={20} color={palette.accentBright} />
             <View style={styles.mcpRowText}>
               <Text style={styles.rowLabel}>{server.name}</Text>
               <Text style={styles.rowDescription} numberOfLines={1}>
@@ -154,11 +158,11 @@ function McpConnectorsSection() {
               <McpStatusAnimation phase={phaseById[server.id]} size={18} />
             ) : (
               <TouchableOpacity onPress={() => reconnect(server)} style={styles.mcpIconButton}>
-                <Ionicons name="refresh" size={16} color={colors.textMuted} />
+                <Ionicons name="refresh" size={16} color={palette.textMuted} />
               </TouchableOpacity>
             )}
             <TouchableOpacity onPress={() => remove(server)} style={styles.mcpIconButton}>
-              <Ionicons name="trash-outline" size={16} color={colors.danger} />
+              <Ionicons name="trash-outline" size={16} color={palette.danger} />
             </TouchableOpacity>
           </View>
         </FadeInUp>
@@ -173,12 +177,12 @@ function McpConnectorsSection() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Add a custom MCP connector</Text>
             <Text style={styles.modalSubtitle}>Any real Model Context Protocol server — your own tools, or a public one.</Text>
-            <TextInput testID="mcp-name-input" style={styles.input} placeholder="Name" placeholderTextColor={colors.textMuted} value={name} onChangeText={setName} />
+            <TextInput testID="mcp-name-input" style={styles.input} placeholder="Name" placeholderTextColor={palette.textMuted} value={name} onChangeText={setName} />
             <TextInput
               testID="mcp-url-input"
               style={styles.input}
               placeholder="https://example.com/mcp"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={palette.textMuted}
               value={url}
               onChangeText={setUrl}
               autoCapitalize="none"
@@ -188,7 +192,7 @@ function McpConnectorsSection() {
               testID="mcp-token-input"
               style={styles.input}
               placeholder="Bearer token (optional)"
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={palette.textMuted}
               value={token}
               onChangeText={setToken}
               autoCapitalize="none"
@@ -250,8 +254,10 @@ const BRAND_BADGE: Record<string, { letter: string; color: string }> = {
 };
 
 function ConnectorIcon({ provider }: { provider: string }) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const ioniconName = PROVIDER_ICON[provider];
-  if (ioniconName) return <Ionicons name={ioniconName} size={20} color={colors.accentBright} />;
+  if (ioniconName) return <Ionicons name={ioniconName} size={20} color={palette.accentBright} />;
   const brand = BRAND_BADGE[provider];
   if (brand) {
     return (
@@ -260,7 +266,7 @@ function ConnectorIcon({ provider }: { provider: string }) {
       </View>
     );
   }
-  return <Ionicons name="link" size={20} color={colors.accentBright} />;
+  return <Ionicons name="link" size={20} color={palette.accentBright} />;
 }
 
 // Manual-entry connectors each need their own small set of fields — see
@@ -284,6 +290,8 @@ const MANUAL_ENTRY_SUBTITLE: Record<string, string> = {
 };
 
 export function ConnectorsScreen() {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [connectors, setConnectors] = useState<ConnectorVM[]>([]);
   const [search, setSearch] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -371,18 +379,18 @@ export function ConnectorsScreen() {
       <Text style={styles.subtitle}>Link other platforms to NexaAi so it can use real data from them, or so an agent can act through them.</Text>
 
       <View style={styles.searchWrap}>
-        <Ionicons name="search" size={16} color={colors.textMuted} />
+        <Ionicons name="search" size={16} color={palette.textMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="Search connectors by name…"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={palette.textMuted}
           value={search}
           onChangeText={setSearch}
           autoCapitalize="none"
         />
         {search.length > 0 && (
           <TouchableOpacity onPress={() => setSearch("")}>
-            <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+            <Ionicons name="close-circle" size={16} color={palette.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -396,7 +404,7 @@ export function ConnectorsScreen() {
         renderItem={({ item, index }) => (
           <FadeInUp delayMs={index * 45}>
             <TouchableOpacity style={styles.row} onPress={() => onPressRow(item)} disabled={busy === item.provider}>
-              <View style={styles.iconWrap}>{busy === item.provider ? <ActivityIndicator size="small" color={colors.accentBright} /> : <ConnectorIcon provider={item.provider} />}</View>
+              <View style={styles.iconWrap}>{busy === item.provider ? <ActivityIndicator size="small" color={palette.accentBright} /> : <ConnectorIcon provider={item.provider} />}</View>
               <View style={styles.rowText}>
                 <Text style={styles.rowLabel}>{item.label}</Text>
                 <Text style={styles.rowDescription}>
@@ -408,7 +416,7 @@ export function ConnectorsScreen() {
                   {item.status === "connected" ? "Connected" : item.status === "not_configured" ? "Not set up" : "Connect"}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+              <Ionicons name="chevron-forward" size={16} color={palette.textMuted} />
             </TouchableOpacity>
           </FadeInUp>
         )}
@@ -425,7 +433,7 @@ export function ConnectorsScreen() {
                   key={f.key}
                   style={styles.input}
                   placeholder={f.placeholder}
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={palette.textMuted}
                   value={fields[f.key] ?? ""}
                   onChangeText={(t) => setFields((prev) => ({ ...prev, [f.key]: t }))}
                   autoCapitalize="none"
@@ -447,73 +455,75 @@ export function ConnectorsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
   header: { paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
-  title: { ...typography.h1, color: colors.textPrimary },
-  subtitle: { ...typography.body, color: colors.textSecondary, paddingHorizontal: spacing.lg, marginTop: spacing.sm },
+  title: { ...typography.h1, color: palette.textPrimary },
+  subtitle: { ...typography.body, color: palette.textSecondary, paddingHorizontal: spacing.lg, marginTop: spacing.sm },
   searchWrap: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
-    backgroundColor: colors.bgCardAlt,
+    backgroundColor: palette.bgCardAlt,
     borderRadius: radii.pill,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
-  searchInput: { flex: 1, color: colors.textPrimary, ...typography.body },
-  emptyText: { ...typography.body, color: colors.textMuted, textAlign: "center", marginTop: spacing.lg },
+  searchInput: { flex: 1, color: palette.textPrimary, ...typography.body },
+  emptyText: { ...typography.body, color: palette.textMuted, textAlign: "center", marginTop: spacing.lg },
   list: { padding: spacing.lg, gap: spacing.sm },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    backgroundColor: colors.bgCard,
+    backgroundColor: palette.bgCard,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: palette.border,
     padding: spacing.md,
   },
-  iconWrap: { width: 40, height: 40, borderRadius: radii.md, backgroundColor: colors.bgCardAlt, alignItems: "center", justifyContent: "center" },
+  iconWrap: { width: 40, height: 40, borderRadius: radii.md, backgroundColor: palette.bgCardAlt, alignItems: "center", justifyContent: "center" },
   brandBadge: { width: 26, height: 26, borderRadius: radii.sm, alignItems: "center", justifyContent: "center" },
   brandBadgeText: { color: "#fff", fontWeight: "800", fontSize: 13 },
   rowText: { flex: 1, gap: 2 },
-  rowLabel: { ...typography.bodyBold, color: colors.textPrimary },
-  rowDescription: { ...typography.caption, color: colors.textMuted },
-  badge: { backgroundColor: colors.bgCardAlt, borderRadius: radii.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
-  badgeConnected: { backgroundColor: colors.success },
-  badgeText: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
+  rowLabel: { ...typography.bodyBold, color: palette.textPrimary },
+  rowDescription: { ...typography.caption, color: palette.textMuted },
+  badge: { backgroundColor: palette.bgCardAlt, borderRadius: radii.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
+  badgeConnected: { backgroundColor: palette.success },
+  badgeText: { ...typography.caption, color: palette.textSecondary, fontWeight: "700" },
   badgeTextConnected: { color: "#08130E" },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
-  modalCard: { width: "100%", maxWidth: 380, backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
-  modalTitle: { ...typography.h2, color: colors.textPrimary },
-  modalSubtitle: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.sm },
-  input: { backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: colors.textPrimary },
+  modalCard: { width: "100%", maxWidth: 380, backgroundColor: palette.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: palette.border, padding: spacing.lg, gap: spacing.sm },
+  modalTitle: { ...typography.h2, color: palette.textPrimary },
+  modalSubtitle: { ...typography.caption, color: palette.textMuted, marginBottom: spacing.sm },
+  input: { backgroundColor: palette.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: palette.textPrimary },
   modalButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-  modalCancelButton: { flex: 1, backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-  modalCancelText: { color: colors.textSecondary, fontWeight: "700" },
-  modalConnectButton: { flex: 1, backgroundColor: colors.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  modalCancelButton: { flex: 1, backgroundColor: palette.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+  modalCancelText: { color: palette.textSecondary, fontWeight: "700" },
+  modalConnectButton: { flex: 1, backgroundColor: palette.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
   modalConnectText: { color: "#fff", fontWeight: "700" },
   mcpSection: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },
   mcpHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  mcpTitle: { ...typography.h2, color: colors.textPrimary },
-  mcpSubtitle: { ...typography.caption, color: colors.textMuted },
-  mcpAddButton: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.accent, borderRadius: radii.pill, paddingHorizontal: spacing.md, paddingVertical: 6 },
+  mcpTitle: { ...typography.h2, color: palette.textPrimary },
+  mcpSubtitle: { ...typography.caption, color: palette.textMuted },
+  mcpAddButton: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: palette.accent, borderRadius: radii.pill, paddingHorizontal: spacing.md, paddingVertical: 6 },
   mcpAddButtonText: { color: "#fff", fontWeight: "700", fontSize: 12 },
   mcpRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: colors.bgCard,
+    backgroundColor: palette.bgCard,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: palette.border,
     padding: spacing.md,
   },
   mcpRowText: { flex: 1, gap: 2 },
   mcpIconButton: { padding: 6 },
-  mcpWebLink: { ...typography.caption, color: colors.accentBright, textAlign: "center", marginTop: spacing.xs },
-  mcpModalError: { ...typography.caption, color: colors.danger, marginTop: spacing.xs },
-  badgeError: { backgroundColor: colors.danger },
+  mcpWebLink: { ...typography.caption, color: palette.accentBright, textAlign: "center", marginTop: spacing.xs },
+  mcpModalError: { ...typography.caption, color: palette.danger, marginTop: spacing.xs },
+  badgeError: { backgroundColor: palette.danger },
 });
+}

@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Dimensions, Easing, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api } from "../lib/api";
 
 export interface ChatSessionSummary {
@@ -40,6 +41,7 @@ const DRAWER_WIDTH = Math.min(320, Dimensions.get("window").width * 0.84);
 export function ChatSideMenu({ visible, onClose, activeSessionId, onSelectSession, onNewChat }: ChatSideMenuProps) {
   const navigation = useNavigation<any>();
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
@@ -82,7 +84,7 @@ export function ChatSideMenu({ visible, onClose, activeSessionId, onSelectSessio
         <View style={styles.header}>
           <Text style={styles.brand}>✦ NexaAi</Text>
           <TouchableOpacity onPress={close}>
-            <Ionicons name="close" size={22} color={colors.textMuted} />
+            <Ionicons name="close" size={22} color={palette.textMuted} />
           </TouchableOpacity>
         </View>
 
@@ -118,7 +120,7 @@ export function ChatSideMenu({ visible, onClose, activeSessionId, onSelectSessio
                     onSelectSession(s);
                   }}
                 >
-                  <Ionicons name="chatbubble-outline" size={16} color={colors.textMuted} />
+                  <Ionicons name="chatbubble-outline" size={16} color={palette.textMuted} />
                   <Text style={styles.rowLabel} numberOfLines={1}>
                     {s.title || "New chat"}
                   </Text>
@@ -134,7 +136,7 @@ export function ChatSideMenu({ visible, onClose, activeSessionId, onSelectSessio
                   navigation.navigate("ProjectChat", { projectId: p.id, projectTitle: p.title });
                 }}
               >
-                <Ionicons name="code-slash-outline" size={16} color={colors.textMuted} />
+                <Ionicons name="code-slash-outline" size={16} color={palette.textMuted} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.rowLabel} numberOfLines={1}>
                     {p.title}
@@ -152,15 +154,15 @@ export function ChatSideMenu({ visible, onClose, activeSessionId, onSelectSessio
 
         <View style={styles.footer}>
           <TouchableOpacity style={styles.footerRow} onPress={() => go("Plans")}>
-            <Ionicons name="flash-outline" size={16} color={colors.textMuted} />
+            <Ionicons name="flash-outline" size={16} color={palette.textMuted} />
             <Text style={styles.footerLabel}>Plans</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.footerRow} onPress={() => go("Credits")}>
-            <Ionicons name="wallet-outline" size={16} color={colors.textMuted} />
+            <Ionicons name="wallet-outline" size={16} color={palette.textMuted} />
             <Text style={styles.footerLabel}>Credits</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.footerRow} onPress={() => go("Settings")}>
-            <Ionicons name="settings-outline" size={16} color={colors.textMuted} />
+            <Ionicons name="settings-outline" size={16} color={palette.textMuted} />
             <Text style={styles.footerLabel}>Settings</Text>
           </TouchableOpacity>
         </View>
@@ -169,7 +171,8 @@ export function ChatSideMenu({ visible, onClose, activeSessionId, onSelectSessio
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
   backdropTouchable: { flex: 1 },
   drawer: {
@@ -177,24 +180,25 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    backgroundColor: colors.bgElevated,
+    backgroundColor: palette.bgElevated,
     borderRightWidth: 1,
-    borderRightColor: colors.border,
+    borderRightColor: palette.border,
     paddingTop: 56,
     paddingBottom: spacing.lg,
   },
   header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: spacing.lg, marginBottom: spacing.md },
-  brand: { ...typography.bodyBold, color: colors.textPrimary, fontSize: 16 },
+  brand: { ...typography.bodyBold, color: palette.textPrimary, fontSize: 16 },
   newChatButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, marginHorizontal: spacing.lg, borderRadius: radii.md, paddingVertical: spacing.sm },
   newChatText: { color: "#fff", fontWeight: "700" },
   list: { flex: 1, marginTop: spacing.md },
-  sectionLabel: { ...typography.caption, color: colors.textMuted, fontWeight: "700", textTransform: "uppercase", paddingHorizontal: spacing.lg, marginTop: spacing.md, marginBottom: spacing.xs },
-  emptyText: { ...typography.caption, color: colors.textMuted, textAlign: "center", marginTop: spacing.lg },
+  sectionLabel: { ...typography.caption, color: palette.textMuted, fontWeight: "700", textTransform: "uppercase", paddingHorizontal: spacing.lg, marginTop: spacing.md, marginBottom: spacing.xs },
+  emptyText: { ...typography.caption, color: palette.textMuted, textAlign: "center", marginTop: spacing.lg },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  rowActive: { backgroundColor: colors.bgCardAlt },
-  rowLabel: { ...typography.body, color: colors.textPrimary, flex: 1 },
-  rowPreview: { ...typography.caption, color: colors.textMuted },
-  footer: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm },
+  rowActive: { backgroundColor: palette.bgCardAlt },
+  rowLabel: { ...typography.body, color: palette.textPrimary, flex: 1 },
+  rowPreview: { ...typography.caption, color: palette.textMuted },
+  footer: { borderTopWidth: 1, borderTopColor: palette.border, paddingTop: spacing.sm },
   footerRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
-  footerLabel: { ...typography.body, color: colors.textSecondary },
-});
+  footerLabel: { ...typography.body, color: palette.textSecondary },
+  });
+}

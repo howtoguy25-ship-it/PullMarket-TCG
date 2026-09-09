@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -6,8 +6,9 @@ import { GalaxyBackground } from "../components/GalaxyBackground";
 import { BotAvatar } from "../components/BotAvatar";
 import { MessageBubble, type ChatMessageVM } from "../components/MessageBubble";
 import { ThinkingIndicator } from "../components/ThinkingIndicator";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api, streamChatMessage, ApiError } from "../lib/api";
 import { FlatList } from "react-native";
 
@@ -28,6 +29,7 @@ export function ProjectChatScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const { projectId, projectTitle } = route.params as { projectId: string; projectTitle: string };
 
   const [sessionId, setSessionId] = useState<string | undefined>();
@@ -131,7 +133,7 @@ export function ProjectChatScreen() {
           <TextInput
             style={styles.input}
             placeholder="Describe what to build or change…"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={palette.textMuted}
             value={input}
             onChangeText={setInput}
             onSubmitEditing={() => send(input)}
@@ -146,25 +148,27 @@ export function ProjectChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.md },
-  headerTitle: { ...typography.h2, color: colors.textPrimary },
-  loading: { marginTop: spacing.lg },
-  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.xs },
-  emptyText: { ...typography.body, color: colors.textMuted, textAlign: "center", marginTop: spacing.lg, paddingHorizontal: spacing.lg },
-  inputRow: { flexDirection: "row", alignItems: "flex-end", gap: spacing.sm, padding: spacing.md },
-  input: {
-    flex: 1,
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    color: colors.textPrimary,
-    maxHeight: 120,
-    ...typography.body,
-  },
-  sendButton: { width: 40, height: 40, borderRadius: radii.pill, alignItems: "center", justifyContent: "center" },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    flex: { flex: 1 },
+    header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.md, paddingTop: spacing.md },
+    headerTitle: { ...typography.h2, color: palette.textPrimary },
+    loading: { marginTop: spacing.lg },
+    list: { paddingHorizontal: spacing.md, paddingBottom: spacing.md, gap: spacing.xs },
+    emptyText: { ...typography.body, color: palette.textMuted, textAlign: "center", marginTop: spacing.lg, paddingHorizontal: spacing.lg },
+    inputRow: { flexDirection: "row", alignItems: "flex-end", gap: spacing.sm, padding: spacing.md },
+    input: {
+      flex: 1,
+      backgroundColor: palette.bgCard,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: palette.border,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      color: palette.textPrimary,
+      maxHeight: 120,
+      ...typography.body,
+    },
+    sendButton: { width: 40, height: 40, borderRadius: radii.pill, alignItems: "center", justifyContent: "center" },
+  });
+}

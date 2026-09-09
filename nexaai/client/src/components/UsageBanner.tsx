@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 
 interface UsageBannerProps {
   message: string;
@@ -9,6 +11,8 @@ interface UsageBannerProps {
 
 /** Claude-style limit banner: shows the reset time, always including Sydney (AEST/AEDT) time. */
 export function UsageBanner({ message, resetAtIso }: UsageBannerProps) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const resetAt = new Date(resetAtIso);
   const sydneyTime = new Intl.DateTimeFormat("en-AU", {
     timeZone: "Australia/Sydney",
@@ -34,15 +38,17 @@ export function UsageBanner({ message, resetAtIso }: UsageBannerProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  banner: {
-    backgroundColor: colors.bgCardAlt,
-    borderColor: colors.warning,
-    borderWidth: 1,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    margin: spacing.md,
-  },
-  message: { ...typography.bodyBold, color: colors.textPrimary },
-  subtext: { ...typography.caption, color: colors.textMuted, marginTop: 4 },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    banner: {
+      backgroundColor: palette.bgCardAlt,
+      borderColor: palette.warning,
+      borderWidth: 1,
+      borderRadius: radii.md,
+      padding: spacing.md,
+      margin: spacing.md,
+    },
+    message: { ...typography.bodyBold, color: palette.textPrimary },
+    subtext: { ...typography.caption, color: palette.textMuted, marginTop: 4 },
+  });
+}

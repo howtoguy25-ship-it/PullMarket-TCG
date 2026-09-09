@@ -1,12 +1,13 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Animated, Easing, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { BotAvatar } from "../components/BotAvatar";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { API_URL, api, ApiError, getToken } from "../lib/api";
 import { appendRecordingToForm } from "../lib/voice";
 
@@ -58,6 +59,7 @@ const RINGING_MS = 1500;
 export function CallScreen() {
   const navigation = useNavigation<any>();
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [phase, setPhase] = useState<CallPhase>("ringing");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [turns, setTurns] = useState<VoiceTurn[]>([]);
@@ -357,7 +359,7 @@ export function CallScreen() {
   const avatarMood = phase === "speaking" ? "talking" : phase === "listening" ? "happy" : "thinking";
   const showTimer = phase !== "ringing" && phase !== "connecting" && phase !== "ended";
   const phaseDotColor =
-    phase === "listening" ? colors.success : phase === "speaking" ? palette.accentBright : phase === "thinking" ? colors.warning : palette.accent;
+    phase === "listening" ? palette.success : phase === "speaking" ? palette.accentBright : phase === "thinking" ? palette.warning : palette.accent;
 
   const micRingScale = micLevel.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] });
   const micRingOpacity = micLevel.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.6] });
@@ -443,50 +445,52 @@ export function CallScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  stage: { alignItems: "center", paddingTop: spacing.xl, paddingBottom: spacing.md, gap: spacing.sm },
-  stageGlowOuter: { position: "absolute", top: 6, width: 220, height: 220, borderRadius: 110 },
-  stageRing: { position: "absolute", top: 22, width: 188, height: 188, borderRadius: 94, borderWidth: 1 },
-  phasePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    borderWidth: 1,
-    borderRadius: radii.pill,
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    marginTop: spacing.sm,
-  },
-  phaseDot: { width: 7, height: 7, borderRadius: 4 },
-  phaseText: { ...typography.bodyBold, color: colors.textPrimary, fontSize: 13 },
-  timerText: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
-  errorText: { ...typography.caption, color: colors.danger, textAlign: "center", paddingHorizontal: spacing.lg, marginTop: spacing.xs },
-  transcript: { flex: 1 },
-  transcriptContent: { padding: spacing.lg, gap: spacing.md },
-  emptyText: { ...typography.body, color: colors.textMuted, textAlign: "center", marginTop: spacing.xl },
-  turnBlock: { gap: 6 },
-  bubble: { maxWidth: "88%", borderRadius: radii.lg, padding: spacing.md, gap: 3 },
-  bubbleUser: { alignSelf: "flex-end", borderBottomRightRadius: 6 },
-  bubbleBot: { alignSelf: "flex-start", borderWidth: 1, borderBottomLeftRadius: 6 },
-  bubbleLabel: { ...typography.caption, color: "rgba(255,255,255,0.7)", fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4 },
-  bubbleTextUser: { ...typography.body, color: "#fff" },
-  bubbleTextBot: { ...typography.body, color: colors.textPrimary },
-  controls: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.lg },
-  micWrap: { alignItems: "center", justifyContent: "center", gap: spacing.sm, marginBottom: spacing.sm },
-  micPulseRing: { position: "absolute", top: -13, width: 90, height: 90, borderRadius: 45, borderWidth: 2 },
-  micButton: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  micHint: { ...typography.caption, color: colors.textMuted },
-  endButton: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.danger, alignItems: "center", justifyContent: "center" },
-  endHint: { ...typography.caption, color: colors.textMuted },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    container: { flex: 1 },
+    stage: { alignItems: "center", paddingTop: spacing.xl, paddingBottom: spacing.md, gap: spacing.sm },
+    stageGlowOuter: { position: "absolute", top: 6, width: 220, height: 220, borderRadius: 110 },
+    stageRing: { position: "absolute", top: 22, width: 188, height: 188, borderRadius: 94, borderWidth: 1 },
+    phasePill: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      borderWidth: 1,
+      borderRadius: radii.pill,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
+      marginTop: spacing.sm,
+    },
+    phaseDot: { width: 7, height: 7, borderRadius: 4 },
+    phaseText: { ...typography.bodyBold, color: palette.textPrimary, fontSize: 13 },
+    timerText: { ...typography.caption, color: palette.textMuted, marginTop: 2 },
+    errorText: { ...typography.caption, color: palette.danger, textAlign: "center", paddingHorizontal: spacing.lg, marginTop: spacing.xs },
+    transcript: { flex: 1 },
+    transcriptContent: { padding: spacing.lg, gap: spacing.md },
+    emptyText: { ...typography.body, color: palette.textMuted, textAlign: "center", marginTop: spacing.xl },
+    turnBlock: { gap: 6 },
+    bubble: { maxWidth: "88%", borderRadius: radii.lg, padding: spacing.md, gap: 3 },
+    bubbleUser: { alignSelf: "flex-end", borderBottomRightRadius: 6 },
+    bubbleBot: { alignSelf: "flex-start", borderWidth: 1, borderBottomLeftRadius: 6 },
+    bubbleLabel: { ...typography.caption, color: "rgba(255,255,255,0.7)", fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4 },
+    bubbleTextUser: { ...typography.body, color: "#fff" },
+    bubbleTextBot: { ...typography.body, color: palette.textPrimary },
+    controls: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.lg },
+    micWrap: { alignItems: "center", justifyContent: "center", gap: spacing.sm, marginBottom: spacing.sm },
+    micPulseRing: { position: "absolute", top: -13, width: 90, height: 90, borderRadius: 45, borderWidth: 2 },
+    micButton: {
+      width: 64,
+      height: 64,
+      borderRadius: 32,
+      alignItems: "center",
+      justifyContent: "center",
+      shadowOpacity: 0.5,
+      shadowRadius: 12,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 6,
+    },
+    micHint: { ...typography.caption, color: palette.textMuted },
+    endButton: { width: 64, height: 64, borderRadius: 32, backgroundColor: palette.danger, alignItems: "center", justifyContent: "center" },
+    endHint: { ...typography.caption, color: palette.textMuted },
+  });
+}

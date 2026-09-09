@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import { Animated, Image, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { API_URL } from "../lib/api";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { BotAvatar } from "./BotAvatar";
 import { FadeInUp } from "./FadeInUp";
 import { parseWhoIsProfile, WhoIsProfileCard } from "./WhoIsProfileCard";
@@ -32,6 +33,8 @@ const ATTACHMENT_ICON: Record<MessageAttachment["kind"], keyof typeof Ionicons.g
 };
 
 function AttachmentPreview({ attachment }: { attachment: MessageAttachment }) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const sizeLabel =
     attachment.sizeBytes > 1024 * 1024 * 1024
       ? `${(attachment.sizeBytes / (1024 * 1024 * 1024)).toFixed(1)}GB`
@@ -42,7 +45,7 @@ function AttachmentPreview({ attachment }: { attachment: MessageAttachment }) {
   }
   return (
     <View style={styles.attachmentFile}>
-      <Ionicons name={ATTACHMENT_ICON[attachment.kind]} size={18} color={colors.textSecondary} />
+      <Ionicons name={ATTACHMENT_ICON[attachment.kind]} size={18} color={palette.textSecondary} />
       <Text style={styles.attachmentFileName} numberOfLines={1}>
         {attachment.filename}
       </Text>
@@ -54,6 +57,7 @@ function AttachmentPreview({ attachment }: { attachment: MessageAttachment }) {
 /** A steadily blinking text-cursor, shown at the end of a message still streaming in. */
 function BlinkingCursor() {
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const opacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -76,6 +80,7 @@ function BlinkingCursor() {
  */
 function FormattedAnswer({ text }: { text: string }) {
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const lines = text.split("\n");
   return (
     <View>
@@ -145,6 +150,7 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isStreaming, avatarMood, showSeparatorAbove }: MessageBubbleProps) {
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const isUser = message.role === "user";
   return (
     <>
@@ -175,37 +181,39 @@ export function MessageBubble({ message, isStreaming, avatarMood, showSeparatorA
   );
 }
 
-const styles = StyleSheet.create({
-  separator: { height: 1, alignSelf: "stretch", marginVertical: spacing.md, opacity: 0.6 },
-  row: { flexDirection: "row", gap: spacing.sm, marginVertical: spacing.sm, alignItems: "flex-end" },
-  rowUser: { justifyContent: "flex-end" },
-  rowAssistant: { justifyContent: "flex-start" },
-  bubble: { maxWidth: "82%", borderRadius: radii.lg, padding: spacing.md },
-  bubbleUser: { borderTopRightRadius: radii.sm },
-  bubbleAssistant: { backgroundColor: colors.bgCard, borderTopLeftRadius: radii.sm, borderWidth: 1, borderColor: colors.border },
-  userText: { ...typography.body, color: "#FFFFFF" },
-  bodyText: { ...typography.body, color: colors.textPrimary, marginBottom: 2 },
-  liveStatus: { ...typography.caption, fontStyle: "italic", marginTop: 4 },
-  heading: { ...typography.bodyBold, marginTop: spacing.sm, marginBottom: 2 },
-  italic: { ...typography.body, color: colors.textSecondary, fontStyle: "italic", marginBottom: 6 },
-  stepRow: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", marginVertical: 2 },
-  stepBadge: { width: 20, height: 20, borderRadius: radii.pill, alignItems: "center", justifyContent: "center", marginTop: 1 },
-  stepBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
-  stepText: { ...typography.body, color: colors.textPrimary, flex: 1 },
-  imageHint: { backgroundColor: colors.bgCardAlt, borderRadius: radii.sm, padding: spacing.sm, marginVertical: 4 },
-  imageHintText: { ...typography.caption, color: colors.textMuted },
-  cursor: { fontWeight: "700" },
-  attachmentImage: { width: "100%", height: 160, borderRadius: radii.md, marginBottom: spacing.sm, backgroundColor: colors.bgCardAlt },
-  attributedPhoto: { width: "100%", height: 180, borderRadius: radii.md, marginVertical: spacing.sm, backgroundColor: colors.bgCardAlt },
-  attachmentFile: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.bgCardAlt,
-    borderRadius: radii.md,
-    padding: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  attachmentFileName: { ...typography.caption, color: colors.textPrimary, flex: 1 },
-  attachmentFileSize: { ...typography.caption, color: colors.textMuted },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    separator: { height: 1, alignSelf: "stretch", marginVertical: spacing.md, opacity: 0.6 },
+    row: { flexDirection: "row", gap: spacing.sm, marginVertical: spacing.sm, alignItems: "flex-end" },
+    rowUser: { justifyContent: "flex-end" },
+    rowAssistant: { justifyContent: "flex-start" },
+    bubble: { maxWidth: "82%", borderRadius: radii.lg, padding: spacing.md },
+    bubbleUser: { borderTopRightRadius: radii.sm },
+    bubbleAssistant: { backgroundColor: palette.bgCard, borderTopLeftRadius: radii.sm, borderWidth: 1, borderColor: palette.border },
+    userText: { ...typography.body, color: "#FFFFFF" },
+    bodyText: { ...typography.body, color: palette.textPrimary, marginBottom: 2 },
+    liveStatus: { ...typography.caption, fontStyle: "italic", marginTop: 4 },
+    heading: { ...typography.bodyBold, marginTop: spacing.sm, marginBottom: 2 },
+    italic: { ...typography.body, color: palette.textSecondary, fontStyle: "italic", marginBottom: 6 },
+    stepRow: { flexDirection: "row", gap: spacing.sm, alignItems: "flex-start", marginVertical: 2 },
+    stepBadge: { width: 20, height: 20, borderRadius: radii.pill, alignItems: "center", justifyContent: "center", marginTop: 1 },
+    stepBadgeText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+    stepText: { ...typography.body, color: palette.textPrimary, flex: 1 },
+    imageHint: { backgroundColor: palette.bgCardAlt, borderRadius: radii.sm, padding: spacing.sm, marginVertical: 4 },
+    imageHintText: { ...typography.caption, color: palette.textMuted },
+    cursor: { fontWeight: "700" },
+    attachmentImage: { width: "100%", height: 160, borderRadius: radii.md, marginBottom: spacing.sm, backgroundColor: palette.bgCardAlt },
+    attributedPhoto: { width: "100%", height: 180, borderRadius: radii.md, marginVertical: spacing.sm, backgroundColor: palette.bgCardAlt },
+    attachmentFile: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      backgroundColor: palette.bgCardAlt,
+      borderRadius: radii.md,
+      padding: spacing.sm,
+      marginBottom: spacing.sm,
+    },
+    attachmentFileName: { ...typography.caption, color: palette.textPrimary, flex: 1 },
+    attachmentFileSize: { ...typography.caption, color: palette.textMuted },
+  });
+}

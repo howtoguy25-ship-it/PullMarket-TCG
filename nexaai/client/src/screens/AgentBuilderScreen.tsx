@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { FadeInUp } from "../components/FadeInUp";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api, ApiError } from "../lib/api";
 
 type AgentKind = "instagram_dm" | "whatsapp_autoresponder" | "generic_webhook" | "custom";
@@ -35,6 +37,8 @@ const KIND_LABELS: Record<AgentKind, string> = {
 
 export function AgentBuilderScreen() {
   const navigation = useNavigation<any>();
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [pendingDrafts, setPendingDrafts] = useState<PendingDraft[]>([]);
   const [resolvingDraft, setResolvingDraft] = useState<string | null>(null);
@@ -131,7 +135,7 @@ export function AgentBuilderScreen() {
         )}
 
         <View style={styles.form}>
-          <TextInput style={styles.input} placeholder="Agent name" placeholderTextColor={colors.textMuted} value={name} onChangeText={setName} />
+          <TextInput style={styles.input} placeholder="Agent name" placeholderTextColor={palette.textMuted} value={name} onChangeText={setName} />
           <View style={styles.kindRow}>
             {(Object.keys(KIND_LABELS) as AgentKind[]).map((k) => (
               <TouchableOpacity key={k} onPress={() => setKind(k)} style={[styles.kindPill, kind === k && styles.kindPillActive]}>
@@ -142,7 +146,7 @@ export function AgentBuilderScreen() {
           <TextInput
             style={[styles.input, styles.multiline]}
             placeholder="What should this agent do?"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={palette.textMuted}
             value={instructions}
             onChangeText={setInstructions}
             multiline
@@ -160,7 +164,7 @@ export function AgentBuilderScreen() {
                   <Text style={styles.agentName}>{agent.name}</Text>
                   <Text style={styles.agentKind}>{KIND_LABELS[agent.kind]}</Text>
                 </View>
-                <Switch value={agent.isActive} onValueChange={() => toggleActive(agent)} trackColor={{ true: colors.accent }} />
+                <Switch value={agent.isActive} onValueChange={() => toggleActive(agent)} trackColor={{ true: palette.accent }} />
               </View>
               {agent.isActive && (agent.kind === "instagram_dm" || agent.kind === "whatsapp_autoresponder") && (
                 <TouchableOpacity onPress={() => navigation.navigate("Connectors")}>
@@ -173,12 +177,12 @@ export function AgentBuilderScreen() {
               <TextInput
                 style={styles.input}
                 placeholder="Try an incoming message…"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={palette.textMuted}
                 value={testInput[agent.id] ?? ""}
                 onChangeText={(t) => setTestInput((prev) => ({ ...prev, [agent.id]: t }))}
               />
               <TouchableOpacity style={styles.secondaryButton} onPress={() => dryRun(agent)} disabled={testing === agent.id}>
-                {testing === agent.id ? <ActivityIndicator color={colors.accentBright} /> : <Text style={styles.secondaryButtonText}>Preview draft reply</Text>}
+                {testing === agent.id ? <ActivityIndicator color={palette.accentBright} /> : <Text style={styles.secondaryButtonText}>Preview draft reply</Text>}
               </TouchableOpacity>
               {testOutput[agent.id] && <Text style={styles.draftReply}>{testOutput[agent.id]}</Text>}
             </View>
@@ -189,36 +193,38 @@ export function AgentBuilderScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  title: { ...typography.h1, color: colors.textPrimary },
-  subtitle: { ...typography.body, color: colors.textSecondary },
-  sectionLabel: { ...typography.caption, color: colors.textMuted, textTransform: "uppercase", marginBottom: spacing.sm },
-  form: { backgroundColor: colors.bgCard, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  input: { backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: colors.textPrimary },
-  multiline: { minHeight: 70, textAlignVertical: "top" },
-  kindRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  kindPill: { borderRadius: radii.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, backgroundColor: colors.bgCardAlt },
-  kindPillActive: { backgroundColor: colors.accent },
-  kindPillText: { ...typography.caption, color: colors.textSecondary },
-  kindPillTextActive: { color: "#fff" },
-  primaryButton: { backgroundColor: colors.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "700" },
-  secondaryButton: { backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.sm, alignItems: "center" },
-  secondaryButtonText: { color: colors.accentBright, fontWeight: "600" },
-  agentCard: { backgroundColor: colors.bgCard, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.border },
-  agentHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  agentName: { ...typography.bodyBold, color: colors.textPrimary },
-  agentKind: { ...typography.caption, color: colors.textMuted },
-  notConnectedNote: { ...typography.caption, color: colors.warning, fontStyle: "italic" },
-  draftReply: { ...typography.body, color: colors.textPrimary, backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md },
-  draftCard: { backgroundColor: colors.bgCard, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: colors.warning, marginBottom: spacing.sm },
-  draftPlatform: { ...typography.bodyBold, color: colors.textPrimary },
-  draftIncoming: { ...typography.body, color: colors.textSecondary, fontStyle: "italic" },
-  draftReplyLabel: { ...typography.caption, color: colors.textMuted, marginTop: spacing.xs },
-  draftButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-  rejectButton: { flex: 1, backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-  rejectButtonText: { color: colors.danger, fontWeight: "700" },
-  approveButton: { flex: 1, backgroundColor: colors.success, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-  approveButtonText: { color: "#08130E", fontWeight: "700" },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    title: { ...typography.h1, color: palette.textPrimary },
+    subtitle: { ...typography.body, color: palette.textSecondary },
+    sectionLabel: { ...typography.caption, color: palette.textMuted, textTransform: "uppercase", marginBottom: spacing.sm },
+    form: { backgroundColor: palette.bgCard, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: palette.border },
+    input: { backgroundColor: palette.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: palette.textPrimary },
+    multiline: { minHeight: 70, textAlignVertical: "top" },
+    kindRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+    kindPill: { borderRadius: radii.pill, paddingHorizontal: spacing.md, paddingVertical: spacing.xs, backgroundColor: palette.bgCardAlt },
+    kindPillActive: { backgroundColor: palette.accent },
+    kindPillText: { ...typography.caption, color: palette.textSecondary },
+    kindPillTextActive: { color: "#fff" },
+    primaryButton: { backgroundColor: palette.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+    primaryButtonText: { color: "#fff", fontWeight: "700" },
+    secondaryButton: { backgroundColor: palette.bgCardAlt, borderRadius: radii.md, padding: spacing.sm, alignItems: "center" },
+    secondaryButtonText: { color: palette.accentBright, fontWeight: "600" },
+    agentCard: { backgroundColor: palette.bgCard, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: palette.border },
+    agentHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    agentName: { ...typography.bodyBold, color: palette.textPrimary },
+    agentKind: { ...typography.caption, color: palette.textMuted },
+    notConnectedNote: { ...typography.caption, color: palette.warning, fontStyle: "italic" },
+    draftReply: { ...typography.body, color: palette.textPrimary, backgroundColor: palette.bgCardAlt, borderRadius: radii.md, padding: spacing.md },
+    draftCard: { backgroundColor: palette.bgCard, borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: palette.warning, marginBottom: spacing.sm },
+    draftPlatform: { ...typography.bodyBold, color: palette.textPrimary },
+    draftIncoming: { ...typography.body, color: palette.textSecondary, fontStyle: "italic" },
+    draftReplyLabel: { ...typography.caption, color: palette.textMuted, marginTop: spacing.xs },
+    draftButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+    rejectButton: { flex: 1, backgroundColor: palette.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+    rejectButtonText: { color: palette.danger, fontWeight: "700" },
+    approveButton: { flex: 1, backgroundColor: palette.success, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+    approveButtonText: { color: "#08130E", fontWeight: "700" },
+  });
+}

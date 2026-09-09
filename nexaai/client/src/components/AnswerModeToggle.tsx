@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 
 export type AnswerMode = "strong" | "extra" | "normal";
 
@@ -13,6 +14,7 @@ const OPTIONS: { mode: AnswerMode; label: string }[] = [
 
 export function AnswerModeToggle({ value, onChange }: { value: AnswerMode; onChange: (m: AnswerMode) => void }) {
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   return (
     <View style={styles.container}>
       {OPTIONS.map((opt) => {
@@ -32,9 +34,11 @@ export function AnswerModeToggle({ value, onChange }: { value: AnswerMode; onCha
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flexDirection: "row", backgroundColor: colors.bgCard, borderRadius: radii.pill, padding: 4, gap: 4 },
-  pill: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radii.pill },
-  label: { ...typography.caption, color: colors.textSecondary },
-  labelActive: { color: "#fff", fontWeight: "700" },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    container: { flexDirection: "row", backgroundColor: palette.bgCard, borderRadius: radii.pill, padding: 4, gap: 4 },
+    pill: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radii.pill },
+    label: { ...typography.caption, color: palette.textSecondary },
+    labelActive: { color: "#fff", fontWeight: "700" },
+  });
+}

@@ -1,9 +1,11 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api } from "../lib/api";
 
 interface MemoryEntry {
@@ -13,6 +15,8 @@ interface MemoryEntry {
 }
 
 export function MemoryFilesScreen() {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [entries, setEntries] = useState<MemoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -63,7 +67,7 @@ export function MemoryFilesScreen() {
         ListEmptyComponent={
           !loading ? (
             <View style={styles.empty}>
-              <Ionicons name="sparkles-outline" size={32} color={colors.textMuted} />
+              <Ionicons name="sparkles-outline" size={32} color={palette.textMuted} />
               <Text style={styles.emptyText}>
                 Nothing remembered yet. As you chat, NexaAi will save durable facts here — you can review or delete any of them
                 any time.
@@ -77,7 +81,7 @@ export function MemoryFilesScreen() {
             <View style={styles.cardFooter}>
               <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
               <TouchableOpacity onPress={() => deleteOne(item.id)}>
-                <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                <Ionicons name="trash-outline" size={18} color={palette.danger} />
               </TouchableOpacity>
             </View>
           </View>
@@ -87,15 +91,17 @@ export function MemoryFilesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.lg },
-  title: { ...typography.h1, color: colors.textPrimary },
-  clearAll: { color: colors.danger, fontWeight: "700" },
-  list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, gap: spacing.sm },
-  card: { backgroundColor: colors.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm },
-  content: { ...typography.body, color: colors.textPrimary },
-  cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  date: { ...typography.caption, color: colors.textMuted },
-  empty: { alignItems: "center", gap: spacing.md, padding: spacing.xxl },
-  emptyText: { ...typography.body, color: colors.textMuted, textAlign: "center" },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.lg },
+    title: { ...typography.h1, color: palette.textPrimary },
+    clearAll: { color: palette.danger, fontWeight: "700" },
+    list: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg, gap: spacing.sm },
+    card: { backgroundColor: palette.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, padding: spacing.md, gap: spacing.sm },
+    content: { ...typography.body, color: palette.textPrimary },
+    cardFooter: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+    date: { ...typography.caption, color: palette.textMuted },
+    empty: { alignItems: "center", gap: spacing.md, padding: spacing.xxl },
+    emptyText: { ...typography.body, color: palette.textMuted, textAlign: "center" },
+  });
+}

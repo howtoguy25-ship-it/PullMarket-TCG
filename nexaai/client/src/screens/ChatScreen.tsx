@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -24,8 +24,9 @@ import { AnswerModeToggle, type AnswerMode } from "../components/AnswerModeToggl
 import { FocusModeSelector, type FocusMode } from "../components/FocusModeSelector";
 import { UsageBanner } from "../components/UsageBanner";
 import { ChatSideMenu, type ChatSessionSummary } from "../components/ChatSideMenu";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api, streamChatMessage, ApiError } from "../lib/api";
 import { uploadAttachment, type UploadedAttachment } from "../lib/attachments";
 import { useAuth } from "../lib/AuthContext";
@@ -40,6 +41,7 @@ const WHO_IS_THINKING_PHRASES = ["Searching the web…", "Checking sources…", 
 export function ChatScreen() {
   const { user, refreshUser } = useAuth();
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const navigation = useNavigation<any>();
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [messages, setMessages] = useState<ChatMessageVM[]>([]);
@@ -255,7 +257,7 @@ export function ChatScreen() {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={styles.header}>
           <TouchableOpacity testID="chat-side-menu-button" onPress={() => setSideMenuOpen(true)}>
-            <Ionicons name="menu" size={24} color={colors.textPrimary} />
+            <Ionicons name="menu" size={24} color={palette.textPrimary} />
           </TouchableOpacity>
           <BotAvatar size={36} mood={botMood} />
           <View style={styles.headerText}>
@@ -334,7 +336,7 @@ export function ChatScreen() {
             testID="chat-input"
             style={styles.input}
             placeholder={whoIsMode ? "Who do you want to look up?" : "Ask NexaAi anything…"}
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={palette.textMuted}
             value={input}
             onChangeText={setInput}
             onSubmitEditing={() => send(input, whoIsMode ? "who_is_lookup" : "text")}
@@ -353,51 +355,53 @@ export function ChatScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  sessionLoadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(5,4,15,0.55)" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-  },
-  headerText: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
-  headerTitle: { ...typography.h2, color: colors.textPrimary },
-  headerStatus: { ...typography.caption, fontStyle: "italic" },
-  toolbar: { padding: spacing.md, alignItems: "flex-start", gap: spacing.sm },
-  list: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
-  inputRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md },
-  input: {
-    flex: 1,
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    color: colors.textPrimary,
-    ...typography.body,
-  },
-  iconButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.pill,
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  iconButtonActive: { backgroundColor: colors.danger, borderColor: colors.danger },
-  whoIsBanner: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
-  whoIsBannerText: { ...typography.caption, color: colors.textMuted },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    flex: { flex: 1 },
+    sessionLoadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(5,4,15,0.55)" },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+      paddingTop: spacing.md,
+    },
+    headerText: { flexDirection: "row", alignItems: "baseline", gap: spacing.sm },
+    headerTitle: { ...typography.h2, color: palette.textPrimary },
+    headerStatus: { ...typography.caption, fontStyle: "italic" },
+    toolbar: { padding: spacing.md, alignItems: "flex-start", gap: spacing.sm },
+    list: { paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+    inputRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: spacing.md },
+    input: {
+      flex: 1,
+      backgroundColor: palette.bgCard,
+      borderRadius: radii.pill,
+      borderWidth: 1,
+      borderColor: palette.border,
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      color: palette.textPrimary,
+      ...typography.body,
+    },
+    iconButton: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      backgroundColor: palette.bgCard,
+      borderWidth: 1,
+      borderColor: palette.border,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    iconButtonActive: { backgroundColor: palette.danger, borderColor: palette.danger },
+    whoIsBanner: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: spacing.md, paddingBottom: spacing.xs },
+    whoIsBannerText: { ...typography.caption, color: palette.textMuted },
+    sendButton: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.pill,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+  });
+}

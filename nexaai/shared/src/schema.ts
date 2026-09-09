@@ -61,7 +61,7 @@ export const connectorStatusEnum = pgEnum("connector_status", ["disconnected", "
 // enforced at the DB level so a bad client can't write a font/theme id
 // nothing recognizes.
 export const fontChoiceEnum = pgEnum("font_choice", ["inter", "fraunces", "space_grotesk"]);
-export const themeIdEnum = pgEnum("theme_id", ["galaxy_violet", "nebula_rose", "deep_ocean", "solar_amber"]);
+export const themeIdEnum = pgEnum("theme_id", ["galaxy_violet", "nebula_rose", "deep_ocean", "solar_amber", "pure_white", "true_black"]);
 
 // Focus/power modes — how hard NexaAi tries, and how much credit that costs.
 // See lib/plans.ts's FOCUS_MODE_DEFINITIONS for the real model/thinking-budget

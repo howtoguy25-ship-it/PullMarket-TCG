@@ -1,16 +1,20 @@
-import React, { useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, Linking, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from "expo-camera";
 import { File } from "expo-file-system";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
+import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api, ApiError } from "../lib/api";
 
 const URL_PATTERN = /^https?:\/\/\S+$/i;
 
 /** Real QR/barcode decode via expo-camera's onBarcodeScanned — the "ask", "watch it" -> "understand it" mode alongside photo-ask. */
 function ScanTab() {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -21,7 +25,7 @@ function ScanTab() {
   if (!permission.granted) {
     return (
       <View style={styles.center}>
-        <Ionicons name="qr-code-outline" size={48} color={colors.textMuted} />
+        <Ionicons name="qr-code-outline" size={48} color={palette.textMuted} />
         <Text style={styles.permissionText}>NexaAi needs camera access to scan QR codes and barcodes.</Text>
         <TouchableOpacity style={styles.grantButton} onPress={requestPermission}>
           <Text style={styles.primaryButtonText}>Grant camera access</Text>
@@ -75,10 +79,10 @@ function ScanTab() {
         </>
       ) : (
         <View style={styles.resultPanel}>
-          <Ionicons name={isUrl ? "link" : "barcode-outline"} size={28} color={colors.accentBright} />
+          <Ionicons name={isUrl ? "link" : "barcode-outline"} size={28} color={palette.accentBright} />
           <Text style={styles.scanValue} numberOfLines={3}>{scanned}</Text>
           {busy ? (
-            <ActivityIndicator color={colors.accentBright} />
+            <ActivityIndicator color={palette.accentBright} />
           ) : (
             <>
               {breakdown && <Text style={styles.answer}>{breakdown}</Text>}
@@ -101,6 +105,8 @@ function ScanTab() {
 }
 
 export function CameraAskScreen() {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [tab, setTab] = useState<"ask" | "scan">("ask");
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<CameraView>(null);
@@ -112,11 +118,11 @@ export function CameraAskScreen() {
   const TabBar = (
     <View style={styles.tabBar}>
       <TouchableOpacity testID="camera-ask-tab" style={[styles.tabButton, tab === "ask" && styles.tabButtonActive]} onPress={() => setTab("ask")}>
-        <Ionicons name="help-circle-outline" size={16} color={tab === "ask" ? "#fff" : colors.textSecondary} />
+        <Ionicons name="help-circle-outline" size={16} color={tab === "ask" ? "#fff" : palette.textSecondary} />
         <Text style={[styles.tabButtonText, tab === "ask" && styles.tabButtonTextActive]}>Ask about a photo</Text>
       </TouchableOpacity>
       <TouchableOpacity testID="camera-scan-tab" style={[styles.tabButton, tab === "scan" && styles.tabButtonActive]} onPress={() => setTab("scan")}>
-        <Ionicons name="qr-code-outline" size={16} color={tab === "scan" ? "#fff" : colors.textSecondary} />
+        <Ionicons name="qr-code-outline" size={16} color={tab === "scan" ? "#fff" : palette.textSecondary} />
         <Text style={[styles.tabButtonText, tab === "scan" && styles.tabButtonTextActive]}>Scan a code</Text>
       </TouchableOpacity>
     </View>
@@ -137,7 +143,7 @@ export function CameraAskScreen() {
       <GalaxyBackground>
         {TabBar}
         <View style={styles.center}>
-          <Ionicons name="camera-outline" size={48} color={colors.textMuted} />
+          <Ionicons name="camera-outline" size={48} color={palette.textMuted} />
           <Text style={styles.permissionText}>NexaAi needs camera access so you can snap a photo and ask about it.</Text>
           <TouchableOpacity style={styles.grantButton} onPress={requestPermission}>
             <Text style={styles.primaryButtonText}>Grant camera access</Text>
@@ -184,7 +190,7 @@ export function CameraAskScreen() {
           <TextInput
             style={styles.input}
             placeholder="What do you want to know about this?"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={palette.textMuted}
             value={question}
             onChangeText={setQuestion}
           />
@@ -215,39 +221,41 @@ export function CameraAskScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: spacing.md, gap: spacing.md },
-  camera: { flex: 1, borderRadius: radii.lg, overflow: "hidden" },
-  preview: { flex: 1, borderRadius: radii.lg },
-  shutter: { alignSelf: "center", width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: colors.accentBright, alignItems: "center", justifyContent: "center", marginVertical: spacing.md },
-  shutterInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.accent },
-  input: { backgroundColor: colors.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, color: colors.textPrimary },
-  row: { flexDirection: "row", gap: spacing.sm },
-  primaryButton: { flex: 1, backgroundColor: colors.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-  primaryButtonText: { color: "#fff", fontWeight: "700" },
-  secondaryButton: { flex: 1, backgroundColor: colors.bgCard, borderRadius: radii.md, padding: spacing.md, alignItems: "center", borderWidth: 1, borderColor: colors.border },
-  secondaryButtonText: { color: colors.textSecondary, fontWeight: "700" },
-  answer: { ...typography.body, color: colors.textPrimary, backgroundColor: colors.bgCard, padding: spacing.md, borderRadius: radii.md },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
-  permissionText: { ...typography.body, color: colors.textSecondary, textAlign: "center" },
-  tabBar: { flexDirection: "row", gap: spacing.sm, padding: spacing.md, paddingBottom: 0 },
-  tabButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tabButtonActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  tabButtonText: { ...typography.caption, color: colors.textSecondary, fontWeight: "700" },
-  tabButtonTextActive: { color: "#fff" },
-  scanHint: { ...typography.caption, color: colors.textMuted, textAlign: "center", paddingTop: spacing.sm },
-  grantButton: { alignSelf: "stretch", backgroundColor: colors.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-  resultPanel: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.lg },
-  scanValue: { ...typography.body, color: colors.textPrimary, textAlign: "center", backgroundColor: colors.bgCard, padding: spacing.md, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    container: { flex: 1, padding: spacing.md, gap: spacing.md },
+    camera: { flex: 1, borderRadius: radii.lg, overflow: "hidden" },
+    preview: { flex: 1, borderRadius: radii.lg },
+    shutter: { alignSelf: "center", width: 72, height: 72, borderRadius: 36, borderWidth: 4, borderColor: palette.accentBright, alignItems: "center", justifyContent: "center", marginVertical: spacing.md },
+    shutterInner: { width: 56, height: 56, borderRadius: 28, backgroundColor: palette.accent },
+    input: { backgroundColor: palette.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, padding: spacing.md, color: palette.textPrimary },
+    row: { flexDirection: "row", gap: spacing.sm },
+    primaryButton: { flex: 1, backgroundColor: palette.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+    primaryButtonText: { color: "#fff", fontWeight: "700" },
+    secondaryButton: { flex: 1, backgroundColor: palette.bgCard, borderRadius: radii.md, padding: spacing.md, alignItems: "center", borderWidth: 1, borderColor: palette.border },
+    secondaryButtonText: { color: palette.textSecondary, fontWeight: "700" },
+    answer: { ...typography.body, color: palette.textPrimary, backgroundColor: palette.bgCard, padding: spacing.md, borderRadius: radii.md },
+    center: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.xl },
+    permissionText: { ...typography.body, color: palette.textSecondary, textAlign: "center" },
+    tabBar: { flexDirection: "row", gap: spacing.sm, padding: spacing.md, paddingBottom: 0 },
+    tabButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.pill,
+      backgroundColor: palette.bgCard,
+      borderWidth: 1,
+      borderColor: palette.border,
+    },
+    tabButtonActive: { backgroundColor: palette.accent, borderColor: palette.accent },
+    tabButtonText: { ...typography.caption, color: palette.textSecondary, fontWeight: "700" },
+    tabButtonTextActive: { color: "#fff" },
+    scanHint: { ...typography.caption, color: palette.textMuted, textAlign: "center", paddingTop: spacing.sm },
+    grantButton: { alignSelf: "stretch", backgroundColor: palette.accent, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+    resultPanel: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.md, padding: spacing.lg },
+    scanValue: { ...typography.body, color: palette.textPrimary, textAlign: "center", backgroundColor: palette.bgCard, padding: spacing.md, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border },
+  });
+}

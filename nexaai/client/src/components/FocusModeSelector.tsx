@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api } from "../lib/api";
 
 export type FocusMode = "quick" | "build" | "auto" | "gorilla";
@@ -27,6 +28,7 @@ interface FocusModeSelectorProps {
 
 export function FocusModeSelector({ value, onChange, planTier, onNavigateToPlans }: FocusModeSelectorProps) {
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [modes, setModes] = useState<FocusModeDefinition[]>([]);
 
   useEffect(() => {
@@ -62,7 +64,7 @@ export function FocusModeSelector({ value, onChange, planTier, onNavigateToPlans
             style={[styles.pill, active && allowed && { backgroundColor: palette.accent }, !allowed && styles.pillLocked]}
             activeOpacity={0.8}
           >
-            {!allowed && <Ionicons name="lock-closed" size={11} color={colors.textMuted} style={styles.lockIcon} />}
+            {!allowed && <Ionicons name="lock-closed" size={11} color={palette.textMuted} style={styles.lockIcon} />}
             <Text style={[styles.label, active && allowed && styles.labelActive, !allowed && styles.labelLocked]}>{mode.label}</Text>
           </TouchableOpacity>
         );
@@ -71,12 +73,14 @@ export function FocusModeSelector({ value, onChange, planTier, onNavigateToPlans
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flexDirection: "row", backgroundColor: colors.bgCard, borderRadius: radii.pill, padding: 4, gap: 4 },
-  pill: { flexDirection: "row", alignItems: "center", paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radii.pill, gap: 4 },
-  pillLocked: { opacity: 0.6 },
-  lockIcon: { marginRight: 2 },
-  label: { ...typography.caption, color: colors.textSecondary },
-  labelActive: { color: "#fff", fontWeight: "700" },
-  labelLocked: { color: colors.textMuted },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    container: { flexDirection: "row", backgroundColor: palette.bgCard, borderRadius: radii.pill, padding: 4, gap: 4 },
+    pill: { flexDirection: "row", alignItems: "center", paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radii.pill, gap: 4 },
+    pillLocked: { opacity: 0.6 },
+    lockIcon: { marginRight: 2 },
+    label: { ...typography.caption, color: palette.textSecondary },
+    labelActive: { color: "#fff", fontWeight: "700" },
+    labelLocked: { color: palette.textMuted },
+  });
+}

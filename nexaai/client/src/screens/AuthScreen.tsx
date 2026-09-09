@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { BotAvatar } from "../components/BotAvatar";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { useAuth } from "../lib/AuthContext";
 import { ApiError } from "../lib/api";
 
 export function AuthScreen() {
   const { login, signup } = useAuth();
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [mode, setMode] = useState<"login" | "signup">("signup");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,7 +46,7 @@ export function AuthScreen() {
           <TextInput
             style={styles.input}
             placeholder="Your name"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={palette.textMuted}
             value={displayName}
             onChangeText={setDisplayName}
           />
@@ -52,7 +54,7 @@ export function AuthScreen() {
         <TextInput
           style={styles.input}
           placeholder="Email"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={palette.textMuted}
           autoCapitalize="none"
           keyboardType="email-address"
           value={email}
@@ -61,7 +63,7 @@ export function AuthScreen() {
         <TextInput
           style={styles.input}
           placeholder="Password"
-          placeholderTextColor={colors.textMuted}
+          placeholderTextColor={palette.textMuted}
           secureTextEntry
           value={password}
           onChangeText={setPassword}
@@ -81,21 +83,23 @@ export function AuthScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
   container: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: spacing.md },
-  title: { ...typography.h1, color: colors.textPrimary, marginTop: spacing.md },
-  subtitle: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.lg },
+  title: { ...typography.h1, color: palette.textPrimary, marginTop: spacing.md },
+  subtitle: { ...typography.body, color: palette.textSecondary, marginBottom: spacing.lg },
   input: {
     width: "100%",
-    backgroundColor: colors.bgCard,
+    backgroundColor: palette.bgCard,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: palette.border,
     padding: spacing.md,
-    color: colors.textPrimary,
+    color: palette.textPrimary,
   },
   button: { width: "100%", borderRadius: radii.md, padding: spacing.md, alignItems: "center", marginTop: spacing.sm },
   buttonText: { color: "#fff", fontWeight: "700" },
   switchText: { marginTop: spacing.sm },
-  error: { color: colors.danger, textAlign: "center" },
-});
+  error: { color: palette.danger, textAlign: "center" },
+  });
+}

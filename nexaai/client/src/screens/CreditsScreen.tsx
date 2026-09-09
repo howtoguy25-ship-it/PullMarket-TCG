@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import * as WebBrowser from "expo-web-browser";
 import { GalaxyBackground } from "../components/GalaxyBackground";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api, ApiError } from "../lib/api";
 
 interface CreditPack {
@@ -14,6 +15,7 @@ interface CreditPack {
 
 export function CreditsScreen() {
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [balanceCents, setBalanceCents] = useState<number | null>(null);
   const [packs, setPacks] = useState<CreditPack[]>([]);
   const [customAmount, setCustomAmount] = useState("");
@@ -86,7 +88,7 @@ export function CreditsScreen() {
             style={styles.customInput}
             keyboardType="decimal-pad"
             placeholder="50"
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={palette.textMuted}
             value={customAmount}
             onChangeText={setCustomAmount}
           />
@@ -103,21 +105,23 @@ export function CreditsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { padding: spacing.lg, gap: spacing.lg },
-  title: { ...typography.h1, color: colors.textPrimary },
-  balanceCard: { backgroundColor: colors.bgCard, borderRadius: radii.lg, padding: spacing.xl, alignItems: "center", borderWidth: 1, borderColor: colors.border },
-  balanceLabel: { ...typography.caption, color: colors.textMuted },
-  balanceValue: { ...typography.h1, marginTop: 4 },
-  iosNote: { ...typography.caption, color: colors.textMuted, fontStyle: "italic" },
-  packGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  packCard: { flexGrow: 1, minWidth: "45%", backgroundColor: colors.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, alignItems: "center" },
-  packLabel: { ...typography.h2, color: colors.textPrimary },
-  packBonus: { ...typography.caption, color: colors.success, marginTop: 2 },
-  sectionLabel: { ...typography.bodyBold, color: colors.textSecondary },
-  customRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  dollarSign: { ...typography.h2, color: colors.textSecondary },
-  customInput: { flex: 1, backgroundColor: colors.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, padding: spacing.md, color: colors.textPrimary },
-  customButton: { backgroundColor: colors.accent, borderRadius: radii.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-  customButtonText: { color: "#fff", fontWeight: "700" },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    container: { padding: spacing.lg, gap: spacing.lg },
+    title: { ...typography.h1, color: palette.textPrimary },
+    balanceCard: { backgroundColor: palette.bgCard, borderRadius: radii.lg, padding: spacing.xl, alignItems: "center", borderWidth: 1, borderColor: palette.border },
+    balanceLabel: { ...typography.caption, color: palette.textMuted },
+    balanceValue: { ...typography.h1, marginTop: 4 },
+    iosNote: { ...typography.caption, color: palette.textMuted, fontStyle: "italic" },
+    packGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+    packCard: { flexGrow: 1, minWidth: "45%", backgroundColor: palette.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, padding: spacing.lg, alignItems: "center" },
+    packLabel: { ...typography.h2, color: palette.textPrimary },
+    packBonus: { ...typography.caption, color: palette.success, marginTop: 2 },
+    sectionLabel: { ...typography.bodyBold, color: palette.textSecondary },
+    customRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    dollarSign: { ...typography.h2, color: palette.textSecondary },
+    customInput: { flex: 1, backgroundColor: palette.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: palette.border, padding: spacing.md, color: palette.textPrimary },
+    customButton: { backgroundColor: palette.accent, borderRadius: radii.md, paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+    customButtonText: { color: "#fff", fontWeight: "700" },
+  });
+}

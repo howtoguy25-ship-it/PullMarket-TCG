@@ -27,7 +27,7 @@ export const colors = {
   pro: "#B06CFF",
   max: "#FFB347",
 
-  gradientGalaxy: ["#05040F", "#0E0A2E", "#1B1245"] as const,
+  gradientGalaxy: ["#05040F", "#0E0A2E", "#1B1245"] as [string, string, string],
 };
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };

@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api } from "../lib/api";
 import { useAuth, type NexaCapabilities } from "../lib/AuthContext";
 
@@ -21,6 +22,7 @@ const CAPABILITY_ROWS: { key: keyof NexaCapabilities; label: string; description
 export function CapabilitiesScreen() {
   const { user, refreshUser } = useAuth();
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const navigation = useNavigation<any>();
   const [pending, setPending] = useState<string | null>(null);
 
@@ -108,7 +110,7 @@ export function CapabilitiesScreen() {
               <Text style={styles.rowLabel}>Memory files</Text>
               <Text style={styles.rowDescription}>View and delete what NexaAi remembers about you.</Text>
             </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+            <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -116,15 +118,17 @@ export function CapabilitiesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
   container: { padding: spacing.lg, gap: spacing.md },
-  title: { ...typography.h1, color: colors.textPrimary },
-  subtitle: { ...typography.body, color: colors.textSecondary, marginBottom: spacing.sm },
-  sectionLabel: { ...typography.caption, color: colors.textMuted, textTransform: "uppercase", marginTop: spacing.sm },
-  card: { backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
+  title: { ...typography.h1, color: palette.textPrimary },
+  subtitle: { ...typography.body, color: palette.textSecondary, marginBottom: spacing.sm },
+  sectionLabel: { ...typography.caption, color: palette.textMuted, textTransform: "uppercase", marginTop: spacing.sm },
+  card: { backgroundColor: palette.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: palette.border, overflow: "hidden" },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md, padding: spacing.md },
-  rowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
+  rowBorder: { borderBottomWidth: 1, borderBottomColor: palette.border },
   rowText: { flex: 1, gap: 2 },
-  rowLabel: { ...typography.bodyBold, color: colors.textPrimary },
-  rowDescription: { ...typography.caption, color: colors.textMuted },
-});
+  rowLabel: { ...typography.bodyBold, color: palette.textPrimary },
+  rowDescription: { ...typography.caption, color: palette.textMuted },
+  });
+}

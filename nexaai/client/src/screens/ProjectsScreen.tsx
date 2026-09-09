@@ -1,11 +1,12 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { FadeInUp } from "../components/FadeInUp";
-import { colors, radii, spacing, typography } from "../theme/colors";
+import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
+import type { Palette } from "../theme/palettes";
 import { api } from "../lib/api";
 
 interface ProjectVM {
@@ -24,6 +25,7 @@ interface ProjectVM {
 export function ProjectsScreen() {
   const navigation = useNavigation<any>();
   const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
   const [projects, setProjects] = useState<ProjectVM[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -89,7 +91,7 @@ export function ProjectsScreen() {
                   </Text>
                   <Text style={styles.rowMeta}>{new Date(item.lastActivityAt).toLocaleString()}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                <Ionicons name="chevron-forward" size={16} color={palette.textMuted} />
               </TouchableOpacity>
             </FadeInUp>
           )}
@@ -101,7 +103,7 @@ export function ProjectsScreen() {
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>New project</Text>
             <Text style={styles.modalSubtitle}>Give it a name — e.g. "Portfolio site" or "Client landing page".</Text>
-            <TextInput testID="project-name-input" style={styles.input} placeholder="Project name" placeholderTextColor={colors.textMuted} value={newTitle} onChangeText={setNewTitle} autoFocus />
+            <TextInput testID="project-name-input" style={styles.input} placeholder="Project name" placeholderTextColor={palette.textMuted} value={newTitle} onChangeText={setNewTitle} autoFocus />
             <View style={styles.modalButtons}>
               <TouchableOpacity style={styles.modalCancelButton} onPress={() => setCreateOpen(false)}>
                 <Text style={styles.modalCancelText}>Cancel</Text>
@@ -117,46 +119,48 @@ export function ProjectsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  header: { padding: spacing.lg, gap: spacing.xs },
-  title: { ...typography.h1, color: colors.textPrimary },
-  subtitle: { ...typography.body, color: colors.textSecondary },
-  newButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    marginHorizontal: spacing.lg,
-    borderRadius: radii.pill,
-    paddingVertical: spacing.md,
-  },
-  newButtonText: { color: "#fff", fontWeight: "700" },
-  loading: { marginTop: spacing.lg },
-  list: { padding: spacing.lg, gap: spacing.sm },
-  emptyText: { ...typography.body, color: colors.textMuted, textAlign: "center", marginTop: spacing.lg },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.md,
-  },
-  rowIcon: { width: 36, height: 36, borderRadius: radii.md, backgroundColor: colors.bgCardAlt, alignItems: "center", justifyContent: "center" },
-  rowText: { flex: 1, gap: 2 },
-  rowTitle: { ...typography.bodyBold, color: colors.textPrimary },
-  rowPreview: { ...typography.caption, color: colors.textSecondary },
-  rowMeta: { ...typography.caption, color: colors.textMuted },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
-  modalCard: { width: "100%", maxWidth: 380, backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.lg, gap: spacing.sm },
-  modalTitle: { ...typography.h2, color: colors.textPrimary },
-  modalSubtitle: { ...typography.caption, color: colors.textMuted, marginBottom: spacing.sm },
-  input: { backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: colors.textPrimary },
-  modalButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
-  modalCancelButton: { flex: 1, backgroundColor: colors.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-  modalCancelText: { color: colors.textSecondary, fontWeight: "700" },
-  modalContinueButton: { flex: 1, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-  modalContinueText: { color: "#fff", fontWeight: "700" },
-});
+function makeStyles(palette: Palette) {
+  return StyleSheet.create({
+    header: { padding: spacing.lg, gap: spacing.xs },
+    title: { ...typography.h1, color: palette.textPrimary },
+    subtitle: { ...typography.body, color: palette.textSecondary },
+    newButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      marginHorizontal: spacing.lg,
+      borderRadius: radii.pill,
+      paddingVertical: spacing.md,
+    },
+    newButtonText: { color: "#fff", fontWeight: "700" },
+    loading: { marginTop: spacing.lg },
+    list: { padding: spacing.lg, gap: spacing.sm },
+    emptyText: { ...typography.body, color: palette.textMuted, textAlign: "center", marginTop: spacing.lg },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.md,
+      backgroundColor: palette.bgCard,
+      borderRadius: radii.lg,
+      borderWidth: 1,
+      borderColor: palette.border,
+      padding: spacing.md,
+    },
+    rowIcon: { width: 36, height: 36, borderRadius: radii.md, backgroundColor: palette.bgCardAlt, alignItems: "center", justifyContent: "center" },
+    rowText: { flex: 1, gap: 2 },
+    rowTitle: { ...typography.bodyBold, color: palette.textPrimary },
+    rowPreview: { ...typography.caption, color: palette.textSecondary },
+    rowMeta: { ...typography.caption, color: palette.textMuted },
+    modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
+    modalCard: { width: "100%", maxWidth: 380, backgroundColor: palette.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: palette.border, padding: spacing.lg, gap: spacing.sm },
+    modalTitle: { ...typography.h2, color: palette.textPrimary },
+    modalSubtitle: { ...typography.caption, color: palette.textMuted, marginBottom: spacing.sm },
+    input: { backgroundColor: palette.bgCardAlt, borderRadius: radii.md, padding: spacing.md, color: palette.textPrimary },
+    modalButtons: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
+    modalCancelButton: { flex: 1, backgroundColor: palette.bgCardAlt, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+    modalCancelText: { color: palette.textSecondary, fontWeight: "700" },
+    modalContinueButton: { flex: 1, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
+    modalContinueText: { color: "#fff", fontWeight: "700" },
+  });
+}

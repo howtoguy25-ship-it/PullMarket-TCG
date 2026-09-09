@@ -95,6 +95,53 @@ export const PALETTES: Record<ThemeId, Palette> = {
     accentGlow: "rgba(255, 179, 71, 0.35)",
     gradientGalaxy: ["#0F0904", "#241708", "#3A230D"],
   },
+  // A genuine light theme — not just another dark accent variant. Every
+  // color below is chosen for this specific background, not inherited from
+  // CONSTANT, because CONSTANT's light text/star colors would fail contrast
+  // against a light background. See lib/ThemeContext.tsx for how this
+  // reaches components that still read the static theme/colors.ts export.
+  pure_white: {
+    id: "pure_white",
+    label: "Pure White",
+    bg: "#F7F6FC",
+    bgElevated: "#FFFFFF",
+    bgCard: "#FFFFFF",
+    bgCardAlt: "#F0EEF9",
+    border: "rgba(23, 19, 51, 0.12)",
+    starDim: "rgba(23, 19, 51, 0.10)",
+    starBright: "#2A2350",
+    textPrimary: "#171333",
+    textSecondary: "#4B4570",
+    textMuted: "#8B84AC",
+    accent: "#7C5CFF",
+    accentBright: "#5B3FE0",
+    accentGlow: "rgba(124, 92, 255, 0.16)",
+    success: "#1E9E6B",
+    warning: "#B36B00",
+    danger: "#D93A54",
+    beginner: "#4A5CFF",
+    pro: "#9440E0",
+    max: "#C97A00",
+    gradientGalaxy: ["#F7F6FC", "#F1EEFA", "#E9E4F8"],
+  },
+  // True AMOLED black — reuses CONSTANT's light text (still correct here,
+  // since this stays a dark background) but pushes bg/card surfaces to
+  // near-black instead of the galaxy variants' navy-tinted gradient.
+  true_black: {
+    id: "true_black",
+    label: "True Black",
+    ...CONSTANT,
+    bg: "#000000",
+    bgElevated: "#0A0A0A",
+    bgCard: "#111111",
+    bgCardAlt: "#1A1A1A",
+    border: "rgba(255, 255, 255, 0.10)",
+    starDim: "rgba(255,255,255,0.30)",
+    accent: "#8F6CFF",
+    accentBright: "#B79CFF",
+    accentGlow: "rgba(143, 108, 255, 0.30)",
+    gradientGalaxy: ["#000000", "#050505", "#0A0A0A"],
+  },
 };
 
 export const THEME_OPTIONS: Palette[] = Object.values(PALETTES);
