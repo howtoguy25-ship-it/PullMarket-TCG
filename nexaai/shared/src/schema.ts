@@ -86,6 +86,11 @@ export interface NexaCapabilities {
   autoSpeak: boolean;
   liveTyping: boolean;
   voiceChat: boolean;
+  // Real, live web-search-sourced images embedded alongside normal chat
+  // answers about a real-world topic — see server/src/lib/anthropic.ts's
+  // enableTopicImages wiring. Off by default: it's an opt-in extra (real
+  // web_search tool calls), not something every reply should incur.
+  topicImages: boolean;
 }
 
 export const DEFAULT_CAPABILITIES: NexaCapabilities = {
@@ -96,6 +101,7 @@ export const DEFAULT_CAPABILITIES: NexaCapabilities = {
   autoSpeak: true,
   liveTyping: true,
   voiceChat: true,
+  topicImages: false,
 };
 
 // ---------------------------------------------------------------------------

@@ -272,6 +272,18 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
   // deepWhoIsLookup's own web_search tool loop), so no conflict there.
   const mcpBridge = await buildMcpToolBridge(userId);
 
+  const mode = (
+    body.kind === "who_is_lookup"
+      ? "who_is"
+      : body.kind === "assistance_request"
+        ? "assistance_request"
+        : body.kind === "camera_ask" || attachmentImage || videoFrames
+          ? "camera_ask"
+          : projectId
+            ? "build_project"
+            : "chat"
+  ) as "chat" | "who_is" | "assistance_request" | "camera_ask" | "build_project";
+
   return {
     ok: true,
     sessionId,
@@ -282,19 +294,15 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       imageBase64: attachmentImage,
       extraImages: videoFrames,
       history: orderedHistory,
-      mode: (body.kind === "who_is_lookup"
-        ? "who_is"
-        : body.kind === "assistance_request"
-          ? "assistance_request"
-          : body.kind === "camera_ask" || attachmentImage || videoFrames
-            ? "camera_ask"
-            : projectId
-              ? "build_project"
-              : "chat") as "chat" | "who_is" | "assistance_request" | "camera_ask" | "build_project",
+      mode,
       memoryContext,
       focusMode,
       mcpTools: mcpBridge.tools.length ? mcpBridge.tools : undefined,
       mcpToolRunner: mcpBridge.runner,
+      // Real web_search, gated by the "Real images for topics" capability —
+      // only for plain chat turns; who-is has its own dedicated deep-dive
+      // path, and code-build/camera/assistance turns aren't what it's for.
+      enableTopicImages: mode === "chat" && caps.topicImages,
     },
     finish: async (text: string) => {
       // NOTE: this key is `message`, not `assistantMsg` — the client

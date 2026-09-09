@@ -78,13 +78,55 @@ function BlinkingCursor() {
  * matching the "highlighted in bold letters with description/instructions"
  * layout from the product spec.
  */
+const PHOTO_LINE = /^!\[(.*?)\]\((https?:\/\/[^\s)]+)\)$/;
+
 function FormattedAnswer({ text }: { text: string }) {
   const { palette } = useTheme();
   const styles = useMemo(() => makeStyles(palette), [palette]);
-  const lines = text.split("\n");
+  // The model doesn't always put a photo markdown line on its own line (e.g.
+  // it can land right after an italicized lead-in with no newline between) —
+  // force one so the PHOTO_LINE match below (which requires the whole line)
+  // still catches it instead of showing raw "![alt](url)" as plain text.
+  const normalized = text.replace(/([^\n])(!\[[^\]]*\]\(https?:\/\/[^\s)]+\))/g, "$1\n$2");
+  const lines = normalized.split("\n");
+
+  // Group consecutive real image lines (who-is's single attributed photo,
+  // or the "Real images for topics" capability's 1-2 web_search results —
+  // shared/src/nexaPersona.ts's WHO_IS_FORMAT / TOPIC_IMAGES_ADDENDUM) into
+  // one neat row instead of stacking each as its own full-width block.
+  type Block = { kind: "line"; line: string; key: number } | { kind: "photos"; photos: { alt: string; url: string }[]; key: number };
+  const blocks: Block[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].trim().match(PHOTO_LINE);
+    if (match) {
+      const last = blocks[blocks.length - 1];
+      if (last?.kind === "photos") last.photos.push({ alt: match[1], url: match[2] });
+      else blocks.push({ kind: "photos", photos: [{ alt: match[1], url: match[2] }], key: i });
+    } else {
+      blocks.push({ kind: "line", line: lines[i], key: i });
+    }
+  }
+
   return (
     <View>
-      {lines.map((line, i) => {
+      {blocks.map((block) => {
+        if (block.kind === "photos") {
+          return (
+            <View key={block.key} style={styles.photoGrid}>
+              {block.photos.map((photo, j) => (
+                <View key={j} style={styles.photoGridItem}>
+                  <Image source={{ uri: photo.url }} style={styles.photoGridImage} resizeMode="cover" />
+                  {photo.alt && (
+                    <Text style={styles.photoGridCaption} numberOfLines={1}>
+                      {photo.alt}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          );
+        }
+        const { line, key: i } = block;
         const trimmed = line.trim();
         if (!trimmed) return <View key={i} style={{ height: 6 }} />;
         const boldMatch = trimmed.match(/^\*\*(.+)\*\*$/);
@@ -94,14 +136,6 @@ function FormattedAnswer({ text }: { text: string }) {
               {boldMatch[1]}
             </Text>
           );
-        }
-        // A real attributed photo from the who-is deep dive (see
-        // shared/src/nexaPersona.ts's WHO_IS_FORMAT) — the model only emits
-        // this when a source explicitly attributes that exact photo to that
-        // exact person, so this renders it as a real image, not a hint.
-        const photoMatch = trimmed.match(/^!\[.*?\]\((https?:\/\/[^\s)]+)\)$/);
-        if (photoMatch) {
-          return <Image key={i} source={{ uri: photoMatch[1] }} style={styles.attributedPhoto} resizeMode="cover" />;
         }
         const stepMatch = trimmed.match(/^(\d+)\.\s+(.*)$/);
         if (stepMatch) {
@@ -203,7 +237,10 @@ function makeStyles(palette: Palette) {
     imageHintText: { ...typography.caption, color: palette.textMuted },
     cursor: { fontWeight: "700" },
     attachmentImage: { width: "100%", height: 160, borderRadius: radii.md, marginBottom: spacing.sm, backgroundColor: palette.bgCardAlt },
-    attributedPhoto: { width: "100%", height: 180, borderRadius: radii.md, marginVertical: spacing.sm, backgroundColor: palette.bgCardAlt },
+    photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginVertical: spacing.sm },
+    photoGridItem: { flexGrow: 1, minWidth: "45%" },
+    photoGridImage: { width: "100%", height: 140, borderRadius: radii.md, backgroundColor: palette.bgCardAlt },
+    photoGridCaption: { ...typography.caption, color: palette.textMuted, marginTop: 4 },
     attachmentFile: {
       flexDirection: "row",
       alignItems: "center",

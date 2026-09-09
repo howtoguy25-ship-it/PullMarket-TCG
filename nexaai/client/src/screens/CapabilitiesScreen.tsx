@@ -17,6 +17,12 @@ const CAPABILITY_ROWS: { key: keyof NexaCapabilities; label: string; description
   { key: "voiceChat", label: "Voice chat", description: "Talk to NexaAi out loud with real transcription and spoken replies." },
   { key: "autoSpeak", label: "Auto-speak replies", description: "Read NexaAi's answers out loud automatically." },
   { key: "liveTyping", label: "Live typing", description: "Stream answers token-by-token instead of all at once." },
+  {
+    key: "topicImages",
+    label: "Real images for topics",
+    description:
+      "When a chat answer is about a real-world topic, let NexaAi search the web and show 1-2 real, matching photos alongside it. Off by default — this uses a real web search per answer, not a fake stock image.",
+  },
 ];
 
 export function CapabilitiesScreen() {

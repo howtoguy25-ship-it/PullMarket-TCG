@@ -95,6 +95,8 @@ const capabilitiesPatchSchema = z.object({
   agentBuilder: z.boolean().optional(),
   autoSpeak: z.boolean().optional(),
   liveTyping: z.boolean().optional(),
+  voiceChat: z.boolean().optional(),
+  topicImages: z.boolean().optional(),
 });
 authRouter.patch("/capabilities", requireAuth, async (req: AuthedRequest, res) => {
   const parsed = capabilitiesPatchSchema.safeParse(req.body);
