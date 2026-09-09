@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Alert, Animated, Easing, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Animated, Easing, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
@@ -74,7 +74,22 @@ export function CallScreen() {
   const connectedAtRef = useRef<number | null>(null);
   const listRef = useRef<FlatList<VoiceTurn>>(null);
   const ringScale = useRef(new Animated.Value(1)).current;
+  const glowPulse = useRef(new Animated.Value(0.5)).current;
   const mounted = useRef(true);
+
+  // Real, live-input-driven values — not decorative timers. `micLevel` is
+  // the mic button's pulse ring, fed straight from the same dBFS metering
+  // the VAD logic below already reads off the actual microphone. `mouthLevel`
+  // is the character's real lip-sync amplitude on web, fed frame-by-frame
+  // from a Web Audio analyser reading the TTS reply's actual waveform (see
+  // playReplyWeb) — expo-av exposes no playback amplitude on native, so on
+  // iOS/Android BotAvatar falls back to its believable simulated cadence
+  // instead of a fake "live" signal.
+  const micLevel = useRef(new Animated.Value(0)).current;
+  const mouthLevel = useRef(new Animated.Value(0)).current;
+  const webAudioElRef = useRef<HTMLAudioElement | null>(null);
+  const webAudioCtxRef = useRef<AudioContext | null>(null);
+  const webRafRef = useRef<number | null>(null);
 
   const setPhaseSafe = (p: CallPhase) => {
     phaseRef.current = p;
@@ -88,9 +103,25 @@ export function CallScreen() {
       mounted.current = false;
       recordingRef.current?.stopAndUnloadAsync().catch(() => {});
       soundRef.current?.unloadAsync().catch(() => {});
+      webAudioElRef.current?.pause();
+      if (webRafRef.current !== null) cancelAnimationFrame(webRafRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Ambient glow behind the character — purely decorative breathing, not a
+  // stand-in for the real audio-reactive mouth movement above.
+  useEffect(() => {
+    if (phase === "ringing" || phase === "connecting" || phase === "ended") return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(glowPulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(glowPulse, { toValue: 0.5, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [phase, glowPulse]);
 
   // Real ringing pulse — a scale animation, not a static icon — while the
   // call is being placed.
@@ -119,8 +150,65 @@ export function CallScreen() {
     requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
   };
 
+  // Real amplitude-driven lip sync — web only. Routes the reply's audio
+  // through a Web Audio AnalyserNode instead of expo-av, reads the actual
+  // waveform's RMS level every animation frame, and feeds that straight into
+  // BotAvatar's mouth. Genuinely reactive to the real audio, not a loop.
+  const playReplyWeb = (url: string): Promise<void> =>
+    new Promise((resolve) => {
+      try {
+        const audioEl = new window.Audio(`${API_URL}${url}`);
+        webAudioElRef.current = audioEl;
+        const AudioContextCtor = window.AudioContext || (window as any).webkitAudioContext;
+        const ctx = webAudioCtxRef.current ?? new AudioContextCtor();
+        webAudioCtxRef.current = ctx;
+        ctx.resume().catch(() => {});
+
+        const source = ctx.createMediaElementSource(audioEl);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 256;
+        source.connect(analyser);
+        analyser.connect(ctx.destination);
+        const data = new Uint8Array(analyser.frequencyBinCount);
+
+        const finish = () => {
+          if (webRafRef.current !== null) cancelAnimationFrame(webRafRef.current);
+          webRafRef.current = null;
+          mouthLevel.setValue(0);
+          source.disconnect();
+          analyser.disconnect();
+          resolve();
+        };
+        const tick = () => {
+          analyser.getByteTimeDomainData(data);
+          let sumSquares = 0;
+          for (let i = 0; i < data.length; i++) {
+            const v = (data[i] - 128) / 128;
+            sumSquares += v * v;
+          }
+          const rms = Math.sqrt(sumSquares / data.length);
+          mouthLevel.setValue(Math.min(1, rms * 4.5));
+          webRafRef.current = requestAnimationFrame(tick);
+        };
+        audioEl.onended = finish;
+        audioEl.onerror = finish;
+        audioEl
+          .play()
+          .then(() => {
+            webRafRef.current = requestAnimationFrame(tick);
+          })
+          .catch(finish);
+      } catch {
+        resolve();
+      }
+    });
+
   const playReply = (url: string) =>
     new Promise<void>((resolve) => {
+      if (Platform.OS === "web") {
+        playReplyWeb(url).then(resolve);
+        return;
+      }
       (async () => {
         try {
           await soundRef.current?.unloadAsync().catch(() => {});
@@ -170,8 +258,13 @@ export function CallScreen() {
   };
 
   const onRecordingStatus = (status: Audio.RecordingStatus) => {
-    if (phaseRef.current !== "listening" || submittingRef.current) return;
     const metering = status.metering;
+    if (typeof metering === "number") {
+      // The mic button's live pulse ring — the same real dBFS reading the
+      // VAD logic below uses, just remapped 0-1 for the UI.
+      micLevel.setValue(Math.max(0, Math.min(1, (metering + 50) / 50)));
+    }
+    if (phaseRef.current !== "listening" || submittingRef.current) return;
     if (typeof metering === "number") {
       if (metering > SILENCE_THRESHOLD_DB) {
         hasSpokenRef.current = true;
@@ -208,6 +301,7 @@ export function CallScreen() {
   const submitTurn = async () => {
     if (submittingRef.current || !conversationId) return;
     submittingRef.current = true;
+    micLevel.setValue(0);
     const recording = recordingRef.current;
     recordingRef.current = null;
     setPhaseSafe("thinking");
@@ -250,6 +344,10 @@ export function CallScreen() {
     await recordingRef.current?.stopAndUnloadAsync().catch(() => {});
     recordingRef.current = null;
     await soundRef.current?.unloadAsync().catch(() => {});
+    webAudioElRef.current?.pause();
+    if (webRafRef.current !== null) cancelAnimationFrame(webRafRef.current);
+    micLevel.setValue(0);
+    mouthLevel.setValue(0);
     if (conversationId) await api(`/api/voice/conversations/${conversationId}/end`, { method: "PATCH" }).catch(() => {});
     navigation.goBack();
   };
@@ -257,16 +355,40 @@ export function CallScreen() {
   const mm = String(Math.floor(elapsedSec / 60)).padStart(2, "0");
   const ss = String(elapsedSec % 60).padStart(2, "0");
   const avatarMood = phase === "speaking" ? "talking" : phase === "listening" ? "happy" : "thinking";
+  const showTimer = phase !== "ringing" && phase !== "connecting" && phase !== "ended";
+  const phaseDotColor =
+    phase === "listening" ? colors.success : phase === "speaking" ? palette.accentBright : phase === "thinking" ? colors.warning : palette.accent;
+
+  const micRingScale = micLevel.interpolate({ inputRange: [0, 1], outputRange: [1, 1.45] });
+  const micRingOpacity = micLevel.interpolate({ inputRange: [0, 1], outputRange: [0.2, 0.6] });
+  const innerGlowOpacity = glowPulse.interpolate({ inputRange: [0.5, 1], outputRange: [0.35, 0.7] });
+  const innerGlowScale = glowPulse.interpolate({ inputRange: [0.5, 1], outputRange: [0.94, 1.06] });
 
   return (
     <GalaxyBackground>
       <View style={styles.container}>
-        <View style={styles.top}>
+        <View style={styles.stage}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.stageGlowOuter,
+              { backgroundColor: palette.accentGlow, opacity: innerGlowOpacity, transform: [{ scale: innerGlowScale }] },
+            ]}
+          />
+          <View style={[styles.stageRing, { borderColor: palette.border }]} />
           <Animated.View style={{ transform: [{ scale: phase === "ringing" ? ringScale : 1 }] }}>
-            <BotAvatar size={96} mood={avatarMood} />
+            <BotAvatar size={156} mood={avatarMood} liveMouthLevel={Platform.OS === "web" ? mouthLevel : undefined} />
           </Animated.View>
-          <Text style={styles.phaseText}>{PHASE_LABEL[phase]}</Text>
-          {phase !== "ringing" && phase !== "connecting" && phase !== "ended" && <Text style={styles.timerText}>{mm}:{ss}</Text>}
+
+          <View style={[styles.phasePill, { borderColor: palette.border, backgroundColor: palette.bgCard }]}>
+            <View style={[styles.phaseDot, { backgroundColor: phaseDotColor }]} />
+            <Text style={styles.phaseText}>{PHASE_LABEL[phase]}</Text>
+          </View>
+          {showTimer && (
+            <Text style={styles.timerText}>
+              {mm}:{ss}
+            </Text>
+          )}
           {errorNote && <Text style={styles.errorText}>{errorNote}</Text>}
         </View>
 
@@ -280,14 +402,14 @@ export function CallScreen() {
           renderItem={({ item }) => (
             <View style={styles.turnBlock}>
               {item.transcript !== null && (
-                <View style={styles.turnRow}>
-                  <Text style={styles.turnLabel}>You</Text>
-                  <Text style={styles.turnText}>{item.transcript}</Text>
+                <View style={[styles.bubble, styles.bubbleUser, { backgroundColor: palette.accent }]}>
+                  <Text style={styles.bubbleLabel}>You</Text>
+                  <Text style={styles.bubbleTextUser}>{item.transcript}</Text>
                 </View>
               )}
-              <View style={styles.turnRow}>
-                <Text style={[styles.turnLabel, { color: palette.accentBright }]}>NexaAi</Text>
-                <Text style={styles.turnText}>{item.replyText}</Text>
+              <View style={[styles.bubble, styles.bubbleBot, { backgroundColor: palette.bgCard, borderColor: palette.border }]}>
+                <Text style={[styles.bubbleLabel, { color: palette.accentBright }]}>NexaAi</Text>
+                <Text style={styles.bubbleTextBot}>{item.replyText}</Text>
               </View>
             </View>
           )}
@@ -295,14 +417,26 @@ export function CallScreen() {
 
         <View style={styles.controls}>
           {phase === "listening" && (
-            <TouchableOpacity testID="call-done-talking" style={[styles.doneButton, { borderColor: palette.accent }]} onPress={submitTurn}>
-              <Ionicons name="checkmark" size={16} color={palette.accentBright} />
-              <Text style={[styles.doneButtonText, { color: palette.accentBright }]}>Done talking</Text>
-            </TouchableOpacity>
+            <View style={styles.micWrap}>
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.micPulseRing, { borderColor: palette.accent, opacity: micRingOpacity, transform: [{ scale: micRingScale }] }]}
+              />
+              <TouchableOpacity
+                testID="call-done-talking"
+                style={[styles.micButton, { backgroundColor: palette.accent, shadowColor: palette.accent }]}
+                onPress={submitTurn}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="mic" size={26} color="#fff" />
+              </TouchableOpacity>
+              <Text style={styles.micHint}>Tap when you're done talking</Text>
+            </View>
           )}
-          <TouchableOpacity testID="call-end-button" style={styles.endButton} onPress={endCall}>
-            <Ionicons name="call" size={22} color="#fff" style={{ transform: [{ rotate: "135deg" }] }} />
+          <TouchableOpacity testID="call-end-button" style={styles.endButton} onPress={endCall} activeOpacity={0.85}>
+            <Ionicons name="call" size={24} color="#fff" style={{ transform: [{ rotate: "135deg" }] }} />
           </TouchableOpacity>
+          <Text style={styles.endHint}>End call</Text>
         </View>
       </View>
     </GalaxyBackground>
@@ -311,19 +445,48 @@ export function CallScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  top: { alignItems: "center", paddingTop: spacing.xl, paddingBottom: spacing.md, gap: spacing.sm },
-  phaseText: { ...typography.body, color: colors.textSecondary, fontStyle: "italic" },
-  timerText: { ...typography.caption, color: colors.textMuted },
-  errorText: { ...typography.caption, color: colors.danger, textAlign: "center", paddingHorizontal: spacing.lg },
+  stage: { alignItems: "center", paddingTop: spacing.xl, paddingBottom: spacing.md, gap: spacing.sm },
+  stageGlowOuter: { position: "absolute", top: 6, width: 220, height: 220, borderRadius: 110 },
+  stageRing: { position: "absolute", top: 22, width: 188, height: 188, borderRadius: 94, borderWidth: 1 },
+  phasePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: radii.pill,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    marginTop: spacing.sm,
+  },
+  phaseDot: { width: 7, height: 7, borderRadius: 4 },
+  phaseText: { ...typography.bodyBold, color: colors.textPrimary, fontSize: 13 },
+  timerText: { ...typography.caption, color: colors.textMuted, marginTop: 2 },
+  errorText: { ...typography.caption, color: colors.danger, textAlign: "center", paddingHorizontal: spacing.lg, marginTop: spacing.xs },
   transcript: { flex: 1 },
   transcriptContent: { padding: spacing.lg, gap: spacing.md },
   emptyText: { ...typography.body, color: colors.textMuted, textAlign: "center", marginTop: spacing.xl },
-  turnBlock: { backgroundColor: colors.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: spacing.sm },
-  turnRow: { gap: 2 },
-  turnLabel: { ...typography.caption, color: colors.textMuted, fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4 },
-  turnText: { ...typography.body, color: colors.textPrimary },
-  controls: { alignItems: "center", gap: spacing.md, paddingVertical: spacing.lg },
-  doneButton: { flexDirection: "row", alignItems: "center", gap: 6, borderWidth: 1, borderRadius: radii.pill, paddingVertical: 8, paddingHorizontal: 16 },
-  doneButtonText: { fontWeight: "700", fontSize: 13 },
+  turnBlock: { gap: 6 },
+  bubble: { maxWidth: "88%", borderRadius: radii.lg, padding: spacing.md, gap: 3 },
+  bubbleUser: { alignSelf: "flex-end", borderBottomRightRadius: 6 },
+  bubbleBot: { alignSelf: "flex-start", borderWidth: 1, borderBottomLeftRadius: 6 },
+  bubbleLabel: { ...typography.caption, color: "rgba(255,255,255,0.7)", fontWeight: "700", textTransform: "uppercase", letterSpacing: 0.4 },
+  bubbleTextUser: { ...typography.body, color: "#fff" },
+  bubbleTextBot: { ...typography.body, color: colors.textPrimary },
+  controls: { alignItems: "center", gap: spacing.sm, paddingVertical: spacing.lg },
+  micWrap: { alignItems: "center", justifyContent: "center", gap: spacing.sm, marginBottom: spacing.sm },
+  micPulseRing: { position: "absolute", top: -13, width: 90, height: 90, borderRadius: 45, borderWidth: 2 },
+  micButton: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  micHint: { ...typography.caption, color: colors.textMuted },
   endButton: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.danger, alignItems: "center", justifyContent: "center" },
+  endHint: { ...typography.caption, color: colors.textMuted },
 });

@@ -9,24 +9,37 @@ interface BotAvatarProps {
   size?: number;
   mood?: "idle" | "thinking" | "happy" | "talking";
   glowColor?: string;
+  /**
+   * A real 0-1 mouth-openness value the caller updates every animation frame
+   * from ACTUAL playing audio (e.g. a Web Audio AnalyserNode reading the TTS
+   * reply's real waveform amplitude — see CallScreen's playReplyWeb). When
+   * provided, this replaces the internal simulated "talking" loop below with
+   * genuine audio-reactive lip movement. Omit it (the native default, since
+   * expo-av exposes no playback amplitude on iOS/Android) to keep the
+   * believable-but-simulated cadence.
+   */
+  liveMouthLevel?: Animated.Value;
 }
 
 /**
  * NexaAi's mascot — a small rounded "star-core" bot, drawn entirely in SVG
  * (no external character asset, no video/gif loop). Two antennae + a soft
- * glowing core. Three real, state-driven animations:
+ * glowing core. Real, state-driven animations:
  *  - "thinking": the whole body pulses gently while waiting on a reply.
- *  - "talking": the mouth genuinely opens/closes in an irregular loop,
- *    driven by whoever renders this (live token streaming or TTS playback
- *    actually happening) — not a fixed decorative loop.
+ *  - "talking": the mouth opens/closes in real sync with `liveMouthLevel`
+ *    when the caller supplies real playback-amplitude data (web); otherwise
+ *    an irregular open/close loop, driven by whoever renders this (live
+ *    token streaming or TTS playback actually happening) — not a fixed
+ *    decorative loop.
  *  - idle blink: a small periodic blink regardless of mood, so the bot
  *    reads as alive rather than static.
  */
-export function BotAvatar({ size = 72, mood = "idle", glowColor }: BotAvatarProps) {
+export function BotAvatar({ size = 72, mood = "idle", glowColor, liveMouthLevel }: BotAvatarProps) {
   const { palette } = useTheme();
   const glow = glowColor ?? palette.accent;
   const pulse = useRef(new Animated.Value(1)).current;
-  const mouthOpen = useRef(new Animated.Value(0)).current;
+  const simulatedMouthOpen = useRef(new Animated.Value(0)).current;
+  const mouthOpen = liveMouthLevel ?? simulatedMouthOpen;
   const blink = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -45,20 +58,23 @@ export function BotAvatar({ size = 72, mood = "idle", glowColor }: BotAvatarProp
   }, [mood, pulse]);
 
   useEffect(() => {
+    // A real liveMouthLevel is driven directly by the caller (setValue per
+    // audio frame) — running the simulated loop on top of it would fight it.
+    if (liveMouthLevel) return;
     if (mood !== "talking") {
-      Animated.timing(mouthOpen, { toValue: 0, duration: 120, useNativeDriver: false }).start();
+      Animated.timing(simulatedMouthOpen, { toValue: 0, duration: 120, useNativeDriver: false }).start();
       return;
     }
     // An irregular open/close cadence (varied durations + a "closed" beat
     // now and then) reads far more like real talking than a clean sine wave.
     const beats = [0.15, 0.9, 0.35, 1, 0.1, 0.7, 0.5, 0.95, 0.2];
     const sequence = beats.map((v) =>
-      Animated.timing(mouthOpen, { toValue: v, duration: 90 + Math.random() * 70, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
+      Animated.timing(simulatedMouthOpen, { toValue: v, duration: 90 + Math.random() * 70, easing: Easing.inOut(Easing.quad), useNativeDriver: false }),
     );
     const loop = Animated.loop(Animated.sequence(sequence));
     loop.start();
     return () => loop.stop();
-  }, [mood, mouthOpen]);
+  }, [mood, simulatedMouthOpen, liveMouthLevel]);
 
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>;
