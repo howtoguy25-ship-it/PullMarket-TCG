@@ -7,9 +7,10 @@ import type { Palette } from "../theme/palettes";
 
 const DEFAULT_PHRASES = [
   "Thinking…",
-  "Ooohhh…",
-  "Tinkering…",
+  "Computing…",
   "Gathering info…",
+  "Enhancing the answer…",
+  "Tinkering…",
   "NexaAi is laying it all out…",
 ];
 
