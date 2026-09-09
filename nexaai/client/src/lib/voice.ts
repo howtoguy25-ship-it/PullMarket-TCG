@@ -1,5 +1,31 @@
+import { Platform } from "react-native";
 import * as Speech from "expo-speech";
 import { API_URL, getToken, ApiError } from "./api";
+
+/**
+ * Attaches a just-recorded clip to a real upload FormData. Native's
+ * `{uri,name,type}` object trick only works through RN's own bridge-level
+ * FormData/XHR handling (iOS/Android) — on web, expo-av hands back a
+ * `blob:` URI and the browser's real FormData needs a real Blob, or the
+ * request silently uploads zero file parts and the server 400s with
+ * "No audio uploaded". Fetching the blob: URI back into an actual Blob is
+ * the genuine fix, not a native-object shim pretending to be one.
+ *
+ * expo-av's web recorder actually encodes as webm/opus (MediaRecorder's
+ * default), regardless of the m4a preset requested — naming it "*.m4a"
+ * anyway makes Whisper reject it by the extension it sniffs from the
+ * filename. Name it from the blob's real MIME type instead.
+ */
+export async function appendRecordingToForm(form: FormData, uri: string, filename: string, mimeType: string): Promise<void> {
+  if (Platform.OS === "web") {
+    const blob = await (await fetch(uri)).blob();
+    const realExt = blob.type.split("/")[1]?.split(";")[0] || "webm";
+    const baseName = filename.replace(/\.[^./]+$/, "");
+    form.append("audio", blob, `${baseName}.${realExt}`);
+  } else {
+    form.append("audio", { uri, name: filename, type: mimeType } as unknown as Blob);
+  }
+}
 
 export interface VoiceCharacter {
   id: string;
@@ -67,7 +93,7 @@ export function stopSpeaking() {
 export async function transcribeVoiceMemo(audioUri: string): Promise<string> {
   const token = await getToken();
   const form = new FormData();
-  form.append("audio", { uri: audioUri, name: "memo.m4a", type: "audio/m4a" } as unknown as Blob);
+  await appendRecordingToForm(form, audioUri, "memo.m4a", "audio/m4a");
 
   const response = await fetch(`${API_URL}/api/voice/transcribe`, {
     method: "POST",

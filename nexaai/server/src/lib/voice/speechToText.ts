@@ -12,6 +12,7 @@
 // a clear error rather than being silently truncated.
 
 import fs from "fs";
+import path from "path";
 
 export function isSpeechToTextConfigured(): boolean {
   return !!process.env.OPENAI_API_KEY;
@@ -25,7 +26,12 @@ export async function transcribeAudio(filePath: string, mimeType: string): Promi
 
   const buffer = fs.readFileSync(filePath);
   const form = new FormData();
-  form.append("file", new Blob([new Uint8Array(buffer)], { type: mimeType || "audio/m4a" }), "audio");
+  // Whisper sniffs the audio format from the uploaded filename's extension,
+  // not from the multipart Content-Type — a bare "audio" with no extension
+  // gets rejected as "Invalid file format" no matter what's actually inside.
+  // Reuse the real extension multer already saved this file under.
+  const ext = path.extname(filePath) || ".m4a";
+  form.append("file", new Blob([new Uint8Array(buffer)], { type: mimeType || "audio/m4a" }), `audio${ext}`);
   form.append("model", process.env.OPENAI_STT_MODEL || "whisper-1");
 
   const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {

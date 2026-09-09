@@ -488,8 +488,12 @@ export const voiceTurns = pgTable("nexaai_voice_turns", {
   id: uuid("id").primaryKey().defaultRandom(),
   conversationId: uuid("conversation_id").notNull().references(() => voiceConversations.id, { onDelete: "cascade" }),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  incomingAudioUrl: text("incoming_audio_url").notNull(),
-  transcript: text("transcript").notNull(),
+  // Null on a real "greeting" turn (routes/voice.ts's POST .../greeting) —
+  // NexaAi speaking first when a live Call connects, genuinely has no
+  // incoming user audio/transcript to attach, so this stays honestly null
+  // rather than a fake placeholder value.
+  incomingAudioUrl: text("incoming_audio_url"),
+  transcript: text("transcript"),
   replyText: text("reply_text").notNull(),
   // Null when text-to-speech isn't configured (OPENAI_API_KEY unset) — the
   // turn still completes with a real text reply, just without spoken audio.

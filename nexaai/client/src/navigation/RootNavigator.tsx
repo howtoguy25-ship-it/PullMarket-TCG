@@ -22,6 +22,7 @@ import { MemoryFilesScreen } from "../screens/MemoryFilesScreen";
 import { ConnectorsScreen } from "../screens/ConnectorsScreen";
 import { ProjectsScreen } from "../screens/ProjectsScreen";
 import { ProjectChatScreen } from "../screens/ProjectChatScreen";
+import { CallScreen } from "../screens/CallScreen";
 
 const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
@@ -82,6 +83,7 @@ function HomeFlow() {
       <HomeStack.Screen name="MemoryFiles" component={MemoryFilesScreen} options={{ ...headerOptions, title: "Memory files" }} />
       <HomeStack.Screen name="Connectors" component={ConnectorsScreen} options={headerOptions} />
       <HomeStack.Screen name="ProjectChat" component={ProjectChatScreen} options={headerOptions} />
+      <HomeStack.Screen name="Call" component={CallScreen} options={{ headerShown: false, presentation: "fullScreenModal" }} />
     </HomeStack.Navigator>
   );
 }

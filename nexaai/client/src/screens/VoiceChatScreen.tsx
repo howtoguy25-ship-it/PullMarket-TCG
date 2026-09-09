@@ -2,11 +2,13 @@ import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
+import { useNavigation } from "@react-navigation/native";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { BotAvatar } from "../components/BotAvatar";
 import { colors, radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
 import { API_URL, api, ApiError, getToken } from "../lib/api";
+import { appendRecordingToForm } from "../lib/voice";
 
 interface VoiceConversation {
   id: string;
@@ -17,7 +19,7 @@ interface VoiceConversation {
 
 interface VoiceTurn {
   id: string;
-  transcript: string;
+  transcript: string | null;
   replyText: string;
   replyAudioUrl: string | null;
   createdAt: string;
@@ -47,6 +49,7 @@ const PHASE_LABEL: Record<CallPhase, string> = {
  */
 export function VoiceChatScreen() {
   const { palette } = useTheme();
+  const navigation = useNavigation<any>();
   const [mode, setMode] = useState<"list" | "call">("list");
   const [conversations, setConversations] = useState<VoiceConversation[]>([]);
   const [loadingList, setLoadingList] = useState(true);
@@ -158,7 +161,7 @@ export function VoiceChatScreen() {
     try {
       const token = await getToken();
       const form = new FormData();
-      form.append("audio", { uri, name: "turn.m4a", type: "audio/m4a" } as unknown as Blob);
+      await appendRecordingToForm(form, uri, "turn.m4a", "audio/m4a");
       setPhase("thinking"); // the request covers transcribe+reason+speak in one round trip
 
       const response = await fetch(`${API_URL}/api/voice/conversations/${conversationId}/turns`, {
@@ -194,6 +197,14 @@ export function VoiceChatScreen() {
         <TouchableOpacity style={[styles.startButton, { backgroundColor: palette.accent }]} onPress={startConversation}>
           <Ionicons name="mic" size={18} color="#fff" />
           <Text style={styles.startButtonText}>Start voice chat</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          testID="start-live-call-button"
+          style={[styles.startButton, styles.callButton]}
+          onPress={() => navigation.navigate("Call")}
+        >
+          <Ionicons name="call" size={18} color={palette.accentBright} />
+          <Text style={[styles.startButtonText, { color: palette.accentBright }]}>Call NexaAi — real live conversation</Text>
         </TouchableOpacity>
         {loadingList ? (
           <ActivityIndicator style={styles.listLoading} color={palette.accentBright} />
@@ -241,7 +252,7 @@ export function VoiceChatScreen() {
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
           <View style={styles.turnCard}>
-            <Text style={styles.turnYou}>You said: "{item.transcript}"</Text>
+            {item.transcript !== null && <Text style={styles.turnYou}>You said: "{item.transcript}"</Text>}
             <Text style={styles.turnReply}>{item.replyText}</Text>
             {!item.replyAudioUrl && <Text style={styles.noAudioNote}>(text-to-speech not configured — reply text only)</Text>}
           </View>
@@ -281,6 +292,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   startButtonText: { color: "#fff", fontWeight: "700" },
+  callButton: { backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.border, marginTop: spacing.sm },
   listLoading: { marginTop: spacing.lg },
   list: { padding: spacing.lg, gap: spacing.sm },
   emptyText: { ...typography.body, color: colors.textMuted, textAlign: "center", marginTop: spacing.lg },

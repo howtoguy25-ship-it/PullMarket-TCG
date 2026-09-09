@@ -76,6 +76,62 @@ voiceRouter.patch("/conversations/:id/end", async (req: AuthedRequest, res) => {
   res.json({ conversation: updated });
 });
 
+// A real Call's opening line — NexaAi speaks first, the way an answered
+// phone call actually starts. Genuinely generated per call (not a canned
+// string): a real Gemini/model call with temperature 0.7 (see
+// lib/geminiModel.ts) asked to vary its exact wording each time, so two
+// calls in a row don't sound identical. Costed and persisted the same way
+// a normal turn is, just with no incoming user audio to attach.
+voiceRouter.post("/conversations/:id/greeting", async (req: AuthedRequest, res) => {
+  try {
+    const check = await requireVoiceChatCapability(req.userId!);
+    if (!check.ok) return res.status(check.status).json(check.body);
+    const { user } = check;
+
+    const [conversation] = await db
+      .select()
+      .from(voiceConversations)
+      .where(and(eq(voiceConversations.id, req.params.id), eq(voiceConversations.userId, req.userId!)));
+    if (!conversation) return res.status(404).json({ error: "Conversation not found" });
+
+    const spend = await spendCredits(db, req.userId!, CENTS_PER_VOICE_TURN, "voice:greeting");
+    if (!spend.allowed) return res.status(402).json({ error: "insufficient_credit", message: "You're out of credit. Top up to start a call." });
+
+    const greetingInstruction =
+      `[You just picked up a real phone call from ${user.displayName}. Greet them warmly by name, ask briefly how ` +
+      "their day is going, and ask what they'd like help with today. Keep it to 1-2 short, natural sentences — and " +
+      "genuinely vary your exact wording from how you might normally open a call, rather than reusing a stock line.]";
+
+    const replyText = isGeminiConfigured()
+      ? (await askGemini({ userMessage: greetingInstruction, history: [], mode: "voice" })).text
+      : (
+          await askModel({
+            plan: PLAN_DEFINITIONS[user.planTier],
+            answerCount: 1,
+            userMessage: greetingInstruction,
+            history: [],
+            mode: "voice",
+            focusMode: "quick",
+          })
+        ).text;
+
+    let replyAudioUrl: string | null = null;
+    if (isTextToSpeechConfigured()) {
+      const synthesized = await synthesizeSpeech(replyText, user.voiceCharacterId);
+      replyAudioUrl = synthesized.url;
+    }
+
+    const [turn] = await db
+      .insert(voiceTurns)
+      .values({ conversationId: conversation.id, userId: req.userId!, incomingAudioUrl: null, transcript: null, replyText, replyAudioUrl })
+      .returning();
+
+    res.status(201).json({ turn, creditBalanceAfterCents: spend.balanceAfterCents, ttsConfigured: isTextToSpeechConfigured() });
+  } catch (e: any) {
+    res.status(502).json({ error: "greeting_failed", message: e.message ?? "Couldn't start the call." });
+  }
+});
+
 // The real live-voice-chat turn: record -> transcribe -> reason -> speak.
 // Turn-based, not full-duplex streaming (see README's voice section for why)
 // — every stage still runs against a real API, nothing here is simulated.
@@ -113,10 +169,14 @@ voiceRouter.post("/conversations/:id/turns", (req: AuthedRequest, res) => {
         .where(eq(voiceTurns.conversationId, conversation.id))
         .orderBy(asc(voiceTurns.createdAt))
         .limit(10);
-      const history = priorTurns.flatMap((t) => [
-        { role: "user" as const, content: t.transcript },
-        { role: "assistant" as const, content: t.replyText },
-      ]);
+      // A greeting turn (routes/voice.ts's POST .../greeting) has no user
+      // transcript to replay — still include NexaAi's own opening line as
+      // context, just without a matching "user said" entry.
+      const history = priorTurns.flatMap((t) =>
+        t.transcript !== null
+          ? [{ role: "user" as const, content: t.transcript }, { role: "assistant" as const, content: t.replyText }]
+          : [{ role: "assistant" as const, content: t.replyText }],
+      );
 
       // Gemini is the "speed lane" for voice specifically — fall back to the
       // user's own plan-tier model (Llama/Claude via modelRouter) if Gemini
