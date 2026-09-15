@@ -22,7 +22,8 @@ import {
 } from "../lib/plans";
 import { spendCredits } from "../lib/credits";
 import { findNearestBusinesses } from "../lib/businessLookup";
-import { resolveCapabilities } from "../lib/capabilities";
+import { resolveCapabilities, applyOwnerOverrides } from "../lib/capabilities";
+import { getOwnerSettings } from "../lib/ownerSettings";
 import { getMemoryContext, extractAndStoreMemory } from "../lib/memory";
 import { extractFileText } from "../lib/extractFileText";
 import { detectAgentBuildRequest } from "../lib/agents/detectAgentRequest";
@@ -91,7 +92,8 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
     } as const;
   }
 
-  const caps = resolveCapabilities(user.capabilities);
+  const ownerSettingsRow = await getOwnerSettings();
+  const caps = applyOwnerOverrides(resolveCapabilities(user.capabilities), ownerSettingsRow);
   const CAPABILITY_BY_KIND: Partial<Record<SendMessageBody["kind"], keyof typeof caps>> = {
     camera_ask: "cameraAsk",
     who_is_lookup: "whoIsLookup",
@@ -303,6 +305,7 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       // only for plain chat turns; who-is has its own dedicated deep-dive
       // path, and code-build/camera/assistance turns aren't what it's for.
       enableTopicImages: mode === "chat" && caps.topicImages,
+      reasoningEffortCap: ownerSettingsRow.reasoningEffortCap,
     },
     finish: async (text: string) => {
       // NOTE: this key is `message`, not `assistantMsg` — the client

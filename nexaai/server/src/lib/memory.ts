@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { db } from "../db";
 import { memoryEntries, users } from "@shared/schema";
 import Anthropic from "@anthropic-ai/sdk";
+import { getOwnerSettings } from "./ownerSettings";
 
 let client: Anthropic | null = null;
 function getClient(): Anthropic | null {
@@ -29,6 +30,7 @@ Reply with exactly one line:
 export async function extractAndStoreMemory(userId: string, sessionId: string, userMessage: string, assistantMessage: string) {
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   if (!user || !user.memoryEnabled) return;
+  if (!(await getOwnerSettings()).memoryEnabled) return; // real, app-wide owner kill switch
 
   const anthropic = getClient();
   if (!anthropic) return; // no API key configured — memory extraction needs the same real Claude access as chat
@@ -91,6 +93,7 @@ function looksSensitive(text: string): boolean {
 export async function getMemoryContext(userId: string): Promise<string> {
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   if (!user || !user.memoryEnabled || !user.referenceChatsEnabled) return "";
+  if (!(await getOwnerSettings()).memoryEnabled) return ""; // real, app-wide owner kill switch
 
   const rows = await db
     .select()

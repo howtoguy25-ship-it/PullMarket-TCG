@@ -1,7 +1,35 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { PlanDefinition, FocusMode } from "./plans";
+import type { PlanDefinition, FocusMode, ThinkingEffort } from "./plans";
 import { FOCUS_MODE_DEFINITIONS } from "./plans";
 import { buildNexaSystemPrompt, type NexaPromptMode } from "@shared/nexaPersona";
+import type { ReasoningEffortCap } from "./ownerSettings";
+
+// Real reasoning-effort ceiling for the owner panel's "low to high" control.
+// Today's Claude 5-family models reject the older `thinking.budget_tokens`
+// param outright (400 invalid_request_error) — they're controlled by
+// `thinking: {type: "adaptive"}` + `output_config.effort` instead (see
+// buildMessagesRequest below), so the owner's cap clamps that real effort
+// string, ranked low < medium < high. "max" (or no cap set) applies no
+// ceiling at all — the focus mode/plan's own requested effort passes through.
+const EFFORT_RANK: Record<ThinkingEffort, number> = { low: 1, medium: 2, high: 3 };
+const REASONING_CAP_CEILING: Record<Exclude<ReasoningEffortCap, "max">, ThinkingEffort> = {
+  low: "low",
+  standard: "medium",
+  high: "high",
+};
+
+/** Applies the owner panel's reasoning-effort ceiling (if any) to a real thinking-effort level. */
+function resolveEffectiveThinkingEffort(effort: ThinkingEffort | null, cap: ReasoningEffortCap | null | undefined): ThinkingEffort | null {
+  if (!effort || !cap || cap === "max") return effort;
+  const ceiling = REASONING_CAP_CEILING[cap];
+  return EFFORT_RANK[ceiling] < EFFORT_RANK[effort] ? ceiling : effort;
+}
+
+// Real max_tokens floor per effort level — adaptive thinking doesn't take an
+// explicit token budget, but the turn still needs enough room for however
+// much reasoning that effort level tends to produce plus the visible answer,
+// or a real deep answer can hit max_tokens mid-thought and cut off.
+const EFFORT_MAX_TOKENS_FLOOR: Record<ThinkingEffort, number> = { low: 2048, medium: 4096, high: 8192 };
 
 let client: Anthropic | null = null;
 function getClient(): Anthropic | null {
@@ -38,6 +66,8 @@ export interface AskParams {
    * tool_use round trip, so it needs its own continuation branch below.
    */
   enableTopicImages?: boolean;
+  /** Real, app-wide owner-panel ceiling on how hard NexaAi is allowed to think (clamps the real `output_config.effort`) — see REASONING_CAP_CEILING above. Null/"max"/undefined = no ceiling. */
+  reasoningEffortCap?: ReasoningEffortCap | null;
 }
 
 export interface AskResult {
@@ -166,19 +196,18 @@ function buildMessagesRequest(params: AskParams) {
   const userContent = buildUserContent(params);
 
   const focus = FOCUS_MODE_DEFINITIONS[params.focusMode];
-  // Real extended-thinking budget (Anthropic's actual `thinking` param, not
-  // a cosmetic setting) — the plan tier's own baseline still applies if the
-  // focus mode doesn't force a bigger one (e.g. Max's extendedThinking flag
-  // with no explicit budget below falls back to a sensible default).
-  const budgetTokens = focus.thinkingBudgetTokens ?? (params.plan.extendedThinking ? 2000 : null);
-  // The API requires max_tokens to exceed the thinking budget, since the
-  // budget is drawn from the same token allowance as the visible output.
+  // Real extended-thinking effort (Anthropic's actual `output_config.effort`
+  // param, not a cosmetic setting) — the plan tier's own baseline still
+  // applies if the focus mode doesn't force a bigger one (e.g. Max's
+  // extendedThinking flag with no explicit effort below falls back to "low").
+  const rawEffort: ThinkingEffort | null = focus.thinkingEffort ?? (params.plan.extendedThinking ? "low" : null);
+  const effort = resolveEffectiveThinkingEffort(rawEffort, params.reasoningEffortCap);
   // A real web_search call plus its result plus the answer text plus the
   // embedded image markdown genuinely needs more room than a plan's base
   // output cap (e.g. the beginner tier's 1024) — without this floor the
   // model hits max_tokens mid-answer and the reply (and the image) gets cut off.
   const imagesFloorTokens = params.enableTopicImages ? 3000 : 0;
-  const maxTokens = Math.max(params.plan.maxOutputTokens, budgetTokens ? budgetTokens + 1024 : 0, imagesFloorTokens);
+  const maxTokens = Math.max(params.plan.maxOutputTokens, effort ? EFFORT_MAX_TOKENS_FLOOR[effort] : 0, imagesFloorTokens);
 
   const tools: Anthropic.Tool[] = [
     ...(params.mcpTools ?? []),
@@ -190,7 +219,7 @@ function buildMessagesRequest(params: AskParams) {
   return {
     model: params.plan.model,
     max_tokens: maxTokens,
-    ...(budgetTokens ? { thinking: { type: "enabled" as const, budget_tokens: budgetTokens } } : {}),
+    ...(effort ? { thinking: { type: "adaptive" as const }, output_config: { effort } } : {}),
     ...(tools.length ? { tools } : {}),
     system: buildSystemPrompt(params),
     messages: [

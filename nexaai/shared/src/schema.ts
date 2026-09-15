@@ -68,6 +68,12 @@ export const themeIdEnum = pgEnum("theme_id", ["galaxy_violet", "nebula_rose", "
 // mapping and lib/plans.ts's FOCUS_MODE_MIN_TIER for plan-tier gating.
 export const focusModeEnum = pgEnum("focus_mode", ["quick", "build", "auto", "gorilla"]);
 
+// Owner-panel "how hard is NexaAi allowed to think, app-wide" ceiling — see
+// lib/ownerSettings.ts + lib/anthropic.ts's REASONING_CAP_CEILING. Clamps
+// the real `thinking.budget_tokens` a focus mode/plan would otherwise ask
+// for; "max" applies no ceiling at all.
+export const reasoningEffortCapEnum = pgEnum("reasoning_effort_cap", ["low", "standard", "high", "max"]);
+
 export type AgentKind = (typeof agentKindEnum.enumValues)[number];
 export type MapsAppKind = (typeof mapsAppEnum.enumValues)[number];
 export type ConnectorProvider = (typeof connectorProviderEnum.enumValues)[number];
@@ -511,3 +517,27 @@ export const voiceTurnsRelations = relations(voiceTurns, ({ one }) => ({
   conversation: one(voiceConversations, { fields: [voiceTurns.conversationId], references: [voiceConversations.id] }),
   user: one(users, { fields: [voiceTurns.userId], references: [users.id] }),
 }));
+
+// ---------------------------------------------------------------------------
+// Owner settings — a real, single-row app-wide control panel (see
+// lib/ownerSettings.ts). Every boolean here is read at the exact same
+// enforcement checkpoint a user's own per-account capability toggle already
+// goes through (chat.ts, voice.ts, agents.ts, memory.ts, auth.ts's signup),
+// ANDed with that per-user setting rather than replacing it — the owner can
+// only ever turn a feature MORE off app-wide, never force it on for a user
+// who turned it off themselves.
+// ---------------------------------------------------------------------------
+
+export const ownerSettings = pgTable("nexaai_owner_settings", {
+  id: text("id").primaryKey().default("singleton"),
+  webLookupEnabled: boolean("web_lookup_enabled").notNull().default(true),
+  voiceChatEnabled: boolean("voice_chat_enabled").notNull().default(true),
+  agentBuilderEnabled: boolean("agent_builder_enabled").notNull().default(true),
+  memoryEnabled: boolean("memory_enabled").notNull().default(true),
+  newSignupsEnabled: boolean("new_signups_enabled").notNull().default(true),
+  topicImagesEnabled: boolean("topic_images_enabled").notNull().default(true),
+  // Null = no app-wide ceiling; the plan/focus-mode's own real thinking
+  // budget applies as-is. See lib/anthropic.ts's REASONING_CAP_CEILING.
+  reasoningEffortCap: reasoningEffortCapEnum("reasoning_effort_cap"),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});

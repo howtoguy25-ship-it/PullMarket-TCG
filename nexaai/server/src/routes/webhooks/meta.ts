@@ -5,6 +5,7 @@ import { db } from "../../db";
 import { agents, agentPendingDrafts, connectors } from "@shared/schema";
 import { isMetaConfigured } from "../../lib/connectors/meta";
 import { dryRunAgent, sendPlatformMessage, type AgentConfig } from "../../lib/agents/agentRunner";
+import { getOwnerSettings } from "../../lib/ownerSettings";
 
 export const metaWebhookRouter = Router();
 
@@ -93,6 +94,12 @@ metaWebhookRouter.post("/", async (req, res) => {
 });
 
 async function handleIncomingMessage(msg: IncomingMessage) {
+  // Real, app-wide owner kill switch — same check every other real
+  // agentBuilder checkpoint (routes/agents.ts) goes through. If the owner
+  // has turned agents off app-wide, an inbound platform message is left
+  // undrafted/unsent, same as if the user had never activated an agent.
+  if (!(await getOwnerSettings()).agentBuilderEnabled) return;
+
   const connectorRows = await db
     .select()
     .from(connectors)

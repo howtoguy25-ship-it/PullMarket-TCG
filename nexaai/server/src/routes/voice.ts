@@ -7,6 +7,7 @@ import { db } from "../db";
 import { voiceConversations, voiceTurns, users } from "@shared/schema";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
 import { resolveCapabilities } from "../lib/capabilities";
+import { getOwnerSettings } from "../lib/ownerSettings";
 import { spendCredits } from "../lib/credits";
 import { UPLOADS_DIR } from "./attachments";
 import { transcribeAudio, isSpeechToTextConfigured } from "../lib/voice/speechToText";
@@ -36,6 +37,9 @@ async function requireVoiceChatCapability(userId: string): Promise<{ ok: true; u
   if (!user) return { ok: false, status: 404, body: { error: "User not found" } };
   if (!resolveCapabilities(user.capabilities).voiceChat) {
     return { ok: false, status: 403, body: { error: "capability_disabled", message: "Voice chat is turned off in Capabilities settings." } };
+  }
+  if (!(await getOwnerSettings()).voiceChatEnabled) {
+    return { ok: false, status: 403, body: { error: "capability_disabled", message: "Voice chat is temporarily turned off." } };
   }
   return { ok: true, user };
 }

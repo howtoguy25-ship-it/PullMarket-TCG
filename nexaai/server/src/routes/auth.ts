@@ -8,6 +8,7 @@ import { signUserToken, requireAuth, type AuthedRequest } from "../middleware/au
 import { grantCredits } from "../lib/credits";
 import { resolveCapabilities } from "../lib/capabilities";
 import { isOwnerAccount } from "../middleware/owner";
+import { getOwnerSettings } from "../lib/ownerSettings";
 
 export const authRouter = Router();
 
@@ -22,6 +23,14 @@ const signupSchema = z.object({
 });
 
 authRouter.post("/signup", async (req, res) => {
+  // Real, app-wide owner kill switch — scoped to this direct email/password
+  // path only (the one the owner panel's toggle is about); social sign-in
+  // (routes/socialAuth/*) has its own separate find-or-create flow and isn't
+  // gated by this.
+  if (!(await getOwnerSettings()).newSignupsEnabled) {
+    return res.status(503).json({ error: "signups_paused", message: "New signups are temporarily paused. Please try again shortly." });
+  }
+
   const parsed = signupSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   const { email, password, displayName, timezone } = parsed.data;

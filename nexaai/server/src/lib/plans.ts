@@ -121,13 +121,24 @@ export function resolveAnswerCount(mode: AnswerMode, explicitlyRequestedCount?: 
 
 export type FocusMode = "quick" | "build" | "auto" | "gorilla";
 
+// Real Claude 5-family thinking effort — the current Anthropic API's
+// `output_config.effort` (paired with `thinking: {type: "adaptive"}`) is
+// what actually controls reasoning depth on today's models; the older
+// `thinking.budget_tokens` param these models reject outright (see
+// anthropic.ts's buildMessagesRequest). thinkingBudgetTokens below stays as
+// a real token-count estimate used for the self-hosted model's prompt
+// framing and max_tokens sizing (lib/selfHostedModel.ts), which has no
+// effort-string API of its own.
+export type ThinkingEffort = "low" | "medium" | "high";
+
 export interface FocusModeDefinition {
   mode: FocusMode;
   label: string;
   tagline: string;
   minPlanTier: PlanTier; // gates access — see isFocusModeAllowed
   creditMultiplier: number; // multiplies the base per-message credit cost
-  thinkingBudgetTokens: number | null; // forces Claude's real extended-thinking budget on; null defers to the plan's own setting
+  thinkingEffort: ThinkingEffort | null; // forces Claude's real extended-thinking effort on; null defers to the plan's own setting
+  thinkingBudgetTokens: number | null; // self-hosted-model-only token estimate (lib/selfHostedModel.ts) — NOT sent to the real Anthropic API
   promptAddendum: string;
 }
 
@@ -144,6 +155,7 @@ export const FOCUS_MODE_DEFINITIONS: Record<FocusMode, FocusModeDefinition> = {
     tagline: "Fast everyday edits & tasks",
     minPlanTier: "beginner",
     creditMultiplier: 1,
+    thinkingEffort: null,
     thinkingBudgetTokens: null,
     promptAddendum:
       "\n\nFocus mode: QUICK. Be fast and to the point — this is an everyday edit or small task, not a project. " +
@@ -155,6 +167,7 @@ export const FOCUS_MODE_DEFINITIONS: Record<FocusMode, FocusModeDefinition> = {
     tagline: "Complex, multi-step builds",
     minPlanTier: "beginner",
     creditMultiplier: 1.5,
+    thinkingEffort: "low",
     thinkingBudgetTokens: 4000,
     promptAddendum:
       "\n\nFocus mode: BUILD. This is a complex or multi-step build/task. Think through the architecture or sequence " +
@@ -166,6 +179,7 @@ export const FOCUS_MODE_DEFINITIONS: Record<FocusMode, FocusModeDefinition> = {
     tagline: "Autonomous tasks & builds",
     minPlanTier: "pro",
     creditMultiplier: 2.5,
+    thinkingEffort: "medium",
     thinkingBudgetTokens: 8000,
     promptAddendum:
       "\n\nFocus mode: AUTO. Act autonomously within this one reply: don't stop to ask clarifying questions unless " +
@@ -180,6 +194,7 @@ export const FOCUS_MODE_DEFINITIONS: Record<FocusMode, FocusModeDefinition> = {
     tagline: "Maximum power — more credits",
     minPlanTier: "max",
     creditMultiplier: 4,
+    thinkingEffort: "high",
     thinkingBudgetTokens: 16000,
     promptAddendum:
       "\n\nFocus mode: GORILLA — maximum effort. Give this everything: the deepest, most thorough, most confident " +

@@ -6,6 +6,7 @@ import { agents, agentPendingDrafts, users } from "@shared/schema";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
 import { dryRunAgent, sendPlatformMessage, type AgentConfig } from "../lib/agents/agentRunner";
 import { resolveCapabilities } from "../lib/capabilities";
+import { getOwnerSettings } from "../lib/ownerSettings";
 
 export const agentsRouter = Router();
 agentsRouter.use(requireAuth);
@@ -15,6 +16,9 @@ async function requireAgentBuilderCapability(req: AuthedRequest, res: import("ex
   if (!user) return res.status(404).json({ error: "User not found" });
   if (!resolveCapabilities(user.capabilities).agentBuilder) {
     return res.status(403).json({ error: "capability_disabled", message: "Agent builder is turned off in Capabilities settings." });
+  }
+  if (!(await getOwnerSettings()).agentBuilderEnabled) {
+    return res.status(403).json({ error: "capability_disabled", message: "Agent builder is temporarily turned off." });
   }
   next();
 }
