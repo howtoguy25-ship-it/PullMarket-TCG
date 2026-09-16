@@ -26,6 +26,7 @@ export const messageKindEnum = pgEnum("message_kind", [
   "who_is_lookup",
   "assistance_request",
   "file_attachment",
+  "image_generation",
 ]);
 export const creditTxnKindEnum = pgEnum("credit_txn_kind", [
   "purchase",
@@ -118,6 +119,12 @@ export interface NexaCapabilities {
   // ChatScreen.tsx) is independent of the general autoSpeak toggle above —
   // this one narrates specifically its own build replies.
   smartBuild: boolean;
+  // Real AI image generation in plain Chat — see
+  // server/src/lib/imageGen/detectImageGenerationRequest.ts (the intent
+  // detector) and server/src/lib/imageGeneration.ts (the real gpt-image-2
+  // call). On by default: a genuine per-image credit charge gates it, not
+  // this toggle alone.
+  imageGeneration: boolean;
 }
 
 export const DEFAULT_CAPABILITIES: NexaCapabilities = {
@@ -130,6 +137,7 @@ export const DEFAULT_CAPABILITIES: NexaCapabilities = {
   voiceChat: true,
   topicImages: false,
   smartBuild: true,
+  imageGeneration: true,
 };
 
 // ---------------------------------------------------------------------------
