@@ -18,7 +18,17 @@ import { requireAuth, type AuthedRequest } from "../middleware/auth";
 // below defaults to a real, useful 2GB ceiling; raise it if your hosting's
 // disk/bandwidth budget supports more, but treat anything beyond a few GB
 // over a single request as fragile until a resumable uploader is added.
-export const UPLOADS_DIR = path.join(__dirname, "../../uploads");
+// process.cwd(), not __dirname: npm's server:start/dev:server scripts both
+// run from the repo root either way, but __dirname does NOT stay a stable
+// number of directory levels below it — dev runs tsx directly against
+// server/src/routes/attachments.ts (3 levels deep), while the production
+// build (server:build) bundles everything into one flat server-dist/
+// index.js (1 level deep). __dirname-relative "../../uploads" therefore
+// resolved to two different, wrong locations depending on which one was
+// running — in the bundled build it landed one directory *above* the
+// project root entirely. process.cwd() gives the same, correct answer both
+// ways.
+export const UPLOADS_DIR = path.join(process.cwd(), "uploads");
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
 const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_BYTES) || 2 * 1024 * 1024 * 1024; // 2GB default

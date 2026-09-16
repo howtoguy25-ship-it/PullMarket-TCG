@@ -6,6 +6,7 @@ import { AuthProvider } from "./lib/AuthContext";
 import { FontProvider } from "./lib/FontContext";
 import { ThemeProvider } from "./lib/ThemeContext";
 import { AppearanceSync } from "./lib/AppearanceSync";
+import { AlertProvider } from "./lib/alert";
 import { RootNavigator } from "./navigation/RootNavigator";
 
 const queryClient = new QueryClient();
@@ -17,9 +18,11 @@ export default function App() {
         <FontProvider>
           <ThemeProvider>
             <AuthProvider>
-              <AppearanceSync />
-              <StatusBar style="light" />
-              <RootNavigator />
+              <AlertProvider>
+                <AppearanceSync />
+                <StatusBar style="light" />
+                <RootNavigator />
+              </AlertProvider>
             </AuthProvider>
           </ThemeProvider>
         </FontProvider>

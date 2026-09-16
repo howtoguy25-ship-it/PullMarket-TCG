@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
 import { useNavigation } from "@react-navigation/native";
@@ -9,6 +9,7 @@ import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
 import type { Palette } from "../theme/palettes";
 import { API_URL, api, ApiError, getToken } from "../lib/api";
+import { Alert } from "../lib/alert";
 import { appendRecordingToForm } from "../lib/voice";
 
 interface VoiceConversation {

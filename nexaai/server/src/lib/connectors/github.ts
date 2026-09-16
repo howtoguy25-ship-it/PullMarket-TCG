@@ -12,6 +12,7 @@ import jwt from "jsonwebtoken";
 import { eq, and } from "drizzle-orm";
 import { db } from "../../db";
 import { connectors } from "@shared/schema";
+import { appBaseUrl } from "../appBaseUrl";
 
 const SCOPE = "repo read:user";
 
@@ -20,7 +21,7 @@ export function isGitHubConnectorConfigured(): boolean {
 }
 
 function redirectUri(): string {
-  return `${process.env.APP_BASE_URL}/api/connectors/github/callback`;
+  return `${appBaseUrl()}/api/connectors/github/callback`;
 }
 
 export function buildGitHubAuthUrl(userId: string): string {

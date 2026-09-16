@@ -1,12 +1,18 @@
 // Real Meta connector setup for the agent builder's live-send capability.
 //
-// Two different real onboarding shapes, because that's how Meta's own
+// Three different real onboarding shapes, because that's how Meta's own
 // platforms actually work — this isn't a simplification on my part:
 //
 // - Instagram: a real OAuth 2.0 "Facebook Login for Business" flow. After
 //   login, we discover which Facebook Page (and its linked Instagram
 //   professional account) the user manages, and store that Page's own
 //   access token — Instagram messaging is sent through the connected Page.
+// - Facebook Messenger: the exact same OAuth flow and the exact same Page
+//   access token — Meta's Send API for Instagram DMs and Page Messenger is
+//   literally the same `/me/messages` endpoint. The only difference is
+//   Messenger doesn't require a linked Instagram account, so any Page the
+//   user manages qualifies. Kept as its own connector row/provider so a
+//   business can connect one, the other, or both independently.
 // - WhatsApp: WhatsApp Cloud API access is normally set up once in Meta
 //   Business Suite, which hands you a permanent access token and a
 //   phone_number_id directly — there's no consumer-facing OAuth redirect
@@ -15,17 +21,18 @@
 //   credentials flow instead of a redirect, which is the real, standard
 //   way third-party apps integrate WhatsApp Cloud API without Embedded Signup.
 //
-// IMPORTANT: both of these only work with accounts you've added as
+// IMPORTANT: all three only work with accounts you've added as
 // Testers/Developers on your Meta app until Meta approves your App Review
-// submission for `instagram_manage_messages` (Instagram) and
-// `whatsapp_business_messaging` (WhatsApp) — that review is a real external
-// process outside this code's control.
+// submission for `instagram_manage_messages` (Instagram), `pages_messaging`
+// (Messenger), and `whatsapp_business_messaging` (WhatsApp) — that review is
+// a real external process outside this code's control.
 
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { eq, and } from "drizzle-orm";
 import { db } from "../../db";
 import { connectors } from "@shared/schema";
+import { appBaseUrl } from "../appBaseUrl";
 
 const GRAPH_VERSION = "v19.0";
 const GRAPH_BASE = `https://graph.facebook.com/${GRAPH_VERSION}`;
@@ -35,21 +42,32 @@ export function isMetaConfigured(): boolean {
 }
 
 function redirectUri(): string {
-  return `${process.env.APP_BASE_URL}/api/connectors/meta/callback`;
+  return `${appBaseUrl()}/api/connectors/meta/callback`;
 }
 
-const INSTAGRAM_SCOPES = ["instagram_basic", "instagram_manage_messages", "pages_show_list", "pages_messaging"].join(",");
+type MetaOAuthTarget = "instagram" | "facebook_messenger";
 
-export function buildInstagramAuthUrl(userId: string): string {
-  const state = jwt.sign({ userId, purpose: "meta_connector_state" }, process.env.JWT_SECRET!, { expiresIn: "10m" });
+const INSTAGRAM_SCOPES = ["instagram_basic", "instagram_manage_messages", "pages_show_list", "pages_messaging"].join(",");
+const MESSENGER_SCOPES = ["pages_show_list", "pages_messaging"].join(",");
+
+function buildMetaAuthUrl(userId: string, target: MetaOAuthTarget, scope: string): string {
+  const state = jwt.sign({ userId, purpose: "meta_connector_state", target }, process.env.JWT_SECRET!, { expiresIn: "10m" });
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID!,
     redirect_uri: redirectUri(),
     state,
-    scope: INSTAGRAM_SCOPES,
+    scope,
     response_type: "code",
   });
   return `https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth?${params.toString()}`;
+}
+
+export function buildInstagramAuthUrl(userId: string): string {
+  return buildMetaAuthUrl(userId, "instagram", INSTAGRAM_SCOPES);
+}
+
+export function buildFacebookMessengerAuthUrl(userId: string): string {
+  return buildMetaAuthUrl(userId, "facebook_messenger", MESSENGER_SCOPES);
 }
 
 async function exchangeCodeForUserToken(code: string): Promise<string> {
@@ -86,13 +104,16 @@ interface PageWithInstagram {
   igUsername: string | null;
 }
 
-/** Finds the first Facebook Page (of pages this user manages) that has a linked Instagram professional account. */
-async function findConnectedInstagramPage(userAccessToken: string): Promise<PageWithInstagram | null> {
+async function listManagedPages(userAccessToken: string): Promise<{ id: string; name: string; access_token: string }[]> {
   const pagesResponse = await fetch(`${GRAPH_BASE}/me/accounts?access_token=${encodeURIComponent(userAccessToken)}`);
   if (!pagesResponse.ok) throw new Error(`Failed to list Facebook Pages: ${pagesResponse.status} ${await pagesResponse.text()}`);
   const pagesJson = (await pagesResponse.json()) as { data: { id: string; name: string; access_token: string }[] };
+  return pagesJson.data ?? [];
+}
 
-  for (const page of pagesJson.data ?? []) {
+/** Finds the first Facebook Page (of pages this user manages) that has a linked Instagram professional account. */
+async function findConnectedInstagramPage(userAccessToken: string): Promise<PageWithInstagram | null> {
+  for (const page of await listManagedPages(userAccessToken)) {
     const igResponse = await fetch(
       `${GRAPH_BASE}/${page.id}?fields=instagram_business_account{id,username}&access_token=${encodeURIComponent(page.access_token)}`,
     );
@@ -111,6 +132,13 @@ async function findConnectedInstagramPage(userAccessToken: string): Promise<Page
   return null;
 }
 
+/** Messenger doesn't need an Instagram link — the first Page the user manages qualifies. */
+async function findFirstManagedPage(userAccessToken: string): Promise<{ pageId: string; pageName: string; pageAccessToken: string } | null> {
+  const [page] = await listManagedPages(userAccessToken);
+  if (!page) return null;
+  return { pageId: page.id, pageName: page.name, pageAccessToken: page.access_token };
+}
+
 function htmlPage(title: string, message: string): string {
   return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
 <style>body{font-family:-apple-system,sans-serif;background:#05040f;color:#f4f2ff;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
@@ -127,10 +155,12 @@ metaConnectorCallbackRouter.get("/", async (req, res) => {
   if (!code || !state) return res.status(400).send(htmlPage("Something went wrong", "Missing code or state from Meta."));
 
   let userId: string;
+  let target: MetaOAuthTarget;
   try {
-    const payload = jwt.verify(state, process.env.JWT_SECRET!) as { userId: string; purpose: string };
+    const payload = jwt.verify(state, process.env.JWT_SECRET!) as { userId: string; purpose: string; target: MetaOAuthTarget };
     if (payload.purpose !== "meta_connector_state") throw new Error("bad state purpose");
     userId = payload.userId;
+    target = payload.target;
   } catch {
     return res.status(400).send(htmlPage("Link expired", "This connection link expired or is invalid — go back to NexaAi and try again."));
   }
@@ -138,34 +168,60 @@ metaConnectorCallbackRouter.get("/", async (req, res) => {
   try {
     const shortLived = await exchangeCodeForUserToken(code);
     const longLived = await exchangeForLongLivedToken(shortLived);
-    const page = await findConnectedInstagramPage(longLived);
 
-    if (!page || !page.igUserId) {
+    if (target === "instagram") {
+      const page = await findConnectedInstagramPage(longLived);
+      if (!page || !page.igUserId) {
+        return res
+          .status(400)
+          .send(
+            htmlPage(
+              "No Instagram account found",
+              "We couldn't find a Facebook Page you manage with a linked Instagram professional account. Connect your Instagram to a Facebook Page in Meta Business Suite first, then try again.",
+            ),
+          );
+      }
+
+      const values = {
+        status: "connected" as const,
+        externalAccountLabel: page.igUsername ? `@${page.igUsername}` : page.pageName,
+        accessToken: page.pageAccessToken,
+        providerMetadata: { pageId: page.pageId, igUserId: page.igUserId },
+        connectedAt: new Date(),
+      };
+      const [existing] = await db.select().from(connectors).where(and(eq(connectors.userId, userId), eq(connectors.provider, "instagram")));
+      if (existing) {
+        await db.update(connectors).set(values).where(eq(connectors.id, existing.id));
+      } else {
+        await db.insert(connectors).values({ userId, provider: "instagram", ...values });
+      }
+
+      return res.send(htmlPage("Connected!", `NexaAi can now reply as ${values.externalAccountLabel}. You can close this tab and return to the app.`));
+    }
+
+    // target === "facebook_messenger"
+    const page = await findFirstManagedPage(longLived);
+    if (!page) {
       return res
         .status(400)
-        .send(
-          htmlPage(
-            "No Instagram account found",
-            "We couldn't find a Facebook Page you manage with a linked Instagram professional account. Connect your Instagram to a Facebook Page in Meta Business Suite first, then try again.",
-          ),
-        );
+        .send(htmlPage("No Facebook Page found", "We couldn't find a Facebook Page you manage. Create or get admin access to a Page first, then try again."));
     }
 
     const values = {
       status: "connected" as const,
-      externalAccountLabel: page.igUsername ? `@${page.igUsername}` : page.pageName,
+      externalAccountLabel: page.pageName,
       accessToken: page.pageAccessToken,
-      providerMetadata: { pageId: page.pageId, igUserId: page.igUserId },
+      providerMetadata: { pageId: page.pageId },
       connectedAt: new Date(),
     };
-    const [existing] = await db.select().from(connectors).where(and(eq(connectors.userId, userId), eq(connectors.provider, "instagram")));
+    const [existing] = await db.select().from(connectors).where(and(eq(connectors.userId, userId), eq(connectors.provider, "facebook_messenger")));
     if (existing) {
       await db.update(connectors).set(values).where(eq(connectors.id, existing.id));
     } else {
-      await db.insert(connectors).values({ userId, provider: "instagram", ...values });
+      await db.insert(connectors).values({ userId, provider: "facebook_messenger", ...values });
     }
 
-    res.send(htmlPage("Connected!", `NexaAi can now reply as ${values.externalAccountLabel}. You can close this tab and return to the app.`));
+    res.send(htmlPage("Connected!", `NexaAi can now reply as ${values.externalAccountLabel} on Messenger. You can close this tab and return to the app.`));
   } catch (err) {
     res.status(500).send(htmlPage("Connection failed", err instanceof Error ? err.message : "Please try again."));
   }

@@ -13,13 +13,14 @@ import jwt from "jsonwebtoken";
 import { eq, and } from "drizzle-orm";
 import { db } from "../../db";
 import { connectors } from "@shared/schema";
+import { appBaseUrl } from "../appBaseUrl";
 
 export function isStripeConnectorConfigured(): boolean {
   return !!(process.env.STRIPE_CLIENT_ID && process.env.STRIPE_SECRET_KEY && process.env.APP_BASE_URL);
 }
 
 function redirectUri(): string {
-  return `${process.env.APP_BASE_URL}/api/connectors/stripe/callback`;
+  return `${appBaseUrl()}/api/connectors/stripe/callback`;
 }
 
 export function buildStripeAuthUrl(userId: string): string {

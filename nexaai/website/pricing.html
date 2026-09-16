@@ -1,0 +1,238 @@
+<title>NexaAi Pricing</title>
+<link rel="stylesheet" href="./style.css" />
+<link rel="icon" type="image/png" href="./favicon.png" />
+<style>
+  .plan-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-top: 12px; }
+  @media (min-width: 720px) { .plan-grid { grid-template-columns: repeat(3, 1fr); } }
+  .plan-card { background: var(--bg-card-alt); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+  .plan-name { font-size: 20px; font-weight: 800; margin: 0 0 2px; }
+  .plan-label { color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; margin: 0 0 14px; }
+  .plan-price {
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    background: linear-gradient(135deg, var(--accent-bright), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .plan-price span { font-size: 14px; font-weight: 600; color: var(--text-muted); -webkit-text-fill-color: var(--text-muted); background: none; }
+  .plan-tagline { color: var(--text-secondary); font-size: 14px; line-height: 1.5; margin: 12px 0 0; }
+  .loading, .error-block { color: var(--text-muted); font-size: 14px; }
+
+  /* Feature breakdown under each plan's tagline — the real knobs behind
+     the tier (messages/window, reasoning power, extended thinking, focus
+     modes), not restated marketing copy. Each row stacks its label above
+     its value rather than splitting them left/right — a fixed-width label
+     column wraps and collides with the value at card/phone widths, so a
+     single column is what stays neat everywhere. */
+  .plan-features { margin: 18px 0 0; padding-top: 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px; }
+  .plan-feature-row { display: flex; flex-direction: column; gap: 7px; font-size: 13px; }
+  .plan-feature-label {
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .plan-feature-value { color: var(--text-primary); font-weight: 700; font-variant-numeric: tabular-nums; font-size: 14px; }
+
+  .power-meter { display: flex; align-items: center; gap: 10px; }
+  .power-meter-track { flex: 1; height: 6px; border-radius: 999px; background: var(--bg-elevated); overflow: hidden; }
+  .power-meter-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-bright)); }
+  .power-meter-value { color: var(--accent-bright); font-weight: 800; font-size: 14px; white-space: nowrap; }
+
+  .thinking-check { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; }
+  .thinking-check.full { color: var(--success); }
+  .thinking-check.limited { color: var(--accent-bright); }
+  .thinking-check.off { color: var(--text-muted); font-weight: 600; }
+
+  .focus-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .focus-chip {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--bg-elevated);
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .focus-chip.unlocked { background: rgba(51, 148, 135, 0.16); border-color: rgba(51, 148, 135, 0.4); color: var(--accent-bright); }
+
+  /* Credit-pack cards — same base .pack/.pack-grid shape as style.css, made
+     to feel like a real priced product rather than a plain bordered box:
+     a gradient top edge, a gradient number, a lift on hover, and a real
+     pill badge for the bonus instead of plain caption text. */
+  .pack-grid .pack {
+    position: relative;
+    overflow: hidden;
+    padding-top: 24px;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  }
+  .pack-grid .pack::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-bright));
+  }
+  .pack-grid .pack:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 14px 28px rgba(51, 148, 135, 0.22);
+  }
+  .pack-grid .amount {
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    background: linear-gradient(135deg, var(--accent-bright), var(--accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .pack-grid .bonus {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    background: rgba(111, 191, 138, 0.14);
+    color: var(--success);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+  }
+</style>
+<div class="wrap">
+  <div class="nav">
+    <span class="brand"><img src="./favicon.png" alt="" style="width:20px;height:20px;vertical-align:middle;margin-right:6px;border-radius:5px" />NexaAi</span>
+    <a href="./index.html">Sign in</a>
+  </div>
+
+  <div class="card">
+    <h1>Pricing</h1>
+    <h2>Every plan and credit pack, pulled live from what's actually charged — no separate marketing numbers.</h2>
+    <div id="plansLoading" class="loading">Loading plans…</div>
+    <div id="plansError" class="error-block" style="display:none"></div>
+    <div id="planGrid" class="plan-grid"></div>
+  </div>
+
+  <div class="card">
+    <h1>Credit packs</h1>
+    <h2>Pay-as-you-go top-ups on top of any plan — never expire, spent only when you actually use NexaAi.</h2>
+    <div id="packsLoading" class="loading">Loading packs…</div>
+    <div id="packsError" class="error-block" style="display:none"></div>
+    <div id="packGrid" class="pack-grid"></div>
+  </div>
+
+  <p class="muted">
+    Subscriptions renew monthly and can be managed from the app (Plans screen) or your account's
+    <a href="./credits.html" style="color: var(--text-secondary)">Settings</a> page once signed in. Full terms:
+    <a href="./terms.html" style="color: var(--text-secondary)">Terms of Service</a> ·
+    <a href="./privacy.html" style="color: var(--text-secondary)">Privacy Policy</a> ·
+    <a href="./terms.html#refunds" style="color: var(--text-secondary)">Refund Policy</a>.
+  </p>
+</div>
+<script src="./api.js"></script>
+<script>
+  function money(cents) {
+    return "$" + (cents / 100).toFixed(cents % 100 === 0 ? 0 : 2);
+  }
+
+  // Mirrors server/src/lib/plans.ts's PLAN_TIER_RANK / isFocusModeAllowed —
+  // same real gating the backend enforces, computed client-side so the
+  // focus-mode chips below reflect actual access, not a guess.
+  const PLAN_TIER_RANK = { beginner: 0, pro: 1, max: 2 };
+
+  async function loadPlans() {
+    const loadingEl = document.getElementById("plansLoading");
+    const errorEl = document.getElementById("plansError");
+    const gridEl = document.getElementById("planGrid");
+    try {
+      const [{ plans, usageWindowHours }, { focusModes }] = await Promise.all([api("/api/plans"), api("/api/plans/focus-modes")]);
+      const maxStrength = Math.max(...plans.map((p) => p.marketingStrength));
+      const maxThinkingBudget = Math.max(...plans.map((p) => p.defaultThinkingBudgetTokens || 0));
+      loadingEl.style.display = "none";
+      gridEl.innerHTML = plans
+        .map((plan) => {
+          const powerPct = Math.max(8, Math.round((plan.marketingStrength / maxStrength) * 100));
+          const chips = focusModes
+            .map((mode) => {
+              const unlocked = PLAN_TIER_RANK[plan.tier] >= PLAN_TIER_RANK[mode.minPlanTier];
+              return `<span class="focus-chip${unlocked ? " unlocked" : ""}">${mode.label}</span>`;
+            })
+            .join("");
+          // Three real states, not a plain yes/no: no baseline thinking budget,
+          // a real but lighter budget than the top tier's (Nova), or the full
+          // top-tier budget (Zenith) — straight from defaultThinkingBudgetTokens.
+          let thinkingClass = "off";
+          let thinkingLabel = "— Not included";
+          if (plan.defaultThinkingBudgetTokens) {
+            thinkingClass = plan.defaultThinkingBudgetTokens >= maxThinkingBudget ? "full" : "limited";
+            thinkingLabel = thinkingClass === "full" ? "✓ Full" : "~ Limited";
+          }
+          return `
+        <div class="plan-card">
+          <p class="plan-name">${plan.displayName}</p>
+          <p class="plan-label">${plan.planLabel}</p>
+          <p class="plan-price">${plan.priceCentsPerMonth === 0 ? "Free" : money(plan.priceCentsPerMonth) + '<span>/mo</span>'}</p>
+          <p class="plan-tagline">${plan.tagline}</p>
+          <div class="plan-features">
+            <div class="plan-feature-row">
+              <span class="plan-feature-label">Reasoning power</span>
+              <span class="power-meter">
+                <span class="power-meter-track"><span class="power-meter-fill" style="width:${powerPct}%"></span></span>
+                <span class="power-meter-value">${plan.marketingStrength}x</span>
+              </span>
+            </div>
+            <div class="plan-feature-row">
+              <span class="plan-feature-label">Messages</span>
+              <span class="plan-feature-value">${plan.messagesPerWindow} every ${usageWindowHours} hrs</span>
+            </div>
+            <div class="plan-feature-row">
+              <span class="plan-feature-label">Extended thinking</span>
+              <span class="thinking-check ${thinkingClass}">${thinkingLabel}</span>
+            </div>
+            <div class="plan-feature-row">
+              <span class="plan-feature-label">Focus modes</span>
+              <span class="focus-chip-row">${chips}</span>
+            </div>
+          </div>
+        </div>`;
+        })
+        .join("");
+    } catch (err) {
+      loadingEl.style.display = "none";
+      errorEl.textContent = "Couldn't load plans right now: " + err.message;
+      errorEl.style.display = "block";
+    }
+  }
+
+  async function loadPacks() {
+    const loadingEl = document.getElementById("packsLoading");
+    const errorEl = document.getElementById("packsError");
+    const gridEl = document.getElementById("packGrid");
+    try {
+      const { packs } = await api("/api/plans/credit-packs");
+      loadingEl.style.display = "none";
+      gridEl.innerHTML = packs
+        .map(
+          (pack) => `
+        <div class="pack">
+          <div class="amount">${pack.label}</div>
+          ${pack.bonusCents > 0 ? `<div class="bonus">+${money(pack.bonusCents)} bonus credit</div>` : ""}
+        </div>`,
+        )
+        .join("");
+    } catch (err) {
+      loadingEl.style.display = "none";
+      errorEl.textContent = "Couldn't load credit packs right now: " + err.message;
+      errorEl.style.display = "block";
+    }
+  }
+
+  loadPlans();
+  loadPacks();
+</script>

@@ -83,6 +83,21 @@ export function stopSpeaking() {
   Speech.stop();
 }
 
+// expo-speech's own pause/resume genuinely aren't implemented on Android
+// (its docs say so directly) — a real platform gap, not a choice we're
+// making, so callers use this to decide whether to offer a real Pause or
+// fall back to Stop-and-replay instead of showing a button that silently
+// does nothing.
+export const canPauseSpeaking = Platform.OS !== "android";
+
+export function pauseSpeaking() {
+  return Speech.pause();
+}
+
+export function resumeSpeaking() {
+  return Speech.resume();
+}
+
 /**
  * Real speech-to-text for voice memos, via the server's Whisper-backed
  * /api/voice/transcribe endpoint (see server/src/lib/voice/speechToText.ts).

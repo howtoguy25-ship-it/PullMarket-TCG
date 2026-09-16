@@ -17,7 +17,7 @@
 
 import type { PlanDefinition, FocusMode } from "./plans";
 import { FOCUS_MODE_DEFINITIONS } from "./plans";
-import { buildNexaSystemPrompt, type NexaPromptMode } from "@shared/nexaPersona";
+import { buildNexaSystemPrompt, buildHumorAddendum, type NexaPromptMode } from "@shared/nexaPersona";
 import type { AskResult } from "./anthropic";
 
 export interface SelfHostedAskParams {
@@ -28,6 +28,8 @@ export interface SelfHostedAskParams {
   mode: NexaPromptMode;
   memoryContext?: string;
   focusMode: FocusMode;
+  /** Real cancellation, forwarded from the streaming route's AbortController — see anthropic.ts's AskParams.signal for the full explanation. */
+  signal?: AbortSignal;
 }
 
 function baseUrl(): string | null {
@@ -50,7 +52,9 @@ function buildSystemPrompt(params: SelfHostedAskParams): string {
   const thinkingNote = focus.thinkingBudgetTokens
     ? "\n\nThink through the problem step by step internally before writing your final answer, but only output the final formatted answer — don't show your scratch reasoning."
     : "";
-  return buildNexaSystemPrompt(params.mode, params.answerCount, focus.promptAddendum + thinkingNote + (params.memoryContext ?? ""));
+  // Same who_is/build_project exclusion as lib/anthropic.ts's buildSystemPrompt — both are strict, app-parsed shapes.
+  const humorAddendum = params.mode === "who_is" || params.mode === "build_project" ? "" : buildHumorAddendum(params.plan.strengthMultiplier);
+  return buildNexaSystemPrompt(params.mode, params.answerCount, focus.promptAddendum + thinkingNote + (params.memoryContext ?? "") + humorAddendum);
 }
 
 function resolveMaxTokens(params: SelfHostedAskParams): number {
@@ -103,6 +107,7 @@ export async function streamSelfHostedModel(params: SelfHostedAskParams, onDelta
       ...(process.env.SELF_HOSTED_MODEL_API_KEY ? { Authorization: `Bearer ${process.env.SELF_HOSTED_MODEL_API_KEY}` } : {}),
     },
     body: JSON.stringify(buildRequestBody(params, true)),
+    signal: params.signal,
   });
   if (!response.ok || !response.body) throw new Error(`Self-hosted model stream failed: ${response.status} ${await response.text().catch(() => "")}`);
 
@@ -112,7 +117,14 @@ export async function streamSelfHostedModel(params: SelfHostedAskParams, onDelta
   let full = "";
 
   while (true) {
-    const { done, value } = await reader.read();
+    let read: ReadableStreamReadResult<Uint8Array>;
+    try {
+      read = await reader.read();
+    } catch (err) {
+      if (params.signal?.aborted) return { text: full.trim(), stopped: true };
+      throw err;
+    }
+    const { done, value } = read;
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
 

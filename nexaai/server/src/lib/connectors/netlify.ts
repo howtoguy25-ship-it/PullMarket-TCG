@@ -12,13 +12,14 @@ import jwt from "jsonwebtoken";
 import { eq, and } from "drizzle-orm";
 import { db } from "../../db";
 import { connectors } from "@shared/schema";
+import { appBaseUrl } from "../appBaseUrl";
 
 export function isNetlifyConnectorConfigured(): boolean {
   return !!(process.env.NETLIFY_CLIENT_ID && process.env.NETLIFY_CLIENT_SECRET && process.env.APP_BASE_URL);
 }
 
 function redirectUri(): string {
-  return `${process.env.APP_BASE_URL}/api/connectors/netlify/callback`;
+  return `${appBaseUrl()}/api/connectors/netlify/callback`;
 }
 
 export function buildNetlifyAuthUrl(userId: string): string {

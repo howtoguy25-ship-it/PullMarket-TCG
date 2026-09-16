@@ -22,21 +22,23 @@ invent facts you're not confident about — say so plainly instead of guessing.`
 const STRUCTURED_TEXT_FORMAT = `
 Formatting rules, always follow them:
 - Repeat back a short, cleaned-up version of what the user asked (as if correcting their typos) at the top, in italics using _underscores_.
-- Give exactly {{ANSWER_COUNT}} distinct answer(s)/approach(es). Break EACH one down into these labeled parts, in this exact order, every single time:
-  1. Title — a **bold** short name for this approach.
-  2. Description — one plain sentence on what this approach is and when it's the right one to reach for.
+- Give exactly {{ANSWER_COUNT}} distinct answer(s)/approach(es). Break EACH one down into these parts, in this exact order, every single time:
+  1. Direct answer — a **bold** short name for this approach, immediately followed by the actual, complete answer stated plainly in full sentences — not a one-line label with the real content deferred to later. Say the real answer here, first.
+  2. Context — the fuller explanation that follows: why this is the right call, background, tradeoffs, whatever the direct answer above didn't already cover. Flowing prose, not a separate mini-label like "Quick context."
   3. Image findings — ONLY when an image was attached to this message: state exactly what you observed in it, specifically and plainly. Never invent details you can't actually see. Omit this part entirely when there's no image — don't write a placeholder for it.
   4. Reasoning — a short numbered list walking through WHY these are the right steps, in order, before you give them. This is the thinking that leads to the steps, not the steps themselves.
   5. Steps — a numbered list of the concrete actions to actually do it, ending with a one-line "Where to start" pointer.
 - If a relevant image would help beyond what was attached (a diagram, a photo of the described object/place), describe in [brackets] what image should be shown; the app fetches or generates it separately — never invent a fake URL.
 - Keep tone confident and clear, never wishy-washy.`;
 
-// Who-is deep-dive mode overrides the structured text format entirely, and
-// carries a hard scope rule: this feature is for genuinely public figures
-// ONLY. It exists to answer "who is [notable person]" with real, current,
-// web-sourced information — it is deliberately NOT a general people-search
-// tool. Asked about a private individual, it refuses outright rather than
-// searching. It also never guesses a social handle (only reports one
+// Web person lookup mode overrides the structured text format entirely, and
+// carries a hard scope rule: this covers anyone with a real, findable public
+// footprint — public figures, but also ordinary businesspeople/professionals
+// with a company bio, LinkedIn, a directory listing, news coverage, etc. It
+// is still deliberately NOT an unrestricted people-search tool: asked about
+// a name with no discoverable public presence at all, it declines rather
+// than fabricating or guessing personal details about a private individual.
+// It also never guesses a social handle (only reports one
 // multiple reputable sources actually confirm) and never attempts to
 // identify a person via photos/facial features — the one photo it may show
 // is a URL a reputable source (e.g. Wikipedia's own infobox) already,
@@ -44,16 +46,18 @@ Formatting rules, always follow them:
 // image. See server/src/lib/whoIsSearch.ts for the real web_search tool call
 // this mode is paired with.
 const WHO_IS_FORMAT = `
-WHO-IS DEEP-DIVE MODE: you have real, live web search — actually use it rather than relying on memory alone, since \
-the point of this mode is current, verified information.
+WEB PERSON LOOKUP MODE: you have real, live web search — actually use it rather than relying on memory alone, \
+since the point of this mode is current, verified information.
 
-Before searching, decide whether the name given is a genuinely public figure — someone with independent, \
-broad public notability (public office, entertainment, sports, business, media coverage, etc.):
-- If it is NOT a public figure (a private individual — a coworker, ex, neighbor, someone with no independent \
-public notability), do not search. Say plainly: "This deep-dive lookup only works for public figures — I won't \
-search for a private individual's accounts or personal info." Stop there.
-- If the name is ambiguous (matches multiple different notable people, or you can't tell who's meant from \
-context), say so plainly and ask which one, rather than merging different people's information together.
+This covers more than famous public figures: public officials, entertainers, athletes, and media figures, AND \
+ordinary businesspeople/professionals — anyone with a real, findable public footprint (a company bio page, \
+LinkedIn, a professional directory listing, news coverage, a public social account with an identifying bio, etc.).
+- Actually search for the name first. Only if the search turns up NO real public footprint at all — nothing \
+tying that name to any public professional, social, or media presence — decline instead of guessing. Say \
+plainly: "I couldn't find any public presence for that name, so I won't guess at private details — this only \
+works for people with a real public footprint." Stop there.
+- If the name is ambiguous (matches multiple different people, or you can't tell who's meant from context), say \
+so plainly and ask which one, rather than merging different people's information together.
 - Otherwise, search and lay the answer out exactly in this structure. Your reply must START with the bolded name
 line below — no lead-in commentary first ("I'll look up...", "Let me search...", etc.); the app renders this as
 an animated profile card and any text before the name line breaks that rendering:
@@ -145,4 +149,36 @@ const FORMAT_OVERRIDES: Partial<Record<NexaPromptMode, string>> = {
 export function buildNexaSystemPrompt(mode: NexaPromptMode, answerCount: number, extra = ""): string {
   const formatBlock = FORMAT_OVERRIDES[mode] ?? STRUCTURED_TEXT_FORMAT.replace("{{ANSWER_COUNT}}", String(answerCount));
   return NEXAAI_IDENTITY + formatBlock + NEXA_MODE_ADDENDUM[mode] + extra;
+}
+
+// Real humor detection/response instruction — deliberately handled inside
+// the SAME single model call as the actual answer (not a separate
+// classifier pass first), so a joking message gets a witty reply exactly
+// as fast as a normal one gets a straight answer; there's no added
+// round-trip. The ambition of the ask is honestly scaled to what the model
+// actually answering can deliver — see lib/plans.ts's provider/model
+// mapping: Beginner runs a fine-tuned 8B Llama, Pro runs Claude Sonnet 5,
+// Max runs Claude Opus 5 with extended thinking — so "1000 IQ wordplay" is
+// asked of the tiers that can plausibly produce it, not of an 8B model that
+// would just garble the attempt.
+export function buildHumorAddendum(strengthMultiplier: number): string {
+  if (strengthMultiplier >= 5) {
+    return (
+      "\n\nWhen the user is clearly joking, being sarcastic, or ribbing you, do NOT answer it as a literal " +
+      "question. Match their energy immediately and fire back fast: genuinely sharp, unexpected, 1000-IQ-friend-" +
+      "level wit — real wordplay or a clever turn, not a generic pun or a cliché joke-bot line. Keep it short and " +
+      "confident. Then, only if there's something real buried underneath the joke, address that too, briefly."
+    );
+  }
+  if (strengthMultiplier >= 3) {
+    return (
+      "\n\nWhen the user is clearly joking, being sarcastic, or ribbing you, do NOT answer it as a literal " +
+      "question — respond fast with genuine, sharp wit that actually lands, not a flat or robotic reply. Then, " +
+      "only if there's something real buried underneath the joke, address that too, briefly."
+    );
+  }
+  return (
+    "\n\nWhen the user is clearly joking or teasing you, notice it and fire back a quick, genuinely funny line " +
+    "instead of a flat literal answer — keep it simple and short. Then still help with anything real underneath."
+  );
 }

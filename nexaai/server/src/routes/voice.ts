@@ -15,14 +15,18 @@ import { synthesizeSpeech, isTextToSpeechConfigured } from "../lib/voice/textToS
 import { askGemini, isGeminiConfigured } from "../lib/geminiModel";
 import { askModel } from "../lib/modelRouter";
 import { PLAN_DEFINITIONS } from "../lib/plans";
+import { estimateVoiceTurnCreditCostCents } from "../lib/costModel";
 
 export const voiceRouter = Router();
 voiceRouter.use(requireAuth);
 
-// Real credit cost per voice turn — roughly what a Whisper transcription +
-// a short Gemini Flash completion + a TTS synthesis actually costs against
-// those APIs, metered the same honest way chat.ts's CENTS_PER_ANSWER_SET is.
-const CENTS_PER_VOICE_TURN = 4;
+/** Real, cost-aware charge (lib/costModel.ts) for one voice turn — whichever reasoning path this user's turn will actually take (Gemini's speed lane when configured, otherwise their own plan's model). */
+export function voiceTurnCreditCostCents(user: typeof users.$inferSelect): number {
+  const plan = PLAN_DEFINITIONS[user.planTier];
+  return estimateVoiceTurnCreditCostCents(
+    isGeminiConfigured() ? { reasoningProvider: "gemini" } : { reasoningProvider: plan.provider, reasoningModel: plan.model },
+  );
+}
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
@@ -98,7 +102,7 @@ voiceRouter.post("/conversations/:id/greeting", async (req: AuthedRequest, res) 
       .where(and(eq(voiceConversations.id, req.params.id), eq(voiceConversations.userId, req.userId!)));
     if (!conversation) return res.status(404).json({ error: "Conversation not found" });
 
-    const spend = await spendCredits(db, req.userId!, CENTS_PER_VOICE_TURN, "voice:greeting");
+    const spend = await spendCredits(db, req.userId!, voiceTurnCreditCostCents(user), "voice:greeting");
     if (!spend.allowed) return res.status(402).json({ error: "insufficient_credit", message: "You're out of credit. Top up to start a call." });
 
     const greetingInstruction =
@@ -162,7 +166,7 @@ voiceRouter.post("/conversations/:id/turns", (req: AuthedRequest, res) => {
         });
       }
 
-      const spend = await spendCredits(db, req.userId!, CENTS_PER_VOICE_TURN, "voice:turn");
+      const spend = await spendCredits(db, req.userId!, voiceTurnCreditCostCents(user), "voice:turn");
       if (!spend.allowed) return res.status(402).json({ error: "insufficient_credit", message: "You're out of credit. Top up to keep talking." });
 
       const transcript = await transcribeAudio(req.file.path, req.file.mimetype);

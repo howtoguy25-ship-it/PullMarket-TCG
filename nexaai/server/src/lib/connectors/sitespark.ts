@@ -2,29 +2,42 @@
 // siblings, but genuinely different in one respect: SiteSpark is the user's
 // own separate app, so there's no fixed provider to point at. This is a
 // real, generic OAuth 2.0 Authorization Code client (RFC 6749) — it becomes
-// functional the moment SiteSpark implements the three matching endpoints a
-// standard OAuth provider needs:
+// functional the moment SiteSpark implements the matching endpoints a
+// standard OAuth provider needs, PLUS one real import endpoint that turns a
+// NexaAi Project's generated files into an actual SiteSpark site:
 //   1. An authorize endpoint (GET, redirects back with ?code=&state=)
 //   2. A token endpoint (POST, exchanges code -> access_token)
 //   3. A "who am I" endpoint (GET, returns the connected account's identity)
+//   4. A site-import endpoint (POST, see pushProjectToSiteSpark below) —
+//      this is the piece that makes routes/projects.ts's
+//      "Export to SiteSpark" action real instead of OAuth-only.
 //
 // Setup required (in your own SiteSpark app, then here):
-//   1. Build those three endpoints in SiteSpark, and register
+//   1. Build those endpoints in SiteSpark, and register
 //      <APP_BASE_URL>/api/connectors/sitespark/callback as an allowed
 //      redirect URI for a SiteSpark OAuth client.
 //   2. Set SITESPARK_CLIENT_ID / SITESPARK_CLIENT_SECRET /
-//      SITESPARK_OAUTH_BASE_URL (SiteSpark's own base URL, e.g.
-//      https://app.sitespark.com) / APP_BASE_URL here.
+//      SITESPARK_OAUTH_BASE_URL / SITESPARK_API_BASE_URL (SiteSpark's own
+//      base URL, e.g. https://buildsitespark.com — often the same host as
+//      SITESPARK_OAUTH_BASE_URL) / APP_BASE_URL here.
+//   3. Set SITESPARK_API_KEY — a platform-level secret (sisp_live_...) that
+//      authenticates NexaAi itself as the calling application on the
+//      site-import call below, sent as X-Api-Key alongside the per-user
+//      OAuth bearer token. Rotate it in SiteSpark's dashboard if it's ever
+//      been exposed, and never commit the real value — only .env.example's
+//      blank placeholder belongs in git.
 //
-// Until SiteSpark's own OAuth endpoints exist, this stays visible in the
+// Until SiteSpark's own endpoints exist, this stays visible in the
 // Connectors list as "not set up yet" — the same honest pattern every other
-// not-yet-configured connector in this app uses.
+// not-yet-configured connector in this app uses — and any export attempt
+// fails with a clear, honest error rather than a fake success.
 
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { eq, and } from "drizzle-orm";
 import { db } from "../../db";
 import { connectors } from "@shared/schema";
+import { appBaseUrl } from "../appBaseUrl";
 
 export function isSiteSparkConnectorConfigured(): boolean {
   return !!(
@@ -36,7 +49,7 @@ export function isSiteSparkConnectorConfigured(): boolean {
 }
 
 function redirectUri(): string {
-  return `${process.env.APP_BASE_URL}/api/connectors/sitespark/callback`;
+  return `${appBaseUrl()}/api/connectors/sitespark/callback`;
 }
 
 export function buildSiteSparkAuthUrl(userId: string): string {
@@ -72,6 +85,67 @@ async function fetchSiteSparkIdentity(accessToken: string): Promise<string> {
   if (!response.ok) return "SiteSpark account";
   const json = (await response.json()) as { username?: string; email?: string };
   return json.username ?? json.email ?? "SiteSpark account";
+}
+
+export function isSiteSparkApiConfigured(): boolean {
+  return !!(process.env.SITESPARK_API_BASE_URL && process.env.SITESPARK_API_KEY);
+}
+
+/** Real per-user check: does this specific user have a connected SiteSpark account with a usable token? Same lookup routes/projects.ts's manual export already did inline — pulled out here so Smart Build (routes/chat.ts) can reuse it instead of duplicating the query. */
+export async function isSiteSparkConnected(userId: string): Promise<{ connected: true; accessToken: string } | { connected: false }> {
+  const [connector] = await db
+    .select()
+    .from(connectors)
+    .where(and(eq(connectors.userId, userId), eq(connectors.provider, "sitespark"), eq(connectors.status, "connected")));
+  return connector?.accessToken ? { connected: true, accessToken: connector.accessToken } : { connected: false };
+}
+
+export interface SiteSparkFile {
+  path: string;
+  content: string;
+}
+
+export interface SiteSparkImportResult {
+  siteId: string;
+  url: string;
+}
+
+/**
+ * Pushes a NexaAi Project's real generated files into SiteSpark as one
+ * site, real files in, real site out — no local zipping/hosting, SiteSpark
+ * does the actual build/hosting on its own side. `externalRef` is the
+ * NexaAi project's own id: SiteSpark's import endpoint should key on it so
+ * re-exporting the same project updates that project's existing SiteSpark
+ * site instead of creating a new one every time.
+ *
+ * Expected contract (build this in your SiteSpark app):
+ *   POST {SITESPARK_API_BASE_URL}/api/v1/sites/import
+ *   Authorization: Bearer <the OAuth access_token from this same connector>
+ *   X-Api-Key: <SITESPARK_API_KEY — identifies NexaAi itself as the calling app>
+ *   Body: { "externalRef": string, "name": string, "files": [{ "path": string, "content": string }] }
+ *   200 response: { "siteId": string, "url": string }
+ *   Any 4xx/5xx is surfaced to the NexaAi user verbatim — never silently retried as a success.
+ */
+export async function pushProjectToSiteSpark(
+  accessToken: string,
+  params: { externalRef: string; name: string; files: SiteSparkFile[] },
+): Promise<SiteSparkImportResult> {
+  if (!isSiteSparkApiConfigured()) {
+    throw new Error("SITESPARK_API_BASE_URL / SITESPARK_API_KEY aren't both set — SiteSpark's site-import endpoint hasn't been configured yet.");
+  }
+  const response = await fetch(`${process.env.SITESPARK_API_BASE_URL}/api/v1/sites/import`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+      "X-Api-Key": process.env.SITESPARK_API_KEY!,
+    },
+    body: JSON.stringify(params),
+  });
+  if (!response.ok) {
+    throw new Error(`SiteSpark rejected the import: ${response.status} ${await response.text()}`);
+  }
+  return (await response.json()) as SiteSparkImportResult;
 }
 
 function htmlPage(title: string, message: string): string {

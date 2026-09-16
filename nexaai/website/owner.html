@@ -28,12 +28,15 @@
 
   <div class="card">
     <h1>Users</h1>
+    <div class="history-search">
+      <input id="userSearch" type="text" placeholder="Filter by name or email…" />
+    </div>
     <div id="users"></div>
   </div>
 
   <div class="card">
     <h1>Billing</h1>
-    <h2>The real credit ledger — this app bills one-time credit packs (Paddle / Apple IAP), not recurring subscriptions.</h2>
+    <h2>Real credit-ledger transactions, plan-tier distribution, and every active paid subscription — straight off the same tables Credits/Plans read from.</h2>
     <div id="billing"></div>
     <p class="error" id="billingError" style="display:none"></p>
   </div>
@@ -52,15 +55,36 @@
 
   <div class="card">
     <h1>AI Bots</h1>
-    <h2>Every custom agent across every user — pause or reactivate any of them directly. This flips the exact same live "isActive" switch each owner's own Agents screen uses.</h2>
+    <h2>Every custom agent across every user — pause or reactivate any of them directly, the exact same real "isActive"/"isPaused" columns agentRunner.ts checks before replying.</h2>
     <div id="aiBots"></div>
     <p class="error" id="aiBotsError" style="display:none"></p>
   </div>
 
+  <div class="card" id="manageCard" style="display:none">
+    <h1 id="manageTitle">Manage user</h1>
+    <p class="error" id="manageError" style="display:none"></p>
+    <div id="manageBody"></div>
+    <button class="secondary" id="closeManage">Close</button>
+  </div>
+
   <div class="card" id="historyCard" style="display:none">
-    <h1 id="historyTitle">History</h1>
+    <h1 id="historyTitle">History access</h1>
+    <p class="history-summary">
+      Every prompt, image, and video this account has ever sent — a real, permanent record. Items the user has
+      removed from their own History screen are still shown here, marked "Removed by user" — see the History
+      section of the README for why.
+    </p>
     <div id="historyBody"></div>
     <button class="secondary" id="closeHistory">Close</button>
+  </div>
+
+  <div class="card">
+    <h1>Credit disputes</h1>
+    <h2>
+      No money refunds — real, AI-reviewed CREDIT refunds only. Every "report an issue" a user has filed, approved
+      or declined, with the real reasoning behind it. Declined ones can be manually overridden below.
+    </h2>
+    <div id="disputes"></div>
   </div>
 </div>
 <script src="./api.js"></script>
@@ -68,7 +92,6 @@
   requireLoginOrRedirect();
 
   const errorEl = document.getElementById("error");
-  const dollars = (cents) => `$${(cents / 100).toFixed(2)}`;
 
   function statLine(label, value) {
     const row = document.createElement("div");
@@ -82,7 +105,7 @@
     const el = document.getElementById("overview");
     el.innerHTML = "";
     el.appendChild(statLine("Total users", o.totalUsers));
-    el.appendChild(statLine("Total revenue", dollars(o.totalRevenueCents)));
+    el.appendChild(statLine("Total revenue", `$${(o.totalRevenueCents / 100).toFixed(2)}`));
     el.appendChild(statLine("Total messages", o.totalMessages));
     el.appendChild(statLine("Total voice turns", o.totalVoiceTurns));
     el.appendChild(statLine("Active agents", o.activeAgents));
@@ -96,11 +119,11 @@
   // --- AI Controls ---------------------------------------------------------
 
   const AI_TOGGLES = [
-    { key: "webLookupEnabled", label: "Web lookup + who-is deep dive", sub: "Real web search and the who-is public-figure deep dive." },
+    { key: "webLookupEnabled", label: "Web lookup + who-is deep dive + topic images", sub: "Real web search, the who-is public-figure deep dive, and web-sourced photos in chat answers." },
     { key: "voiceChatEnabled", label: "Voice chat", sub: "Live voice conversations and Call." },
     { key: "agentBuilderEnabled", label: "Agent builder", sub: "Creating, activating, and live-sending from custom agents." },
     { key: "memoryEnabled", label: "Memory", sub: "Saving and recalling durable facts across chats." },
-    { key: "topicImagesEnabled", label: "Real images for topics", sub: "Web-search-sourced photos embedded in chat answers." },
+    { key: "smartBuildEnabled", label: "Smart Build", sub: "Auto-detecting and starting a build from a chat message." },
     { key: "newSignupsEnabled", label: "New signups", sub: "Direct email/password sign-up (social sign-in is unaffected)." },
   ];
   const EFFORT_LABELS = { low: "Low", standard: "Standard", high: "High", max: "Max (no ceiling)" };
@@ -115,7 +138,7 @@
       const row = document.createElement("div");
       row.className = "owner-row";
       row.innerHTML =
-        `<div><div class="label">${label}</div><div class="sub">${sub}</div></div>` +
+        `<div><div class="label">${escapeHtml(label)}</div><div class="sub">${escapeHtml(sub)}</div></div>` +
         `<label class="switch"><input type="checkbox" data-key="${key}" ${ownerSettings[key] ? "checked" : ""} /><span class="track"><span class="thumb"></span></span></label>`;
       el.appendChild(row);
       row.querySelector("input").addEventListener("change", (e) => patchSettings({ [key]: e.target.checked }));
@@ -123,8 +146,7 @@
 
     const capRow = document.createElement("div");
     capRow.className = "owner-row";
-    capRow.innerHTML =
-      `<div><div class="label">Reasoning-effort ceiling</div><div class="sub">Caps how hard NexaAi is allowed to think on every plan/focus mode, app-wide.</div></div>`;
+    capRow.innerHTML = `<div><div class="label">Reasoning-effort ceiling</div><div class="sub">Caps how hard NexaAi is allowed to think on every plan/focus mode, app-wide.</div></div>`;
     const select = document.createElement("select");
     select.style.width = "auto";
     [["max", EFFORT_LABELS.max], ["high", EFFORT_LABELS.high], ["standard", EFFORT_LABELS.standard], ["low", EFFORT_LABELS.low]].forEach(([value, label]) => {
@@ -142,8 +164,7 @@
   async function patchSettings(patch) {
     aiControlsErrorEl.style.display = "none";
     try {
-      const { settings } = await api("/api/owner/settings", { method: "PATCH", body: JSON.stringify(patch) });
-      ownerSettings = settings;
+      ownerSettings = (await api("/api/owner/settings", { method: "PATCH", body: JSON.stringify(patch) })).settings;
       renderAiControls();
     } catch (err) {
       aiControlsErrorEl.textContent = err.message;
@@ -153,46 +174,8 @@
   }
 
   async function loadAiControls() {
-    const { settings } = await api("/api/owner/settings");
-    ownerSettings = settings;
+    ownerSettings = (await api("/api/owner/settings")).settings;
     renderAiControls();
-  }
-
-  async function showHistory(userId, label) {
-    const h = await api(`/api/owner/users/${userId}/history`);
-    document.getElementById("historyTitle").textContent = `History — ${label}`;
-    const body = document.getElementById("historyBody");
-    body.innerHTML =
-      `<p class="muted">${h.sessions.length} chat sessions · ${h.projects.length} projects · ${h.agents.length} agents · ${h.connectors.filter((c) => c.status === "connected").length} connectors connected</p>` +
-      "<h1 style='font-size:15px;margin-top:16px'>Recent messages</h1>" +
-      h.recentMessages
-        .slice(0, 30)
-        .map((m) => `<div class="toggle-row"><span>[${m.role}] ${m.content.slice(0, 100)}</span></div>`)
-        .join("");
-    document.getElementById("historyCard").style.display = "block";
-  }
-
-  document.getElementById("closeHistory").addEventListener("click", () => {
-    document.getElementById("historyCard").style.display = "none";
-  });
-
-  async function loadUsers() {
-    const { users } = await api("/api/owner/users");
-    const el = document.getElementById("users");
-    el.innerHTML = "";
-    users.forEach((u) => {
-      const row = document.createElement("div");
-      row.className = "toggle-row";
-      row.innerHTML = `<span><strong>${u.displayName}</strong> (${u.email})<br/><span class="muted">${u.planTier} · ${dollars(u.creditBalanceCents)} credit · joined ${new Date(u.createdAt).toLocaleDateString()}</span></span>`;
-      const btn = document.createElement("button");
-      btn.textContent = "History";
-      btn.className = "secondary";
-      btn.style.width = "auto";
-      btn.style.marginTop = "0";
-      btn.addEventListener("click", () => showHistory(u.id, u.displayName));
-      row.appendChild(btn);
-      el.appendChild(row);
-    });
   }
 
   // --- Billing ---------------------------------------------------------------
@@ -205,26 +188,38 @@
     const stats = document.createElement("div");
     stats.className = "stat-grid";
     Object.entries(b.planCounts).forEach(([tier, n]) => {
-      stats.innerHTML += `<div class="stat-tile"><div class="n">${n}</div><div class="l">${tier}</div></div>`;
-    });
-    Object.entries(b.revenueByProviderCents).forEach(([provider, cents]) => {
-      stats.innerHTML += `<div class="stat-tile"><div class="n">${dollars(cents)}</div><div class="l">${provider}</div></div>`;
+      stats.innerHTML += `<div class="stat-tile"><div class="n">${n}</div><div class="l">${escapeHtml(tier)}</div></div>`;
     });
     el.appendChild(stats);
 
-    const listTitle = document.createElement("p");
-    listTitle.className = "panel-title";
-    listTitle.style.marginTop = "18px";
-    listTitle.textContent = "Recent transactions";
-    el.appendChild(listTitle);
+    if (b.subscriptions.length) {
+      const subTitle = document.createElement("p");
+      subTitle.className = "history-section-label";
+      subTitle.textContent = "Active subscriptions";
+      el.appendChild(subTitle);
+      b.subscriptions.forEach((s) => {
+        const row = document.createElement("div");
+        row.className = "toggle-row";
+        const provider = s.planStripeSubscriptionId ? "Stripe" : s.planPaddleSubscriptionId ? "Paddle" : s.planAppleOriginalTransactionId ? "Apple" : (s.planSource ?? "unknown");
+        row.innerHTML =
+          `<span><strong>${escapeHtml(s.userDisplayName)}</strong> (${escapeHtml(s.userEmail)})<br/>` +
+          `<span class="muted">${escapeHtml(s.planTier)} · ${escapeHtml(provider)}${s.planCurrentPeriodEnd ? ` · renews ${new Date(s.planCurrentPeriodEnd).toLocaleDateString()}` : ""}</span></span>`;
+        el.appendChild(row);
+      });
+    }
+
+    const txTitle = document.createElement("p");
+    txTitle.className = "history-section-label";
+    txTitle.textContent = "Recent transactions";
+    el.appendChild(txTitle);
 
     b.transactions.slice(0, 40).forEach((t) => {
       const row = document.createElement("div");
       row.className = "toggle-row";
-      const amount = t.amountCents >= 0 ? `+${dollars(t.amountCents)}` : `-${dollars(Math.abs(t.amountCents))}`;
+      const amount = t.amountCents >= 0 ? `+$${(t.amountCents / 100).toFixed(2)}` : `-$${(Math.abs(t.amountCents) / 100).toFixed(2)}`;
       const sub = [t.kind, t.packLabel, t.paymentProvider].filter(Boolean).join(" · ");
       row.innerHTML =
-        `<span><strong>${t.userDisplayName}</strong> — ${amount}<br/><span class="muted">${sub} · ${new Date(t.createdAt).toLocaleString()}</span></span>`;
+        `<span><strong>${escapeHtml(t.userDisplayName)}</strong> — ${amount}<br/><span class="muted">${escapeHtml(sub)} · ${new Date(t.createdAt).toLocaleString()}</span></span>`;
       el.appendChild(row);
     });
   }
@@ -235,7 +230,7 @@
   let activeReport = "signups";
   const REPORT_CONFIG = {
     signups: { series: "signupsByDay", valueKey: "n", format: (v) => v },
-    revenue: { series: "revenueByDay", valueKey: "totalCents", format: (v) => dollars(v) },
+    revenue: { series: "revenueByDay", valueKey: "cents", format: (v) => `$${(v / 100).toFixed(2)}` },
     messages: { series: "messagesByDay", valueKey: "n", format: (v) => v },
   };
 
@@ -290,16 +285,16 @@
       const row = document.createElement("div");
       row.className = "owner-row";
       row.innerHTML =
-        `<div><div class="label">${a.name} <span class="pill">${a.kind}</span></div>` +
-        `<div class="sub">${a.userDisplayName} (${a.userEmail}) · created ${new Date(a.createdAt).toLocaleDateString()}</div></div>` +
-        `<label class="switch"><input type="checkbox" ${a.isActive ? "checked" : ""} /><span class="track"><span class="thumb"></span></span></label>`;
+        `<div><div class="label">${escapeHtml(a.name)} <span class="pill">${escapeHtml(a.kind)}</span>${a.isPaused ? ' <span class="pill err">Paused</span>' : ""}</div>` +
+        `<div class="sub">${escapeHtml(a.userDisplayName)} (${escapeHtml(a.userEmail)}) · created ${new Date(a.createdAt).toLocaleDateString()}</div></div>` +
+        `<label class="switch" title="Active"><input type="checkbox" data-field="isActive" ${a.isActive ? "checked" : ""} /><span class="track"><span class="thumb"></span></span></label>`;
       el.appendChild(row);
-      row.querySelector("input").addEventListener("change", async (e) => {
+      row.querySelector("input[data-field='isActive']").addEventListener("change", async (e) => {
         const checked = e.target.checked;
         try {
           await api(`/api/owner/agents/${a.id}`, { method: "PATCH", body: JSON.stringify({ isActive: checked }) });
         } catch (err) {
-          e.target.checked = !checked; // revert on failure
+          e.target.checked = !checked;
           document.getElementById("aiBotsError").textContent = err.message;
           document.getElementById("aiBotsError").style.display = "block";
         }
@@ -307,13 +302,329 @@
     });
   }
 
+  function escapeHtml(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  // Real attachment metadata — the exact shape routes/attachments.ts's
+  // upload returns and routes/chat.ts stores on a user message's own
+  // metadata column (url/filename/mimeType/kind), not a guess.
+  function renderAttachment(metadata) {
+    if (!metadata || !metadata.url) return "";
+    const isImage = metadata.kind === "image";
+    const fullUrl = metadata.url.startsWith("http") ? metadata.url : `${API_URL}${metadata.url}`;
+    return `<div class="history-attachment">
+      ${isImage ? `<img src="${escapeHtml(fullUrl)}" alt="" />` : `<span>${metadata.kind === "video" ? "🎬" : "📎"}</span>`}
+      <a href="${escapeHtml(fullUrl)}" target="_blank" rel="noopener">${escapeHtml(metadata.filename ?? "attachment")}</a>
+      <span class="muted">(${escapeHtml(metadata.mimeType ?? metadata.kind ?? "file")})</span>
+    </div>`;
+  }
+
+  function renderHistoryEntry(m) {
+    const attachmentMeta = m.metadata && m.metadata.url ? m.metadata : null;
+    const videoFrames = m.metadata && Array.isArray(m.metadata.videoFrames) ? m.metadata.videoFrames : null;
+    return `<div class="history-entry">
+      <div class="history-entry-head">
+        <span class="history-role ${m.role === "assistant" ? "assistant" : ""}">${escapeHtml(m.role)}</span>
+        <span class="pill">${escapeHtml(m.kind)}</span>
+        ${m.hiddenAt ? `<span class="pill err">Removed by user ${new Date(m.hiddenAt).toLocaleDateString()}</span>` : ""}
+        <span class="history-time">${new Date(m.createdAt).toLocaleString()}</span>
+      </div>
+      <div class="history-content">${escapeHtml(m.content).slice(0, 2000)}</div>
+      ${attachmentMeta ? renderAttachment(attachmentMeta) : ""}
+      ${videoFrames ? `<p class="muted" style="margin:8px 0 0;font-size:12px">Video breakdown: ${videoFrames.length} real sampled frames analyzed</p>` : ""}
+    </div>`;
+  }
+
+  async function showHistory(userId, label) {
+    const h = await api(`/api/owner/users/${userId}/history`);
+    document.getElementById("historyTitle").textContent = `History access — ${label}`;
+    const body = document.getElementById("historyBody");
+    const hiddenCount = h.recentMessages.filter((m) => m.hiddenAt).length;
+    body.innerHTML =
+      `<p class="history-summary">${h.sessions.length} chat sessions · ${h.projects.length} projects · ${h.agents.length} agents · ` +
+      `${h.connectors.filter((c) => c.status === "connected").length} connectors connected · ${h.recentMessages.length} messages on record` +
+      (hiddenCount ? ` (${hiddenCount} removed by the user, still shown here)` : "") +
+      `</p>` +
+      `<div class="history-section-label">Full message record (most recent first)</div>` +
+      h.recentMessages.map(renderHistoryEntry).join("");
+    document.getElementById("historyCard").style.display = "block";
+    document.getElementById("historyCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  document.getElementById("closeHistory").addEventListener("click", () => {
+    document.getElementById("historyCard").style.display = "none";
+  });
+
+  let allUsers = [];
+  function renderUsers(list) {
+    const el = document.getElementById("users");
+    el.innerHTML = "";
+    if (!list.length) {
+      el.innerHTML = `<p class="muted">No users match that search.</p>`;
+      return;
+    }
+    list.forEach((u) => {
+      const row = document.createElement("div");
+      row.className = "toggle-row";
+      row.innerHTML =
+        `<span><strong>${escapeHtml(u.displayName)}</strong> (${escapeHtml(u.email)})${u.isSuspended ? ' <span class="pill err">Suspended</span>' : ""}<br/>` +
+        `<span class="muted">${u.planTier} · $${(u.creditBalanceCents / 100).toFixed(2)} credit · joined ${new Date(u.createdAt).toLocaleDateString()}</span></span>`;
+      const actions = document.createElement("span");
+      actions.style.display = "flex";
+      actions.style.gap = "6px";
+      const historyBtn = document.createElement("button");
+      historyBtn.textContent = "History";
+      historyBtn.className = "secondary";
+      historyBtn.style.width = "auto";
+      historyBtn.style.marginTop = "0";
+      historyBtn.addEventListener("click", () => showHistory(u.id, u.displayName));
+      const manageBtn = document.createElement("button");
+      manageBtn.textContent = "Manage";
+      manageBtn.className = "secondary";
+      manageBtn.style.width = "auto";
+      manageBtn.style.marginTop = "0";
+      manageBtn.addEventListener("click", () => showManage(u));
+      actions.appendChild(historyBtn);
+      actions.appendChild(manageBtn);
+      row.appendChild(actions);
+      el.appendChild(row);
+    });
+  }
+
+  // --- Manage user (suspend, force logout, credits, plan, delete) --------
+
+  const manageErrorEl = document.getElementById("manageError");
+
+  function showManage(u) {
+    manageErrorEl.style.display = "none";
+    document.getElementById("manageTitle").textContent = `Manage — ${u.displayName}`;
+    const body = document.getElementById("manageBody");
+    body.innerHTML = "";
+
+    // Suspend / reactivate
+    const suspendRow = document.createElement("div");
+    suspendRow.className = "owner-row";
+    suspendRow.innerHTML = u.isSuspended
+      ? `<div><div class="label">Suspended</div><div class="sub">${escapeHtml(u.suspendedReason || "No reason given")}</div></div>`
+      : `<div><div class="label">Suspend account</div><div class="sub">Blocks sign-in and every authenticated API call immediately.</div></div>`;
+    const suspendBtn = document.createElement("button");
+    suspendBtn.className = "secondary";
+    suspendBtn.style.width = "auto";
+    suspendBtn.style.marginTop = "0";
+    suspendBtn.textContent = u.isSuspended ? "Reactivate" : "Suspend";
+    let reasonInput = null;
+    if (!u.isSuspended) {
+      reasonInput = document.createElement("input");
+      reasonInput.placeholder = "Reason (shown to the user)";
+      reasonInput.style.marginTop = "0";
+      reasonInput.style.width = "auto";
+      reasonInput.style.flex = "1";
+    }
+    suspendBtn.addEventListener("click", async () => {
+      try {
+        const { user: updated } = await api(`/api/owner/users/${u.id}/suspend`, {
+          method: "PATCH",
+          body: JSON.stringify({ suspended: !u.isSuspended, reason: reasonInput ? reasonInput.value.trim() || undefined : undefined }),
+        });
+        u.isSuspended = updated.isSuspended;
+        u.suspendedReason = updated.suspendedReason;
+        showManage(u);
+        await loadUsers();
+      } catch (err) {
+        manageErrorEl.textContent = err.message;
+        manageErrorEl.style.display = "block";
+      }
+    });
+    if (reasonInput) suspendRow.appendChild(reasonInput);
+    suspendRow.appendChild(suspendBtn);
+    body.appendChild(suspendRow);
+
+    // Force sign-out
+    const logoutRow = document.createElement("div");
+    logoutRow.className = "owner-row";
+    logoutRow.innerHTML = `<div><div class="label">Force sign-out</div><div class="sub">Invalidates every device this account is currently signed in on.</div></div>`;
+    const logoutBtn = document.createElement("button");
+    logoutBtn.className = "secondary";
+    logoutBtn.style.width = "auto";
+    logoutBtn.style.marginTop = "0";
+    logoutBtn.textContent = "Sign out everywhere";
+    logoutBtn.addEventListener("click", async () => {
+      logoutBtn.disabled = true;
+      try {
+        await api(`/api/owner/users/${u.id}/force-logout`, { method: "POST" });
+        logoutBtn.textContent = "Signed out ✓";
+      } catch (err) {
+        logoutBtn.disabled = false;
+        manageErrorEl.textContent = err.message;
+        manageErrorEl.style.display = "block";
+      }
+    });
+    logoutRow.appendChild(logoutBtn);
+    body.appendChild(logoutRow);
+
+    // Credit adjustment
+    const creditRow = document.createElement("div");
+    creditRow.className = "owner-row";
+    creditRow.innerHTML = `<div><div class="label">Adjust credit</div><div class="sub">Current balance: $${(u.creditBalanceCents / 100).toFixed(2)}. Positive grants, negative deducts.</div></div>`;
+    const creditForm = document.createElement("span");
+    creditForm.style.display = "flex";
+    creditForm.style.gap = "6px";
+    const amountInput = document.createElement("input");
+    amountInput.type = "number";
+    amountInput.placeholder = "Amount ($)";
+    amountInput.step = "0.01";
+    amountInput.style.marginTop = "0";
+    amountInput.style.width = "100px";
+    const creditBtn = document.createElement("button");
+    creditBtn.className = "secondary";
+    creditBtn.style.width = "auto";
+    creditBtn.style.marginTop = "0";
+    creditBtn.textContent = "Apply";
+    creditBtn.addEventListener("click", async () => {
+      const dollars = parseFloat(amountInput.value);
+      if (!dollars) return;
+      try {
+        const { balanceAfterCents } = await api(`/api/owner/users/${u.id}/credits`, {
+          method: "POST",
+          body: JSON.stringify({ amountCents: Math.round(dollars * 100), note: "Owner adjustment" }),
+        });
+        u.creditBalanceCents = balanceAfterCents;
+        amountInput.value = "";
+        showManage(u);
+        await loadUsers();
+      } catch (err) {
+        manageErrorEl.textContent = err.message;
+        manageErrorEl.style.display = "block";
+      }
+    });
+    creditForm.appendChild(amountInput);
+    creditForm.appendChild(creditBtn);
+    creditRow.appendChild(creditForm);
+    body.appendChild(creditRow);
+
+    // Plan tier override
+    const planRow = document.createElement("div");
+    planRow.className = "owner-row";
+    planRow.innerHTML = `<div><div class="label">Plan tier</div><div class="sub">Direct override — bypasses payment entirely.</div></div>`;
+    const planSelect = document.createElement("select");
+    planSelect.style.width = "auto";
+    ["beginner", "pro", "max"].forEach((tier) => {
+      const opt = document.createElement("option");
+      opt.value = tier;
+      opt.textContent = tier;
+      if (tier === u.planTier) opt.selected = true;
+      planSelect.appendChild(opt);
+    });
+    planSelect.addEventListener("change", async () => {
+      try {
+        const { planTier } = await api(`/api/owner/users/${u.id}/plan`, { method: "PATCH", body: JSON.stringify({ planTier: planSelect.value }) });
+        u.planTier = planTier;
+        await loadUsers();
+      } catch (err) {
+        manageErrorEl.textContent = err.message;
+        manageErrorEl.style.display = "block";
+        planSelect.value = u.planTier;
+      }
+    });
+    planRow.appendChild(planSelect);
+    body.appendChild(planRow);
+
+    // Delete account
+    const deleteRow = document.createElement("div");
+    deleteRow.className = "owner-row";
+    deleteRow.innerHTML = `<div><div class="label">Delete account</div><div class="sub">Permanent — removes every real row this account owns.</div></div>`;
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "secondary";
+    deleteBtn.style.width = "auto";
+    deleteBtn.style.marginTop = "0";
+    deleteBtn.style.color = "var(--danger)";
+    deleteBtn.textContent = "Delete";
+    deleteBtn.addEventListener("click", async () => {
+      if (!confirm(`Permanently delete ${u.displayName} (${u.email})? This can't be undone.`)) return;
+      try {
+        await api(`/api/owner/users/${u.id}`, { method: "DELETE" });
+        document.getElementById("manageCard").style.display = "none";
+        await loadUsers();
+      } catch (err) {
+        manageErrorEl.textContent = err.message;
+        manageErrorEl.style.display = "block";
+      }
+    });
+    deleteRow.appendChild(deleteBtn);
+    body.appendChild(deleteRow);
+
+    document.getElementById("manageCard").style.display = "block";
+    document.getElementById("manageCard").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  document.getElementById("closeManage").addEventListener("click", () => {
+    document.getElementById("manageCard").style.display = "none";
+  });
+
+  async function loadUsers() {
+    const { users } = await api("/api/owner/users");
+    allUsers = users;
+    renderUsers(allUsers);
+  }
+
+  document.getElementById("userSearch").addEventListener("input", (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    renderUsers(!q ? allUsers : allUsers.filter((u) => u.displayName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)));
+  });
+
   document.getElementById("logout").addEventListener("click", (e) => {
     e.preventDefault();
     clearToken();
     window.location.href = "./index.html";
   });
 
-  Promise.all([loadOverview(), loadAiControls(), loadUsers(), loadBilling(), loadReports(), loadAiBots()]).catch((err) => {
+  function renderDispute(d) {
+    const row = document.createElement("div");
+    row.className = "toggle-row";
+    row.innerHTML = `<span>
+      <span class="pill ${d.status === "approved" ? "ok" : "err"}">${escapeHtml(d.status)}</span>
+      <strong>${escapeHtml(d.userDisplayName)}</strong> (${escapeHtml(d.userEmail)})
+      ${d.refundedCents ? ` · $${(d.refundedCents / 100).toFixed(2)} refunded` : ""}
+      <br/><span class="muted">Reported: "${escapeHtml(d.description).slice(0, 200)}"</span>
+      <br/><span class="muted">Real reasoning: ${escapeHtml(d.reasoning)}</span>
+      <br/><span class="muted">${new Date(d.createdAt).toLocaleString()}</span>
+    </span>`;
+    if (d.status === "declined") {
+      const btn = document.createElement("button");
+      btn.textContent = "Override → approve";
+      btn.className = "secondary";
+      btn.style.width = "auto";
+      btn.style.marginTop = "0";
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "Refunding…";
+        try {
+          await api(`/api/owner/disputes/${d.id}/override`, { method: "POST" });
+          await loadDisputes();
+        } catch (err) {
+          btn.disabled = false;
+          btn.textContent = "Override → approve";
+          alert(err.message || "Couldn't override this dispute.");
+        }
+      });
+      row.appendChild(btn);
+    }
+    return row;
+  }
+
+  async function loadDisputes() {
+    const { disputes } = await api("/api/owner/disputes");
+    const el = document.getElementById("disputes");
+    el.innerHTML = "";
+    if (!disputes.length) {
+      el.innerHTML = `<p class="muted">No disputes filed yet.</p>`;
+      return;
+    }
+    disputes.forEach((d) => el.appendChild(renderDispute(d)));
+  }
+
+  Promise.all([loadOverview(), loadAiControls(), loadUsers(), loadBilling(), loadReports(), loadAiBots(), loadDisputes()]).catch((err) => {
     errorEl.textContent = err.status === 403 ? "This area is restricted to the app owner." : err.message;
     errorEl.style.display = "block";
   });

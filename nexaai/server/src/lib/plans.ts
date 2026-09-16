@@ -1,7 +1,8 @@
 // Plan tier definitions: Beginner (free trial) / Pro (3x) / Max (5x).
-// "Speed and strength" multipliers translate into two real, measurable
-// knobs against the Claude API: which model tier answers the question, and
-// how much thinking budget / max_tokens it gets — not a fake "x3" label.
+// "Speed and strength" multipliers translate into real, measurable knobs
+// against the Claude API: which model answers the question, how much
+// thinking budget / max_tokens it gets, and how many messages it allows
+// per rolling usage window (see USAGE_WINDOW_HOURS) — not fake labels.
 
 export type PlanTier = "beginner" | "pro" | "max";
 
@@ -14,63 +15,94 @@ export type ModelProvider = "self_hosted" | "anthropic";
 
 export interface PlanDefinition {
   tier: PlanTier;
+  /** The model's own display name (e.g. "Nexa Ember") — this IS the plan name; each tier maps to exactly one model. */
   displayName: string;
+  /** Short plan-tier label shown alongside displayName ("Free trial" / "Pro plan" / "Max plan"). */
+  planLabel: string;
   tagline: string;
   priceCentsPerMonth: number | null; // null = not sold as a subscription (beginner is free-trial + pay-as-you-go credits)
-  strengthMultiplier: number; // 1x / 3x / 5x per the product spec
+  strengthMultiplier: number; // 1x / 3x / 5x — internal knob only (humor-tier threshold in shared/nexaPersona.ts); never shown to users directly
+  /** User-facing "Xx" power number (ModeDropdown/PlansScreen) — Ember's own value is the baseline other tiers are compared against ("marketingStrength / Ember's marketingStrength" = "Nx more capable than Ember"). Deliberately decoupled from strengthMultiplier so a marketing number change never shifts real backend behavior. */
+  marketingStrength: number;
+  /** Longer, purchase-encouraging copy for the Plans upgrade sheet — real, specific claims (never names the underlying model/provider). */
+  pitch: string;
   provider: ModelProvider;
   model: string; // Claude model id, or your self-hosted vLLM served-model-name
   maxOutputTokens: number;
-  extendedThinking: boolean; // only meaningful for provider: "anthropic" — self-hosted Llama has no equivalent API param
-  weeklySessionSecondsCap: number; // "12-15 session minutes a week"
-  dailySessionCountCap: number; // "3-4 uses of session limit every day"
-  colors: { primary: string; secondary: string; glow: string };
+  extendedThinking: boolean; // true whenever defaultThinkingBudgetTokens is set — kept as its own field since it's what client copy/UI checks
+  /** Real baseline `thinking` budget (tokens) Claude gets on this tier even in Quick focus mode — null means no baseline thinking (a focus mode can still force one; see FocusModeDefinition.thinkingBudgetTokens). Pro's is deliberately lower than Max's: a real but limited amount of extended thinking, not the full budget. */
+  defaultThinkingBudgetTokens: number | null;
+  /** Real Claude-style rolling-window cap: this many messages per USAGE_WINDOW_HOURS, then a real 403 until it resets. */
+  messagesPerWindow: number;
 }
 
 export const PLAN_DEFINITIONS: Record<PlanTier, PlanDefinition> = {
   beginner: {
     tier: "beginner",
-    displayName: "Beginner",
-    tagline: "2 days free, full access — then pay-as-you-go credits",
-    priceCentsPerMonth: null,
+    displayName: "Nexa Ember",
+    planLabel: "Starter",
+    tagline: "A small, fast spark to get started — 2 days free, then $39.99/mo or pay-as-you-go credits",
+    pitch:
+      "Every plan builds up from here. Ember is real, capable, and fast for everyday questions and quick tasks — " +
+      "no strings, no credit card required for the free trial. When you're ready for tougher, more detailed work, " +
+      "Nova and Zenith are a tap away.",
+    priceCentsPerMonth: 3999,
     strengthMultiplier: 1,
+    marketingStrength: 3,
     provider: "self_hosted",
     model: "nexaai-llama3-8b",
     maxOutputTokens: 1024,
     extendedThinking: false,
-    weeklySessionSecondsCap: 12 * 60,
-    dailySessionCountCap: 3,
-    colors: { primary: "#6C7BFF", secondary: "#3B3F72", glow: "#8F9BFF" },
+    defaultThinkingBudgetTokens: null,
+    messagesPerWindow: 15,
   },
   pro: {
     tier: "pro",
-    displayName: "Pro",
-    tagline: "3x faster, sharper answers",
-    priceCentsPerMonth: 2999,
+    displayName: "Nexa Nova",
+    planLabel: "Pro plan",
+    tagline: "4x stronger than Ember — tougher, faster, sharper answers",
+    pitch:
+      "Nova is real, measurably tougher than Ember: 4x the strength, faster and quicker to think and act, with " +
+      "noticeably sharper reasoning on multi-step problems. It also gets real extended thinking — a lighter, faster " +
+      "version than Max's, but genuine step-by-step reasoning before it answers, not a cosmetic label. It handles " +
+      "longer, more detailed work without losing the thread and keeps up with you at real speed — the upgrade most " +
+      "people feel from their very first message.",
+    priceCentsPerMonth: 10999,
     strengthMultiplier: 3,
+    marketingStrength: 12,
     provider: "anthropic",
     model: "claude-sonnet-5",
     maxOutputTokens: 2048,
-    extendedThinking: false,
-    weeklySessionSecondsCap: 14 * 60,
-    dailySessionCountCap: 4,
-    colors: { primary: "#B06CFF", secondary: "#4B2E7A", glow: "#D9A8FF" },
+    extendedThinking: true,
+    defaultThinkingBudgetTokens: 1200, // real thinking, deliberately capped below Max's baseline — a limited-but-genuine version, not the full budget
+    messagesPerWindow: 45,
   },
   max: {
     tier: "max",
-    displayName: "Max",
-    tagline: "5x stronger — the smartest, most confident version of NexaAi",
-    priceCentsPerMonth: 7999,
+    displayName: "Nexa Zenith",
+    planLabel: "Max plan",
+    tagline: "17x stronger than Ember — the smartest, most confident version of NexaAi",
+    pitch:
+      "Zenith is real gorilla-build power: 17x the strength of Ember, with fast thinking and responses as quick as " +
+      "the speediest assistants out there, and answers that lay out every last detail as thoroughly as the most " +
+      "detail-obsessed assistants around — all wrapped in NexaAi's own clean, confident style. Real strength, real " +
+      "speed, real depth. If you want the smartest, most capable version of NexaAi with nothing held back, this is it.",
+    priceCentsPerMonth: 23999,
     strengthMultiplier: 5,
+    marketingStrength: 51,
     provider: "anthropic",
     model: "claude-opus-5",
     maxOutputTokens: 4096,
     extendedThinking: true,
-    weeklySessionSecondsCap: 15 * 60,
-    dailySessionCountCap: 4,
-    colors: { primary: "#FFB347", secondary: "#7A4A1E", glow: "#FFD79A" },
+    defaultThinkingBudgetTokens: 2000,
+    messagesPerWindow: 75,
   },
 };
+
+// Real Claude-style rolling window: a message cap that resets exactly this
+// many hours after your first message in a fresh window — not a fixed
+// daily/weekly clock. See lib/usageClock.ts.
+export const USAGE_WINDOW_HOURS = 5;
 
 // Answer-mode toggle: how many answers NexaAi returns per question.
 export type AnswerMode = "strong" | "extra" | "normal";
@@ -121,24 +153,13 @@ export function resolveAnswerCount(mode: AnswerMode, explicitlyRequestedCount?: 
 
 export type FocusMode = "quick" | "build" | "auto" | "gorilla";
 
-// Real Claude 5-family thinking effort — the current Anthropic API's
-// `output_config.effort` (paired with `thinking: {type: "adaptive"}`) is
-// what actually controls reasoning depth on today's models; the older
-// `thinking.budget_tokens` param these models reject outright (see
-// anthropic.ts's buildMessagesRequest). thinkingBudgetTokens below stays as
-// a real token-count estimate used for the self-hosted model's prompt
-// framing and max_tokens sizing (lib/selfHostedModel.ts), which has no
-// effort-string API of its own.
-export type ThinkingEffort = "low" | "medium" | "high";
-
 export interface FocusModeDefinition {
   mode: FocusMode;
   label: string;
   tagline: string;
   minPlanTier: PlanTier; // gates access — see isFocusModeAllowed
   creditMultiplier: number; // multiplies the base per-message credit cost
-  thinkingEffort: ThinkingEffort | null; // forces Claude's real extended-thinking effort on; null defers to the plan's own setting
-  thinkingBudgetTokens: number | null; // self-hosted-model-only token estimate (lib/selfHostedModel.ts) — NOT sent to the real Anthropic API
+  thinkingBudgetTokens: number | null; // forces Claude's real extended-thinking budget on; null defers to the plan's own setting
   promptAddendum: string;
 }
 
@@ -155,7 +176,6 @@ export const FOCUS_MODE_DEFINITIONS: Record<FocusMode, FocusModeDefinition> = {
     tagline: "Fast everyday edits & tasks",
     minPlanTier: "beginner",
     creditMultiplier: 1,
-    thinkingEffort: null,
     thinkingBudgetTokens: null,
     promptAddendum:
       "\n\nFocus mode: QUICK. Be fast and to the point — this is an everyday edit or small task, not a project. " +
@@ -167,7 +187,6 @@ export const FOCUS_MODE_DEFINITIONS: Record<FocusMode, FocusModeDefinition> = {
     tagline: "Complex, multi-step builds",
     minPlanTier: "beginner",
     creditMultiplier: 1.5,
-    thinkingEffort: "low",
     thinkingBudgetTokens: 4000,
     promptAddendum:
       "\n\nFocus mode: BUILD. This is a complex or multi-step build/task. Think through the architecture or sequence " +
@@ -179,7 +198,6 @@ export const FOCUS_MODE_DEFINITIONS: Record<FocusMode, FocusModeDefinition> = {
     tagline: "Autonomous tasks & builds",
     minPlanTier: "pro",
     creditMultiplier: 2.5,
-    thinkingEffort: "medium",
     thinkingBudgetTokens: 8000,
     promptAddendum:
       "\n\nFocus mode: AUTO. Act autonomously within this one reply: don't stop to ask clarifying questions unless " +
@@ -194,7 +212,6 @@ export const FOCUS_MODE_DEFINITIONS: Record<FocusMode, FocusModeDefinition> = {
     tagline: "Maximum power — more credits",
     minPlanTier: "max",
     creditMultiplier: 4,
-    thinkingEffort: "high",
     thinkingBudgetTokens: 16000,
     promptAddendum:
       "\n\nFocus mode: GORILLA — maximum effort. Give this everything: the deepest, most thorough, most confident " +

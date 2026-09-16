@@ -2,10 +2,11 @@ import { Router } from "express";
 import crypto from "crypto";
 import { and, eq } from "drizzle-orm";
 import { db } from "../../db";
-import { agents, agentPendingDrafts, connectors } from "@shared/schema";
+import { agents, connectors, users } from "@shared/schema";
 import { isMetaConfigured } from "../../lib/connectors/meta";
-import { dryRunAgent, sendPlatformMessage, type AgentConfig } from "../../lib/agents/agentRunner";
-import { getOwnerSettings } from "../../lib/ownerSettings";
+import { runAgentTurn, type AgentConfig } from "../../lib/agents/agentRunner";
+import { resolveCapabilities } from "../../lib/capabilities";
+import { startOrExtendHumanTakeover } from "../../lib/agents/humanTakeover";
 
 export const metaWebhookRouter = Router();
 
@@ -36,10 +37,10 @@ function verifySignature(req: import("express").Request): boolean {
 }
 
 interface IncomingMessage {
-  platform: "instagram" | "whatsapp";
-  /** Which of our connected accounts received it — IG business account ID, or our WhatsApp phone_number_id. */
+  platform: "instagram" | "whatsapp" | "facebook_messenger";
+  /** Which of our connected accounts received it — IG business account ID, Page ID, or our WhatsApp phone_number_id. */
   recipientExternalId: string;
-  /** Who sent it — IGSID for Instagram, phone number for WhatsApp. */
+  /** Who sent it — IGSID for Instagram, PSID for Messenger, phone number for WhatsApp. */
   senderExternalId: string;
   text: string;
 }
@@ -47,11 +48,16 @@ interface IncomingMessage {
 function extractIncomingMessages(body: any): IncomingMessage[] {
   const out: IncomingMessage[] = [];
 
-  if (body.object === "instagram") {
+  if (body.object === "instagram" || body.object === "page") {
+    // Instagram DMs and Facebook Page Messenger deliver the identical
+    // entry[].messaging[] envelope shape — only the top-level object type
+    // (and which id-space sender/recipient live in) differs.
+    const platform = body.object === "instagram" ? "instagram" : "facebook_messenger";
     for (const entry of body.entry ?? []) {
       for (const event of entry.messaging ?? []) {
+        if (event.message?.is_echo) continue; // handled separately by extractEchoEvents
         if (event.message?.text && event.sender?.id && event.recipient?.id) {
-          out.push({ platform: "instagram", recipientExternalId: event.recipient.id, senderExternalId: event.sender.id, text: event.message.text });
+          out.push({ platform, recipientExternalId: event.recipient.id, senderExternalId: event.sender.id, text: event.message.text });
         }
       }
     }
@@ -70,6 +76,42 @@ function extractIncomingMessages(body: any): IncomingMessage[] {
   return out;
 }
 
+interface EchoEvent {
+  platform: "instagram" | "facebook_messenger";
+  /** The Page/IG account this was sent from — same id-space as IncomingMessage.recipientExternalId. */
+  ownerExternalId: string;
+  /** Which external customer's thread this was sent into. */
+  conversationExternalId: string;
+  /** Meta's own app id this send came through — present on every echo. */
+  appId: string | null;
+}
+
+// Real "the account owner replied through their own Page/IG inbox" signal —
+// requires subscribing this webhook to the `message_echoes` field in the
+// Meta App dashboard (Webhooks -> Messenger/Instagram -> message_echoes),
+// an external setup step this code can't do for you. When subscribed, Meta
+// sends one of these for EVERY message sent from the Page's identity,
+// including NexaAi's own auto-sends — app_id is how we tell them apart:
+// ours carries our own META_APP_ID, a human typing in the native inbox
+// doesn't (Meta's own client has a different app id, or none at all).
+function extractEchoEvents(body: any): EchoEvent[] {
+  const out: EchoEvent[] = [];
+  if (body.object !== "instagram" && body.object !== "page") return out;
+  const platform = body.object === "instagram" ? "instagram" : "facebook_messenger";
+  for (const entry of body.entry ?? []) {
+    for (const event of entry.messaging ?? []) {
+      if (!event.message?.is_echo || !event.sender?.id || !event.recipient?.id) continue;
+      out.push({
+        platform,
+        ownerExternalId: event.sender.id, // the Page/IG account itself, on an echo
+        conversationExternalId: event.recipient.id, // the external customer this went to
+        appId: event.message.app_id ? String(event.message.app_id) : null,
+      });
+    }
+  }
+  return out;
+}
+
 // --- Real inbound events (POST) ------------------------------------------
 // NOTE: this responds only after generating the draft (and, for autoSend
 // agents, actually sending it) — a couple of awaited network calls, fine
@@ -83,6 +125,7 @@ metaWebhookRouter.post("/", async (req, res) => {
 
   res.sendStatus(200); // ack Meta first; everything below is best-effort processing
   const incoming = extractIncomingMessages(req.body);
+  const echoes = extractEchoEvents(req.body);
 
   for (const msg of incoming) {
     try {
@@ -91,57 +134,67 @@ metaWebhookRouter.post("/", async (req, res) => {
       console.error("meta webhook processing failed:", err);
     }
   }
+  for (const echo of echoes) {
+    try {
+      await handleEchoEvent(echo);
+    } catch (err) {
+      console.error("meta echo processing failed:", err);
+    }
+  }
 });
 
-async function handleIncomingMessage(msg: IncomingMessage) {
-  // Real, app-wide owner kill switch — same check every other real
-  // agentBuilder checkpoint (routes/agents.ts) goes through. If the owner
-  // has turned agents off app-wide, an inbound platform message is left
-  // undrafted/unsent, same as if the user had never activated an agent.
-  if (!(await getOwnerSettings()).agentBuilderEnabled) return;
-
-  const connectorRows = await db
-    .select()
-    .from(connectors)
-    .where(and(eq(connectors.provider, msg.platform), eq(connectors.status, "connected")));
-
+async function findAgentForOwnerPlatform(
+  platform: "instagram" | "whatsapp" | "facebook_messenger",
+  ownerExternalId: string,
+): Promise<{ owner: typeof connectors.$inferSelect; agent: typeof agents.$inferSelect } | null> {
+  const connectorRows = await db.select().from(connectors).where(and(eq(connectors.provider, platform), eq(connectors.status, "connected")));
   const owner = connectorRows.find((c) => {
-    const meta = c.providerMetadata as { igUserId?: string; phoneNumberId?: string };
-    return msg.platform === "instagram" ? meta.igUserId === msg.recipientExternalId : meta.phoneNumberId === msg.recipientExternalId;
+    const meta = c.providerMetadata as { igUserId?: string; pageId?: string; phoneNumberId?: string };
+    if (platform === "instagram") return meta.igUserId === ownerExternalId;
+    if (platform === "facebook_messenger") return meta.pageId === ownerExternalId;
+    return meta.phoneNumberId === ownerExternalId;
   });
-  if (!owner) return; // no NexaAi user has connected the account this message was sent to
+  if (!owner) return null; // no NexaAi user has connected the account this event was for
 
-  const agentKind = msg.platform === "instagram" ? "instagram_dm" : "whatsapp_autoresponder";
+  const agentKind = platform === "instagram" ? "instagram_dm" : platform === "facebook_messenger" ? "facebook_messenger_dm" : "whatsapp_autoresponder";
   const [agent] = await db
     .select()
     .from(agents)
     .where(and(eq(agents.userId, owner.userId), eq(agents.kind, agentKind), eq(agents.isActive, true)));
-  if (!agent) return; // owner hasn't activated an agent for this platform
+  if (!agent) return null; // owner hasn't activated an agent for this platform
+  return { owner, agent };
+}
 
-  const config = agent.config as AgentConfig;
-  const draftReply = await dryRunAgent(agent.kind, config, msg.text);
+async function handleIncomingMessage(msg: IncomingMessage) {
+  const found = await findAgentForOwnerPlatform(msg.platform, msg.recipientExternalId);
+  if (!found) return;
+  const { owner, agent } = found;
 
-  if (config.autoSend) {
-    await sendPlatformMessage(owner.userId, agent.kind, msg.senderExternalId, draftReply);
-    await db.insert(agentPendingDrafts).values({
-      agentId: agent.id,
-      userId: owner.userId,
-      platform: msg.platform,
-      externalConversationId: msg.senderExternalId,
-      incomingMessage: msg.text,
-      draftReply,
-      status: "auto_sent",
-      resolvedAt: new Date(),
-    });
-  } else {
-    await db.insert(agentPendingDrafts).values({
-      agentId: agent.id,
-      userId: owner.userId,
-      platform: msg.platform,
-      externalConversationId: msg.senderExternalId,
-      incomingMessage: msg.text,
-      draftReply,
-      status: "pending",
-    });
-  }
+  // The real "is this feature on" check — an agent can stay `isActive: true`
+  // in the DB after its owner turns Agent Builder off in Capabilities, so
+  // this has to be checked here (where a reply would actually be sent), not
+  // just where the agent was created/activated.
+  const [ownerUser] = await db.select().from(users).where(eq(users.id, owner.userId));
+  if (!ownerUser || !resolveCapabilities(ownerUser.capabilities).agentBuilder) return;
+
+  await runAgentTurn({
+    agentId: agent.id,
+    agentKind: agent.kind,
+    config: agent.config as AgentConfig,
+    userId: owner.userId,
+    platform: msg.platform,
+    externalConversationId: msg.senderExternalId,
+    incomingMessage: msg.text,
+  });
+}
+
+async function handleEchoEvent(echo: EchoEvent) {
+  if (echo.appId && echo.appId === process.env.META_APP_ID) return; // our own auto-send, not a human reply
+  const found = await findAgentForOwnerPlatform(echo.platform, echo.ownerExternalId);
+  if (!found) return;
+  // A real human — the account owner or a teammate — just replied to this
+  // exact customer through the Page/IG app's own native inbox. Silence
+  // NexaAi's own replies on this one conversation for a real 5 minutes,
+  // refreshed on every further echo, so it doesn't talk over them.
+  await startOrExtendHumanTakeover(found.agent.id, echo.conversationExternalId);
 }

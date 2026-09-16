@@ -65,28 +65,25 @@ export function AppearanceScreen() {
           })}
         </View>
 
-        <Text style={styles.sectionLabel}>Background theme</Text>
+        <Text style={styles.sectionLabel}>Appearance</Text>
         <View style={styles.themeGrid}>
           {THEME_OPTIONS.map((theme) => {
             const active = theme.id === palette.id;
             return (
               <TouchableOpacity
                 key={theme.id}
-                style={[styles.themeCard, { backgroundColor: theme.gradientGalaxy[1] }, active && { borderColor: theme.accentBright }]}
+                style={[styles.themeCard, { backgroundColor: theme.bgCard, borderColor: theme.border }, active && { borderColor: theme.accent }]}
                 onPress={() => pickTheme(theme.id)}
                 disabled={pending === `theme-${theme.id}`}
               >
-                <View style={[styles.swatch, { backgroundColor: theme.accent }]} />
+                <View style={[styles.swatch, { backgroundColor: theme.bg, borderColor: theme.border }]} />
                 <Text style={[styles.themeLabel, { color: theme.textPrimary }]}>{theme.label}</Text>
-                {active && <Ionicons name="checkmark-circle" size={18} color={theme.accentBright} style={styles.themeCheck} />}
+                {active && <Ionicons name="checkmark-circle" size={18} color={theme.accent} style={styles.themeCheck} />}
               </TouchableOpacity>
             );
           })}
         </View>
-        <Text style={styles.note}>
-          Each background theme uses its own card and text colors tuned for that background, so contrast stays legible whichever
-          one you pick — including the light and true-black themes.
-        </Text>
+        <Text style={styles.note}>All three share the same design — only the background and text contrast change.</Text>
       </ScrollView>
     </GalaxyBackground>
   );
@@ -94,9 +91,9 @@ export function AppearanceScreen() {
 
 function makeStyles(palette: Palette) {
   return StyleSheet.create({
-    container: { padding: spacing.lg, gap: spacing.md },
+    container: { padding: spacing.lg, paddingTop: spacing.xl, gap: spacing.md },
     title: { ...typography.h1, color: palette.textPrimary },
-    sectionLabel: { ...typography.caption, color: palette.textMuted, textTransform: "uppercase", marginTop: spacing.sm },
+    sectionLabel: { ...typography.sectionLabel, color: palette.textMuted, textTransform: "uppercase", marginTop: spacing.sm },
     fontList: { gap: spacing.sm },
     fontCard: {
       flexDirection: "row",
@@ -110,6 +107,7 @@ function makeStyles(palette: Palette) {
     fontPreview: { fontSize: 18, color: palette.textPrimary },
     fontSample: { fontSize: 14, color: palette.textSecondary, marginTop: 4 },
     fontTagline: { ...typography.caption, color: palette.textMuted, marginTop: 4 },
+    swatch: { width: 28, height: 28, borderRadius: radii.pill, borderWidth: 1, borderColor: palette.border },
     themeGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     themeCard: {
       flexGrow: 1,
@@ -121,7 +119,6 @@ function makeStyles(palette: Palette) {
       alignItems: "flex-start",
       gap: spacing.sm,
     },
-    swatch: { width: 28, height: 28, borderRadius: radii.pill },
     themeLabel: { ...typography.bodyBold },
     themeCheck: { position: "absolute", top: spacing.sm, right: spacing.sm },
     note: { ...typography.caption, color: palette.textMuted, marginTop: spacing.sm },

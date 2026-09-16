@@ -74,6 +74,8 @@ const updateSchema = z.object({
   url: z.string().url().optional(),
   bearerToken: z.string().max(4000).nullable().optional(),
   enabled: z.boolean().optional(),
+  // The real "authorise control" gate — see lib/mcp/toolBridge.ts's header.
+  requireApproval: z.boolean().optional(),
 });
 mcpRouter.patch("/:id", async (req: AuthedRequest, res) => {
   const parsed = updateSchema.safeParse(req.body);
@@ -82,7 +84,7 @@ mcpRouter.patch("/:id", async (req: AuthedRequest, res) => {
   const [existing] = await db.select().from(mcpServers).where(and(eq(mcpServers.id, req.params.id), eq(mcpServers.userId, req.userId!)));
   if (!existing) return res.status(404).json({ error: "MCP connector not found" });
 
-  const { name, url, bearerToken, enabled } = parsed.data;
+  const { name, url, bearerToken, enabled, requireApproval } = parsed.data;
   await db
     .update(mcpServers)
     .set({
@@ -90,6 +92,7 @@ mcpRouter.patch("/:id", async (req: AuthedRequest, res) => {
       ...(url !== undefined ? { url } : {}),
       ...(bearerToken !== undefined ? { bearerToken } : {}),
       ...(enabled !== undefined ? { enabled } : {}),
+      ...(requireApproval !== undefined ? { requireApproval } : {}),
     })
     .where(eq(mcpServers.id, existing.id));
 

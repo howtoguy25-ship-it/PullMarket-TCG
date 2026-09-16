@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Camera } from "expo-camera";
@@ -134,12 +135,7 @@ export function PermissionsScreen() {
                   <Text style={styles.rowDescription}>{row.description}</Text>
                   <Text style={[styles.rowStatus, status === "granted" && styles.rowStatusGranted]}>{statusLabel(status)}</Text>
                 </View>
-                <Switch
-                  value={status === "granted"}
-                  disabled={status === "unsupported"}
-                  onValueChange={() => onToggle(row)}
-                  trackColor={{ true: palette.accent }}
-                />
+                <ToggleSwitch value={status === "granted"} disabled={status === "unsupported"} onValueChange={() => onToggle(row)} />
               </View>
             );
           })}

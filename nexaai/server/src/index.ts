@@ -4,17 +4,22 @@ import "express-async-errors";
 import path from "path";
 import { authRouter } from "./routes/auth";
 import { chatRouter } from "./routes/chat";
+import { supportRouter } from "./routes/support";
 import { creditsRouter } from "./routes/credits";
 import { plansRouter } from "./routes/plans";
 import { agentsRouter } from "./routes/agents";
 import { businessesRouter } from "./routes/businesses";
 import { memoryRouter } from "./routes/memory";
+import { historyRouter } from "./routes/history";
 import { connectorsRouter } from "./routes/connectors";
 import { mcpRouter } from "./routes/mcp";
 import { voiceRouter } from "./routes/voice";
+import { voicePhoneRouter } from "./routes/voicePhone";
 import { attachmentsRouter, UPLOADS_DIR } from "./routes/attachments";
 import { paddleWebhookRouter } from "./routes/webhooks/paddle";
+import { stripeWebhookRouter } from "./routes/webhooks/stripe";
 import { metaWebhookRouter } from "./routes/webhooks/meta";
+import { agentWebhookRouter } from "./routes/webhooks/agent";
 import { googleConnectorCallbackRouter } from "./lib/connectors/google";
 import { metaConnectorCallbackRouter } from "./lib/connectors/meta";
 import { siteSparkConnectorCallbackRouter } from "./lib/connectors/sitespark";
@@ -22,6 +27,13 @@ import { githubConnectorCallbackRouter } from "./lib/connectors/github";
 import { vercelConnectorCallbackRouter } from "./lib/connectors/vercel";
 import { netlifyConnectorCallbackRouter } from "./lib/connectors/netlify";
 import { stripeConnectorCallbackRouter } from "./lib/connectors/stripe";
+import { notionConnectorCallbackRouter } from "./lib/connectors/notion";
+import { slackConnectorCallbackRouter } from "./lib/connectors/slack";
+import { xConnectorCallbackRouter } from "./lib/connectors/x";
+import { googleSignInCallbackRouter } from "./lib/socialAuth/google";
+import { githubSignInCallbackRouter } from "./lib/socialAuth/github";
+import { slackWebhookRouter } from "./routes/webhooks/slack";
+import { startXDmPoller } from "./lib/agents/xPoller";
 import { projectsRouter } from "./routes/projects";
 import { apiKeysRouter } from "./routes/apiKeys";
 import { publicApiRouter } from "./routes/publicApi";
@@ -57,21 +69,26 @@ app.get("/api/health", (_req, res) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/chat", chatRouter);
+app.use("/api/support", supportRouter);
 app.use("/api/credits", creditsRouter);
 app.use("/api/plans", plansRouter);
 app.use("/api/agents", agentsRouter);
 app.use("/api/businesses", businessesRouter);
 app.use("/api/memory", memoryRouter);
+app.use("/api/history", historyRouter);
 app.use("/api/connectors", connectorsRouter);
 app.use("/api/mcp", mcpRouter);
 app.use("/api/voice", voiceRouter);
+app.use("/api/voice-phone", voicePhoneRouter);
 app.use("/api/attachments", attachmentsRouter);
 app.use("/api/projects", projectsRouter);
 app.use("/api/api-keys", apiKeysRouter);
 app.use("/api/v1", publicApiRouter);
 app.use("/api/owner", ownerRouter);
 app.use("/api/webhooks/paddle", paddleWebhookRouter);
+app.use("/api/webhooks/stripe", stripeWebhookRouter);
 app.use("/api/webhooks/meta", metaWebhookRouter);
+app.use("/api/webhooks/agent", agentWebhookRouter);
 app.use("/api/connectors/google/callback", googleConnectorCallbackRouter);
 app.use("/api/connectors/meta/callback", metaConnectorCallbackRouter);
 app.use("/api/connectors/sitespark/callback", siteSparkConnectorCallbackRouter);
@@ -79,18 +96,27 @@ app.use("/api/connectors/github/callback", githubConnectorCallbackRouter);
 app.use("/api/connectors/vercel/callback", vercelConnectorCallbackRouter);
 app.use("/api/connectors/netlify/callback", netlifyConnectorCallbackRouter);
 app.use("/api/connectors/stripe/callback", stripeConnectorCallbackRouter);
+app.use("/api/connectors/notion/callback", notionConnectorCallbackRouter);
+app.use("/api/connectors/slack/callback", slackConnectorCallbackRouter);
+app.use("/api/connectors/x/callback", xConnectorCallbackRouter);
+app.use("/api/webhooks/slack", slackWebhookRouter);
+app.use("/api/auth/google/callback", googleSignInCallbackRouter);
+app.use("/api/auth/github/callback", githubSignInCallbackRouter);
 
-// The website (credits top-up + settings) is a small static site — see nexaai/website.
-app.use("/account", express.static(path.join(__dirname, "../../website")));
+// The website (credits top-up + settings) is a small static site — see
+// nexaai/website. process.cwd(), not __dirname — see routes/attachments.ts's
+// UPLOADS_DIR comment for why an __dirname-relative path breaks once
+// server:build bundles this file to a different directory depth.
+app.use("/account", express.static(path.join(process.cwd(), "website")));
 
 // Uploaded photos/videos/files (see routes/attachments.ts) — served straight
 // off local disk. NOTE: on most hosts (Render, Railway, etc.) this directory
-// is wiped on every deploy/restart unless it's a persistent volume — same
-// caveat as the root PullMarket TCG app's own /uploads, see its README.
+// is wiped on every deploy/restart unless it's a persistent volume — see
+// the README's "Deploying" section for the S3-compatible alternative.
 app.use("/uploads", express.static(UPLOADS_DIR));
 
 if (process.env.NODE_ENV === "production") {
-  const webBuildDir = path.join(__dirname, "../../web-build");
+  const webBuildDir = path.join(process.cwd(), "web-build");
   app.use(express.static(webBuildDir));
   app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api/")) return next();
@@ -106,4 +132,5 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 const PORT = Number(process.env.PORT ?? 5080);
 app.listen(PORT, () => {
   console.log(`NexaAi server listening on :${PORT} (chat ${isChatConfigured() ? "configured" : "NOT configured — set ANTHROPIC_API_KEY"})`);
+  startXDmPoller();
 });

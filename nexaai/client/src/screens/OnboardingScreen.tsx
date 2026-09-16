@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
 import { BotAvatar } from "../components/BotAvatar";
+import { Button } from "../components/Button";
 import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
 import type { Palette } from "../theme/palettes";
@@ -58,6 +60,7 @@ export function OnboardingScreen() {
   const { refreshUser } = useAuth();
   const { palette } = useTheme();
   const styles = useMemo(() => makeStyles(palette), [palette]);
+  const insets = useSafeAreaInsets();
   const [stepIndex, setStepIndex] = useState(0);
   const fade = useRef(new Animated.Value(1)).current;
   const step = STEPS[stepIndex];
@@ -78,15 +81,15 @@ export function OnboardingScreen() {
 
   return (
     <GalaxyBackground>
-      <View style={styles.container}>
-        <TouchableOpacity style={styles.skip} onPress={finish}>
+      <View style={[styles.container, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.lg }]}>
+        <TouchableOpacity style={styles.skip} onPress={finish} hitSlop={8}>
           <Text style={styles.skipText}>Skip</Text>
         </TouchableOpacity>
 
         <Animated.View style={[styles.content, { opacity: fade }]}>
-          <BotAvatar size={120} mood="talking" />
+          <BotAvatar size={112} mood="talking" />
           <View style={styles.bubble}>
-            <Ionicons name={step.icon} size={22} color={palette.accentBright} style={{ marginBottom: spacing.sm }} />
+            <Ionicons name={step.icon} size={20} color={palette.accentBright} style={styles.stepIcon} />
             <Text style={styles.stepTitle}>{step.title}</Text>
             <TypewriterText text={step.body} style={styles.stepBody} />
           </View>
@@ -94,21 +97,25 @@ export function OnboardingScreen() {
 
         <View style={styles.dots}>
           {STEPS.map((_, i) => (
-            <View key={i} style={[styles.dot, i === stepIndex && { backgroundColor: palette.accentBright, width: 22 }]} />
+            <View
+              key={i}
+              style={[
+                styles.dot,
+                i === stepIndex
+                  ? { backgroundColor: palette.accentBright, width: 20, opacity: 1 }
+                  : { backgroundColor: palette.textMuted, opacity: 0.35 },
+              ]}
+            />
           ))}
         </View>
 
         <View style={styles.footer}>
           {stepIndex > 0 ? (
-            <TouchableOpacity style={styles.secondaryButton} onPress={() => animateTo(stepIndex - 1)}>
-              <Text style={styles.secondaryButtonText}>Back</Text>
-            </TouchableOpacity>
+            <Button variant="secondary" title="Back" onPress={() => animateTo(stepIndex - 1)} style={styles.flex1} />
           ) : (
-            <View style={{ flex: 1 }} />
+            <View style={styles.flex1} />
           )}
-          <TouchableOpacity style={[styles.primaryButton, { backgroundColor: palette.accent }]} onPress={() => (isLast ? finish() : animateTo(stepIndex + 1))}>
-            <Text style={styles.primaryButtonText}>{isLast ? "Let's go" : "Next"}</Text>
-          </TouchableOpacity>
+          <Button title={isLast ? "Let's go" : "Next"} onPress={() => (isLast ? finish() : animateTo(stepIndex + 1))} style={styles.flex1} />
         </View>
       </View>
     </GalaxyBackground>
@@ -122,14 +129,12 @@ function makeStyles(palette: Palette) {
     skipText: { ...typography.body, color: palette.textMuted },
     content: { flex: 1, alignItems: "center", justifyContent: "center", gap: spacing.xl },
     bubble: { backgroundColor: palette.bgCard, borderRadius: radii.lg, borderWidth: 1, borderColor: palette.border, padding: spacing.xl, maxWidth: 320 },
+    stepIcon: { marginBottom: spacing.sm },
     stepTitle: { ...typography.h2, color: palette.textPrimary, marginBottom: spacing.sm },
     stepBody: { ...typography.body, color: palette.textSecondary, minHeight: 66 },
-    dots: { flexDirection: "row", justifyContent: "center", gap: spacing.sm, marginBottom: spacing.lg },
-    dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: palette.bgCardAlt },
+    dots: { flexDirection: "row", justifyContent: "center", alignItems: "center", gap: spacing.sm, marginBottom: spacing.lg },
+    dot: { width: 6, height: 6, borderRadius: 3 },
     footer: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-    primaryButton: { flex: 1, borderRadius: radii.md, padding: spacing.md, alignItems: "center" },
-    primaryButtonText: { color: "#fff", fontWeight: "700" },
-    secondaryButton: { flex: 1, backgroundColor: palette.bgCard, borderRadius: radii.md, padding: spacing.md, alignItems: "center", borderWidth: 1, borderColor: palette.border },
-    secondaryButtonText: { color: palette.textSecondary, fontWeight: "700" },
+    flex1: { flex: 1 },
   });
 }

@@ -18,13 +18,14 @@ import jwt from "jsonwebtoken";
 import { eq, and } from "drizzle-orm";
 import { db } from "../../db";
 import { connectors } from "@shared/schema";
+import { appBaseUrl } from "../appBaseUrl";
 
 export function isVercelConnectorConfigured(): boolean {
   return !!(process.env.VERCEL_CLIENT_ID && process.env.VERCEL_CLIENT_SECRET && process.env.VERCEL_INTEGRATION_SLUG && process.env.APP_BASE_URL);
 }
 
 function redirectUri(): string {
-  return `${process.env.APP_BASE_URL}/api/connectors/vercel/callback`;
+  return `${appBaseUrl()}/api/connectors/vercel/callback`;
 }
 
 export function buildVercelAuthUrl(userId: string): string {

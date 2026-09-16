@@ -1,11 +1,12 @@
-// Real "who is" deep-dive lookup — Anthropic's actual server-side web_search
-// tool, not guesswork from training data. Deliberately scoped to public
-// figures only (see shared/src/nexaPersona.ts's WHO_IS_FORMAT): this is a
-// "look up a notable person" feature, not a general people-search tool, and
-// the prompt explicitly refuses to search for a private individual rather
-// than doing it. It also never guesses a social handle and never attempts
-// to identify someone via photos/facial features — see that file's header
-// comment for the full reasoning.
+// Real web person lookup — Anthropic's actual server-side web_search tool,
+// not guesswork from training data. Covers public figures AND ordinary
+// businesspeople/professionals with a real public footprint (see
+// shared/src/nexaPersona.ts's WHO_IS_FORMAT): it's a "look up someone with a
+// real public presence" feature, not an unrestricted people-search tool —
+// the prompt declines when a search turns up no public footprint at all,
+// rather than fabricating private details. It also never guesses a social
+// handle and never attempts to identify someone via photos/facial features
+// — see that file's header comment for the full reasoning.
 //
 // Always calls Anthropic directly, regardless of plan tier's usual provider:
 // web search is real tool-use, and the self-hosted Llama model

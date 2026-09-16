@@ -25,6 +25,15 @@ export interface NexaUser {
   defaultFocusMode: FocusMode;
   /** True only for the allowlisted owner account (server/src/middleware/owner.ts) — gates the Owner panel web link. */
   isOwner: boolean;
+  autoRechargeEnabled: boolean;
+  autoRechargeThresholdCents: number;
+  autoRechargePackLabel: "$35" | "$80" | "$115" | "$175";
+  /** True once a real Stripe payment method is on file — the server can auto-recharge this account with no interaction at all. When false, an Apple-only user's "auto-recharge" is the app auto-prompting the real StoreKit purchase sheet instead (see server/src/lib/autoRecharge.ts's header for why those genuinely differ). */
+  hasStripePaymentMethodOnFile: boolean;
+  /** Smart Build's two in-chat banners (ChatScreen.tsx) — server-persisted so they survive a reinstall, same pattern as onboardingCompletedAt above. */
+  smartBuildIntroDismissedAt: string | null;
+  smartBuildFirstRunAt: string | null;
+  smartBuildFollowUpDismissedAt: string | null;
 }
 
 interface AuthState {
@@ -32,6 +41,8 @@ interface AuthState {
   loading: boolean;
   signup: (email: string, password: string, displayName: string, timezone: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  /** Real social sign-in completion — the server already verified the provider and issued a real app JWT; this just adopts it (Apple's native flow, or the token handed back through Google/GitHub's browser-redirect callback). */
+  loginWithToken: (token: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -79,13 +90,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(found);
   };
 
+  const loginWithToken: AuthState["loginWithToken"] = async (token) => {
+    await setToken(token);
+    await refreshUser();
+  };
+
   const logout = async () => {
     await clearToken();
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signup, login, logout, refreshUser }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, signup, login, loginWithToken, logout, refreshUser }}>{children}</AuthContext.Provider>
   );
 }
 

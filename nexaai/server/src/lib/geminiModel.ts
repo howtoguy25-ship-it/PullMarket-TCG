@@ -10,7 +10,7 @@
 // so this reuses the exact same request/response shape as
 // lib/selfHostedModel.ts rather than a bespoke client.
 
-import { buildNexaSystemPrompt, type NexaPromptMode } from "@shared/nexaPersona";
+import { buildNexaSystemPrompt, buildHumorAddendum, type NexaPromptMode } from "@shared/nexaPersona";
 import type { AskResult } from "./anthropic";
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai";
@@ -49,7 +49,10 @@ export async function askGemini(params: GeminiAskParams): Promise<AskResult> {
       max_tokens: params.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
       temperature: 0.7,
       messages: [
-        { role: "system", content: buildNexaSystemPrompt(params.mode, 1) },
+        // Flat mid-tier wit, not plan-scaled — Gemini is the same speed-lane
+        // model on every plan (see this file's header), so there's no
+        // per-tier model quality to scale the joke ambition against.
+        { role: "system", content: buildNexaSystemPrompt(params.mode, 1, buildHumorAddendum(3)) },
         ...params.history.map((m) => ({ role: m.role, content: m.content })),
         { role: "user" as const, content: params.userMessage },
       ],

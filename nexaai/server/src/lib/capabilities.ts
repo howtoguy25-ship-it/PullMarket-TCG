@@ -8,21 +8,23 @@ export function resolveCapabilities(raw: unknown): NexaCapabilities {
 }
 
 /**
- * Layers the owner panel's app-wide kill switches on top of a user's own
- * resolved capabilities, for gating decisions only (chat.ts/voice.ts/
- * agents.ts checkpoints) — never for `GET /api/auth/me` or the capabilities
- * PATCH merge in auth.ts, which must keep reflecting the user's own stored
- * preference regardless of the owner's current override. ANDs each flag so
- * the owner can only ever turn something MORE off, never force it on for a
- * user who already turned it off themselves.
+ * Applies the owner panel's real, app-wide kill switches on top of a
+ * user's own resolved capabilities — an AND, never an OR: a feature the
+ * owner has turned off is off for this user even if their own toggle is
+ * on, and a feature the owner left on is still governed entirely by the
+ * user's own setting. Use this for actual gating decisions; keep using
+ * plain resolveCapabilities() when just reading back a user's own stored
+ * preference (e.g. GET /api/auth/me, the PATCH capabilities merge) — those
+ * must reflect what the user actually has set, not the owner's overlay.
  */
 export function applyOwnerOverrides(caps: NexaCapabilities, settings: OwnerSettingsRow): NexaCapabilities {
   return {
     ...caps,
     webLookup: caps.webLookup && settings.webLookupEnabled,
     whoIsLookup: caps.whoIsLookup && settings.webLookupEnabled,
+    topicImages: caps.topicImages && settings.webLookupEnabled,
     voiceChat: caps.voiceChat && settings.voiceChatEnabled,
     agentBuilder: caps.agentBuilder && settings.agentBuilderEnabled,
-    topicImages: caps.topicImages && settings.topicImagesEnabled,
+    smartBuild: caps.smartBuild && settings.smartBuildEnabled,
   };
 }

@@ -1,0 +1,104 @@
+# Render Blueprint — deploys NexaAi's server (which also serves the built
+# web client and the account website) plus a managed Postgres database.
+#
+# How to use this:
+#   1. Push this repo to GitHub (already required for Render either way).
+#   2. In the Render dashboard: New -> Blueprint -> connect this repo. Render
+#      reads this file and proposes the service + database below.
+#   3. Apply it. Render provisions nexaai-db first, then builds/deploys
+#      nexaai-server (DATABASE_URL is wired automatically from the database
+#      to the service — you never type a connection string by hand).
+#   4. Every env var below marked `sync: false` is a real secret/URL Render
+#      will prompt you for during setup rather than storing in this file
+#      (never commit real API keys to the repo). Only the ones required for
+#      a working baseline (chat + auth + credits) are listed here — every
+#      other optional integration from .env.example (Paddle, Apple IAP,
+#      Meta/Slack/X/Notion/GitHub/Vercel/Netlify/Stripe/SiteSpark/Google
+#      connectors, self-hosted model, Gemini, OpenAI voice) can be added
+#      the same way, later, straight in the service's Environment tab —
+#      nothing here needs to change to add them, since this app already
+#      degrades to an honest "not configured" message for each until set.
+#   5. After the first deploy, note the real URL Render assigned
+#      (https://nexaai-server-xxxx.onrender.com, or your custom domain once
+#      attached) and set APP_BASE_URL / EXPO_PUBLIC_API_URL to it, then
+#      redeploy — these can't be known until the service exists once.
+#
+# Uploaded file storage: the `disk` below gives /opt/render/project/uploads
+# a real persistent volume (Render's ephemeral filesystem otherwise wipes
+# uploads on every deploy/restart) — this requires a paid instance type,
+# not the Free plan. For production scale beyond local testing, point
+# UPLOADS_DIR-backed storage at S3-compatible object storage instead (see
+# README "Deploying").
+
+databases:
+  - name: nexaai-db
+    databaseName: nexaai
+    # Render retired the old "starter"/"standard"/etc Postgres plan names
+    # in favor of CPU/RAM-named tiers — 0.1c-256mb is the current smallest
+    # paid tier (the old "starter" was also 256mb RAM, so this is its real
+    # successor, not a downgrade).
+    plan: 0.1c-256mb
+    region: oregon
+
+services:
+  - type: web
+    name: nexaai-server
+    runtime: node
+    region: oregon
+    # Same renaming as the database above — 0.5c-512mb is the current
+    # smallest paid web service tier (the old "starter" was 512mb RAM).
+    plan: 0.5c-512mb
+    buildCommand: npm install && npm run web:build && npm run server:build
+    startCommand: npm run server:start
+    preDeployCommand: npm run db:push
+    disk:
+      name: nexaai-uploads
+      mountPath: /opt/render/project/src/uploads
+      sizeGB: 10
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5080
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nexaai-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      # The real Claude API key — required for chat to answer for real
+      # rather than return the honest "not configured" placeholder.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      # Set these to the real deployed URL once you have it (step 5 above)
+      # — e.g. https://nexaai-server-xxxx.onrender.com or your own domain
+      # (asknexaai.com, once its DNS points at this service).
+      - key: APP_BASE_URL
+        sync: false
+      - key: EXPO_PUBLIC_API_URL
+        sync: false
+      # Owner-panel allowlist — your own account's email/phone.
+      - key: OWNER_EMAIL
+        sync: false
+      - key: OWNER_PHONE
+        sync: false
+      # Real "Continue with GitHub" sign-in — from a GitHub OAuth App
+      # (github.com/settings/developers) whose callback URL is
+      # <APP_BASE_URL>/api/auth/github/callback.
+      - key: GITHUB_AUTH_CLIENT_ID
+        sync: false
+      - key: GITHUB_AUTH_CLIENT_SECRET
+        sync: false
+      # Real phone sign-in via Twilio Verify — console.twilio.com -> Verify
+      # -> Services -> create a Service.
+      - key: TWILIO_VERIFY_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_VERIFY_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_VERIFY_SERVICE_SID
+        sync: false
+      # Real "forgot password" email via Resend — resend.com -> API Keys.
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false

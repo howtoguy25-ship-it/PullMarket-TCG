@@ -13,4 +13,12 @@ export interface PaymentProvider {
     priceCents: number;
     packLabel: string;
   }): Promise<CheckoutSession>;
+  /** Creates a hosted checkout for a Pro/Max recurring subscription; returns a URL to redirect the user to. */
+  createSubscriptionCheckout(params: {
+    userId: string;
+    userEmail: string;
+    tier: "pro" | "max";
+  }): Promise<CheckoutSession>;
+  /** Cancels a user's active subscription at the provider (effective at the end of the current billing period). */
+  cancelSubscription(paddleSubscriptionId: string): Promise<void>;
 }

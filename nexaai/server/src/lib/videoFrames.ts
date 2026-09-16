@@ -17,7 +17,7 @@ import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 const execFileAsync = promisify(execFile);
 const FFMPEG_PATH: string = ffmpegInstaller.path;
 
-const FRAME_COUNT = 4;
+export const FRAME_COUNT = 4;
 const SAMPLE_FRACTIONS = [0.15, 0.4, 0.65, 0.9]; // skip the very start/end, where a video is often blank/credits
 
 async function getDurationSeconds(filePath: string): Promise<number> {
@@ -38,6 +38,15 @@ async function getDurationSeconds(filePath: string): Promise<number> {
 export interface VideoFrame {
   data: string;
   mediaType: "image/jpeg";
+  /** Real position in the source video this still was sampled from — not an index, an actual elapsed-seconds timestamp. */
+  timestampSeconds: number;
+}
+
+/** One entry in the live frame-by-frame breakdown (routes/chat.ts, lib/anthropic.ts's describeVideoFrame) — persisted onto the assistant message's metadata so chat history shows the same breakdown after a reload, not just during the live send. */
+export interface VideoFrameBreakdownEntry {
+  index: number;
+  timestampSeconds: number;
+  description: string;
 }
 
 /** Extracts up to FRAME_COUNT real JPEG stills spread across the video's actual duration. Throws on any real ffmpeg failure — callers fall back to the honest "can't watch video" note. */
@@ -54,7 +63,7 @@ export async function extractVideoFrames(filePath: string): Promise<VideoFrame[]
       const outPath = path.join(tmpDir, `frame-${i}.jpg`);
       await execFileAsync(FFMPEG_PATH, ["-ss", timestamp.toFixed(2), "-i", filePath, "-frames:v", "1", "-q:v", "3", "-y", outPath]);
       if (fs.existsSync(outPath)) {
-        frames.push({ data: fs.readFileSync(outPath).toString("base64"), mediaType: "image/jpeg" });
+        frames.push({ data: fs.readFileSync(outPath).toString("base64"), mediaType: "image/jpeg", timestampSeconds: timestamp });
       }
     }
     if (!frames.length) throw new Error("Couldn't extract any frames from this video.");

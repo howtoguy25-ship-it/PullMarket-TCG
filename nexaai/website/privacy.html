@@ -1,0 +1,124 @@
+<title>NexaAi Privacy Policy</title>
+<link rel="stylesheet" href="./style.css" />
+<link rel="icon" type="image/png" href="./favicon.png" />
+<div class="wrap">
+  <div class="nav">
+    <span class="brand"><img src="./favicon.png" alt="" style="width:20px;height:20px;vertical-align:middle;margin-right:6px;border-radius:5px" />NexaAi</span>
+    <a href="./index.html">Home</a>
+    <a class="active" href="./privacy.html">Privacy</a>
+    <a href="./terms.html">Terms</a>
+  </div>
+
+  <div class="card policy">
+    <h1>Privacy Policy</h1>
+    <p class="legal-updated">Last updated: September 11, 2026 · Applies to the NexaAi mobile app and the account website at asknexaai.com</p>
+
+    <div class="callout">
+      <strong>Before you publish this:</strong> every placeholder below is now filled in with real values, but this
+      still hasn't been reviewed by anyone qualified — have that review done against your actual setup and local
+      law before it goes live. Everything else describes what NexaAi's code genuinely does today — it isn't
+      boilerplate.
+    </div>
+
+    <ul class="legal-toc">
+      <li><a href="#collect">What we collect</a></li>
+      <li><a href="#ai-processing">How your content is processed</a></li>
+      <li><a href="#connectors">Connected accounts &amp; MCP</a></li>
+      <li><a href="#payments">Payments</a></li>
+      <li><a href="#sharing">Who we share it with</a></li>
+      <li><a href="#retention">Retention &amp; deletion</a></li>
+      <li><a href="#permissions">Device permissions</a></li>
+      <li><a href="#rights">Your controls</a></li>
+      <li><a href="#children">Children</a></li>
+      <li><a href="#security">Security</a></li>
+      <li><a href="#changes">Changes</a></li>
+      <li><a href="#contact">Contact</a></li>
+    </ul>
+
+    <section id="collect">
+      <h3>What we collect</h3>
+      <p>NexaAi is built and operated by Adham Salameh ("we", "us"). Creating an account and using the app means we store:</p>
+      <ul>
+        <li><strong>Account details</strong> — your email address, a hashed (never plaintext) password, display name, timezone, and phone number if you add one.</li>
+        <li><strong>Chats</strong> — every message you send and every reply NexaAi gives, so a conversation and your history of sessions/projects actually persist. This includes text, camera-ask photos you send for analysis, voice memos and their transcripts, and files you attach.</li>
+        <li><strong>Voice calls</strong> — when you use live voice chat, your recorded turns and their transcripts are stored as part of that conversation's history, the same way a text chat is.</li>
+        <li><strong>Saved memory</strong> — if memory is enabled in Settings, durable facts NexaAi learns about you across chats (e.g. preferences you've mentioned) so future replies don't ask you to repeat yourself. You control this — see <a href="#rights">Your controls</a>.</li>
+        <li><strong>Usage &amp; billing records</strong> — your plan tier, message-usage windows, and a ledger of credit purchases/spend (amount, pack, and a reference to the payment processor's transaction — never your full card number).</li>
+        <li><strong>Nearby-place lookups</strong> — if you ask NexaAi to find a business or place, the result it returns (name, address, distance) is included in that chat message so a "Get directions" link works; we don't track your live location in the background to do this.</li>
+        <li><strong>Developer API keys</strong> — if you generate one, we store a bcrypt hash and a short prefix for display. The full key is shown to you once and never stored in a form we can read back.</li>
+      </ul>
+    </section>
+
+    <section id="ai-processing">
+      <h3>How your content is processed</h3>
+      <p>To generate a reply, your message (and relevant chat history) is sent to Anthropic's Claude API. Depending on what you're doing, we may also send audio to OpenAI (speech-to-text and text-to-speech) or to Google's Gemini API (fast voice-mode reasoning), and camera-ask photos to Claude's vision model for analysis. When NexaAi runs a real web search on your behalf (for who-is lookups or topic images, if you've turned that on), your query is sent to that search tool and the pages it returns may be summarized back to you with source links.</p>
+      <p>These providers process your content to return a response to you — they are not permitted by us to use it to train their own models outside the terms of our agreements with them, but each provider's own privacy policy governs their handling of anything we send them.</p>
+    </section>
+
+    <section id="connectors">
+      <h3>Connected accounts &amp; MCP servers</h3>
+      <p>Connectors (Google, Notion, Slack, Instagram, WhatsApp, SiteSpark, GitHub, Vercel, Netlify, Stripe, Namecheap) are opt-in — nothing connects until you authorize it from the Connectors screen. We store an access token (and refresh token, where the provider issues one) so NexaAi can act on that account on your behalf — for example, exporting a project's generated code to your SiteSpark account, or pushing a file to a GitHub repo you own. You can disconnect any connector at any time, which deletes its stored token.</p>
+      <p>If you add a custom MCP server, we store the server's URL and the bearer token you provide so NexaAi can call its tools. By default, tools that look like they take a real action (create/update/delete/send, etc.) require your explicit approval before NexaAi can use them — that's enforced in code, not just described here.</p>
+      <p>If you set up an Instagram DM or WhatsApp autoresponder agent, messages that agent sends and receives on the connected account flow through our servers to operate the automation you configured.</p>
+    </section>
+
+    <section id="payments">
+      <h3>Payments</h3>
+      <p>Credit purchases are processed by our payment processor (currently Paddle, with Apple's in-app purchase system supported as an alternative on iOS). We never see or store your full card number — we store the amount, which credit pack you bought, and a reference ID from the processor so purchases can be matched to your account and refunded if needed.</p>
+    </section>
+
+    <section id="sharing">
+      <h3>Who we share it with</h3>
+      <p>We don't sell your data, and we don't share it with advertisers or data brokers. We share it only with:</p>
+      <ul>
+        <li>The AI providers above, strictly to generate your responses (Anthropic, OpenAI, Google).</li>
+        <li>Our payment processor, to process a purchase you initiate.</li>
+        <li>Any third-party account you explicitly connect, and only for the actions you authorize.</li>
+        <li>Law enforcement or regulators, only when we're legally required to.</li>
+      </ul>
+      <p>That's the complete list. Nothing you send NexaAi — a prompt, a photo, a video — is ever sold, rented, or handed to a marketer, and it never will be without this policy changing first and telling you plainly.</p>
+    </section>
+
+    <section id="retention">
+      <h3>Retention &amp; deletion</h3>
+      <p>We keep your account and chat history for as long as your account exists, so your history and memory stay useful. The History screen (Settings → Capabilities → Chat history) lets you remove any prompt, photo, or video from your own history and the chat it's in, any time, individually or several at once.</p>
+      <p>Removing something from your History is real for your own account — it disappears from your history and from that conversation — but it does not erase NexaAi's own internal record of it. We keep one permanent, internal copy of every message and file ever sent through the service, viewable only by the account owner, for security, abuse-prevention, and support purposes (for example, investigating a compromised account or a billing dispute). That record is never shared outside NexaAi under the "Who we share it with" list above, and it exists specifically so "share" and "retain internally" stay two different things, not so a "delete" button can quietly do nothing. You can delete individual saved memory entries at any time from the Memory screen — those, unlike History, are erased outright.</p>
+      <p>Deleting your account from Settings is different again: it's permanent and immediate, and it removes your profile, every chat and project, every credit transaction, every connected account's stored token, every memory entry, and every API key, including the internal record above. This cannot be undone, and there is no recovery window.</p>
+    </section>
+
+    <section id="permissions">
+      <h3>Device permissions</h3>
+      <p>The app asks for camera and microphone access only when you use a feature that needs it (Camera Ask, voice memos, live voice/video calling). Permission is requested by the OS, not silently assumed — the Permissions screen in-app shows the real current status for each.</p>
+    </section>
+
+    <section id="rights">
+      <h3>Your controls</h3>
+      <p>From Settings you can turn memory off entirely, stop NexaAi from referencing past chats, exclude sensitive categories (like health) from ever being saved, remove individual items from your History, disconnect any connected account, revoke API keys, and permanently delete your account and all its data. Depending on where you live, you may also have a right to request a copy of your data or an explanation of how it's processed — contact us below to ask.</p>
+    </section>
+
+    <section id="children">
+      <h3>Children</h3>
+      <p>NexaAi is not directed at children under 13, and we don't knowingly collect data from anyone under that age. If you believe a child has created an account, contact us and we'll delete it.</p>
+    </section>
+
+    <section id="security">
+      <h3>Security</h3>
+      <p>Passwords are hashed, never stored in plain text. API keys are hashed the same way. Connector tokens and MCP bearer tokens are stored server-side and are never sent back to any client except the one authorized request that needs them. No system is perfectly secure, but we don't cut corners on the basics.</p>
+    </section>
+
+    <section id="changes">
+      <h3>Changes to this policy</h3>
+      <p>If we make a material change to how we handle your data, we'll update the date at the top of this page and, where required, notify you in the app.</p>
+    </section>
+
+    <section id="contact">
+      <h3>Contact</h3>
+      <p>Questions about this policy or your data: <a href="mailto:support@asknexaai.com">support@asknexaai.com</a>. Governing law: New South Wales, Australia.</p>
+    </section>
+  </div>
+
+  <div class="legal-footer-links">
+    <a href="./index.html">Home</a>
+    <a href="./terms.html">Terms of Service</a>
+  </div>
+</div>

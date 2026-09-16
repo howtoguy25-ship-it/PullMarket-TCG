@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import * as WebBrowser from "expo-web-browser";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,7 +10,9 @@ import { useTheme } from "../lib/ThemeContext";
 import type { Palette } from "../theme/palettes";
 import { api, ApiError } from "../lib/api";
 import { openOnWeb } from "../lib/webLinks";
+import { Alert } from "../lib/alert";
 import { McpStatusAnimation, type McpConnectPhase } from "../components/McpStatusAnimation";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 
 interface McpServerVM {
   id: string;
@@ -20,6 +22,10 @@ interface McpServerVM {
   status: "connected" | "error" | "unverified";
   lastError: string | null;
   toolCount: number;
+  // The real "authorise control" gate — see server/src/lib/mcp/toolBridge.ts.
+  // While true (the default), NexaAi can't call this server's write-shaped
+  // tools at all, only read ones.
+  requireApproval: boolean;
 }
 
 const MCP_STATUS_LABEL: Record<McpServerVM["status"], string> = {
@@ -109,6 +115,15 @@ function McpConnectorsSection() {
     }
   };
 
+  const setRequireApproval = async (server: McpServerVM, requireApproval: boolean) => {
+    setServers((prev) => prev.map((s) => (s.id === server.id ? { ...s, requireApproval } : s)));
+    try {
+      await api(`/api/mcp/${server.id}`, { method: "PATCH", body: JSON.stringify({ requireApproval }) });
+    } catch {
+      load(); // revert to the real server state if the write failed
+    }
+  };
+
   const remove = (server: McpServerVM) => {
     Alert.alert(`Remove ${server.name}?`, "NexaAi will stop being able to call its tools.", [
       { text: "Cancel", style: "cancel" },
@@ -142,7 +157,9 @@ function McpConnectorsSection() {
       {servers.map((server, index) => (
         <FadeInUp key={server.id} delayMs={index * 45}>
           <View style={styles.mcpRow}>
-            <Ionicons name="hardware-chip-outline" size={20} color={palette.accentBright} />
+            <View style={styles.mcpIconTile}>
+              <Ionicons name="hardware-chip-outline" size={22} color="#fff" />
+            </View>
             <View style={styles.mcpRowText}>
               <Text style={styles.rowLabel}>{server.name}</Text>
               <Text style={styles.rowDescription} numberOfLines={1}>
@@ -164,6 +181,15 @@ function McpConnectorsSection() {
             <TouchableOpacity onPress={() => remove(server)} style={styles.mcpIconButton}>
               <Ionicons name="trash-outline" size={16} color={palette.danger} />
             </TouchableOpacity>
+          </View>
+          <View style={styles.mcpApprovalRow}>
+            <View style={styles.mcpRowText}>
+              <Text style={styles.rowLabel}>Allow real actions</Text>
+              <Text style={styles.rowDescription} numberOfLines={1}>
+                {server.requireApproval ? "Off — read-only tools only" : "On — write/action tools allowed"}
+              </Text>
+            </View>
+            <ToggleSwitch value={!server.requireApproval} onValueChange={(v) => setRequireApproval(server, !v)} />
           </View>
         </FadeInUp>
       ))}
@@ -231,42 +257,78 @@ interface ConnectorVM {
   notConfiguredHint: string | null;
 }
 
-// Real Ionicons brand glyph where one exists; everything else gets a
-// brand-colored monogram badge below (BrandBadge) instead — this app has no
-// way to source exact trademarked vector artwork for GitHub/Vercel/etc, so
-// rather than fake a pixel copy, it shows the real name in the real brand
-// color, which is honestly what it is.
+// Real Ionicons brand glyph where one exists, shown white-on-brand-color —
+// a colorful "app icon" tile per provider, like an OS's connected-accounts
+// list. Everything else (no trademarked glyph available in Ionicons) gets a
+// brand-colored monogram tile instead — this app has no way to source exact
+// vector artwork for GitHub/Vercel/etc., so rather than fake a pixel copy,
+// it shows the real name/initial in the real brand color, which is honestly
+// what it is.
 const PROVIDER_ICON: Partial<Record<string, keyof typeof Ionicons.glyphMap>> = {
   google: "logo-google",
   notion: "document-text",
   slack: "logo-slack",
   instagram: "logo-instagram",
   whatsapp: "logo-whatsapp",
+  facebook_messenger: "logo-facebook",
   github: "logo-github",
+  x: "logo-x",
 };
 
-const BRAND_BADGE: Record<string, { letter: string; color: string }> = {
-  sitespark: { letter: "S", color: "#7C5CFF" },
-  vercel: { letter: "▲", color: "#000000" },
-  netlify: { letter: "N", color: "#00C7B7" },
-  stripe: { letter: "S", color: "#635BFF" },
-  namecheap: { letter: "N", color: "#DE3723" },
+const BRAND_COLOR: Record<string, string> = {
+  google: "#4285F4",
+  notion: "#2F2F2F",
+  slack: "#611F69",
+  instagram: "#C13584",
+  whatsapp: "#25D366",
+  facebook_messenger: "#1877F2",
+  github: "#24292E",
+  sitespark: "#7C5CFF",
+  vercel: "#000000",
+  netlify: "#00C7B7",
+  stripe: "#635BFF",
+  namecheap: "#DE3723",
+  x: "#000000",
+  twilio: "#F22F46",
+};
+
+const BRAND_LETTER: Record<string, string> = {
+  sitespark: "S",
+  vercel: "▲",
+  netlify: "N",
+  stripe: "S",
+  namecheap: "N",
+  twilio: "T",
 };
 
 function ConnectorIcon({ provider }: { provider: string }) {
   const { palette } = useTheme();
   const styles = useMemo(() => makeStyles(palette), [palette]);
+  const color = BRAND_COLOR[provider] ?? palette.accent;
   const ioniconName = PROVIDER_ICON[provider];
-  if (ioniconName) return <Ionicons name={ioniconName} size={20} color={palette.accentBright} />;
-  const brand = BRAND_BADGE[provider];
-  if (brand) {
-    return (
-      <View style={[styles.brandBadge, { backgroundColor: brand.color }]}>
-        <Text style={styles.brandBadgeText}>{brand.letter}</Text>
-      </View>
-    );
-  }
-  return <Ionicons name="link" size={20} color={palette.accentBright} />;
+  return (
+    <View style={[styles.brandTile, { backgroundColor: color }]}>
+      {ioniconName ? <Ionicons name={ioniconName} size={22} color="#fff" /> : <Text style={styles.brandTileText}>{BRAND_LETTER[provider] ?? "?"}</Text>}
+    </View>
+  );
+}
+
+const STATUS_META: Record<ConnectorVM["status"], (palette: Palette) => { color: string; label: string }> = {
+  connected: (palette) => ({ color: palette.success, label: "Connected" }),
+  disconnected: (palette) => ({ color: palette.accentBright, label: "Connect" }),
+  not_configured: (palette) => ({ color: palette.textMuted, label: "Not set up" }),
+};
+
+function StatusIndicator({ status }: { status: ConnectorVM["status"] }) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
+  const meta = STATUS_META[status](palette);
+  return (
+    <View style={styles.statusWrap}>
+      <View style={[styles.statusDot, { backgroundColor: meta.color }]} />
+      <Text style={[styles.statusText, { color: meta.color }]}>{meta.label}</Text>
+    </View>
+  );
 }
 
 // Manual-entry connectors each need their own small set of fields — see
@@ -282,11 +344,17 @@ const MANUAL_ENTRY_FIELDS: Record<string, { key: string; placeholder: string; se
     { key: "apiKey", placeholder: "API key", secure: true },
     { key: "clientIp", placeholder: "Whitelisted IP address" },
   ],
+  twilio: [
+    { key: "accountSid", placeholder: "Account SID" },
+    { key: "authToken", placeholder: "Auth token", secure: true },
+    { key: "phoneNumber", placeholder: "Phone number (e.g. +15551234567)" },
+  ],
 };
 
 const MANUAL_ENTRY_SUBTITLE: Record<string, string> = {
   whatsapp: "WhatsApp Cloud API doesn't use a login popup — copy these from Meta Business Suite / your WhatsApp Business Platform dashboard.",
   namecheap: "Namecheap's API doesn't use a login popup either — copy these from ap.www.namecheap.com/settings/tools/apiaccess (the IP must be whitelisted there).",
+  twilio: "Copy your Account SID and Auth Token from twilio.com/console, and enter a Voice-capable phone number on that account (E.164 format). NexaAi automatically points that number's webhook at itself, so people can call it and talk to NexaAi for real.",
 };
 
 export function ConnectorsScreen() {
@@ -310,6 +378,24 @@ export function ConnectorsScreen() {
     if (!q) return connectors;
     return connectors.filter((c) => c.label.toLowerCase().includes(q) || c.provider.toLowerCase().includes(q));
   }, [connectors, search]);
+
+  // Modern "connected accounts" grouping — active connections surface first,
+  // in their own labeled section, ahead of everything still available to add.
+  type Row = { kind: "header"; key: string; label: string } | { kind: "connector"; key: string; connector: ConnectorVM };
+  const rows = useMemo<Row[]>(() => {
+    const connected = filtered.filter((c) => c.status === "connected");
+    const available = filtered.filter((c) => c.status !== "connected");
+    const out: Row[] = [];
+    if (connected.length) {
+      out.push({ kind: "header", key: "h-connected", label: `Connected · ${connected.length}` });
+      out.push(...connected.map((c) => ({ kind: "connector" as const, key: c.provider, connector: c })));
+    }
+    if (available.length) {
+      out.push({ kind: "header", key: "h-available", label: "Available" });
+      out.push(...available.map((c) => ({ kind: "connector" as const, key: c.provider, connector: c })));
+    }
+    return out;
+  }, [filtered]);
 
   const connect = async (connector: ConnectorVM) => {
     setBusy(connector.provider);
@@ -396,30 +482,41 @@ export function ConnectorsScreen() {
       </View>
 
       <FlatList
-        data={filtered}
-        keyExtractor={(c) => c.provider}
+        data={rows}
+        keyExtractor={(row) => row.key}
         contentContainerStyle={styles.list}
         ListHeaderComponent={<McpConnectorsSection />}
         ListEmptyComponent={<Text style={styles.emptyText}>No connectors match "{search}".</Text>}
-        renderItem={({ item, index }) => (
-          <FadeInUp delayMs={index * 45}>
-            <TouchableOpacity style={styles.row} onPress={() => onPressRow(item)} disabled={busy === item.provider}>
-              <View style={styles.iconWrap}>{busy === item.provider ? <ActivityIndicator size="small" color={palette.accentBright} /> : <ConnectorIcon provider={item.provider} />}</View>
-              <View style={styles.rowText}>
-                <Text style={styles.rowLabel}>{item.label}</Text>
-                <Text style={styles.rowDescription}>
-                  {item.status === "connected" ? `Connected as ${item.externalAccountLabel}` : item.status === "not_configured" ? "Not set up yet" : item.description}
-                </Text>
-              </View>
-              <View style={[styles.badge, item.status === "connected" && styles.badgeConnected]}>
-                <Text style={[styles.badgeText, item.status === "connected" && styles.badgeTextConnected]}>
-                  {item.status === "connected" ? "Connected" : item.status === "not_configured" ? "Not set up" : "Connect"}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={palette.textMuted} />
-            </TouchableOpacity>
-          </FadeInUp>
-        )}
+        renderItem={({ item, index }) => {
+          if (item.kind === "header") {
+            return (
+              <Text style={[styles.sectionHeader, index > 0 && { marginTop: spacing.md }]}>{item.label}</Text>
+            );
+          }
+          const connector = item.connector;
+          return (
+            <FadeInUp delayMs={Math.min(index, 8) * 40}>
+              <TouchableOpacity
+                style={[styles.row, connector.status === "not_configured" && styles.rowMuted]}
+                onPress={() => onPressRow(connector)}
+                disabled={busy === connector.provider}
+                activeOpacity={0.75}
+              >
+                <View style={styles.iconWrap}>
+                  {busy === connector.provider ? <ActivityIndicator size="small" color={palette.accentBright} /> : <ConnectorIcon provider={connector.provider} />}
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={styles.rowLabel}>{connector.label}</Text>
+                  <Text style={styles.rowDescription} numberOfLines={1}>
+                    {connector.status === "connected" ? `Connected as ${connector.externalAccountLabel}` : connector.status === "not_configured" ? "Not set up yet" : connector.description}
+                  </Text>
+                </View>
+                <StatusIndicator status={connector.status} />
+                <Ionicons name="chevron-forward" size={16} color={palette.textMuted} />
+              </TouchableOpacity>
+            </FadeInUp>
+          );
+        }}
       />
 
       <Modal visible={!!manualProvider} transparent animationType="fade" onRequestClose={() => setManualProvider(null)}>
@@ -468,12 +565,22 @@ function makeStyles(palette: Palette) {
     marginTop: spacing.md,
     backgroundColor: palette.bgCardAlt,
     borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: palette.border,
     paddingHorizontal: spacing.md,
     paddingVertical: 10,
   },
   searchInput: { flex: 1, color: palette.textPrimary, ...typography.body },
   emptyText: { ...typography.body, color: palette.textMuted, textAlign: "center", marginTop: spacing.lg },
   list: { padding: spacing.lg, gap: spacing.sm },
+  sectionHeader: {
+    ...typography.sectionLabel,
+    color: palette.textMuted,
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: spacing.xs,
+    marginLeft: 2,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -483,13 +590,34 @@ function makeStyles(palette: Palette) {
     borderWidth: 1,
     borderColor: palette.border,
     padding: spacing.md,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
   },
-  iconWrap: { width: 40, height: 40, borderRadius: radii.md, backgroundColor: palette.bgCardAlt, alignItems: "center", justifyContent: "center" },
-  brandBadge: { width: 26, height: 26, borderRadius: radii.sm, alignItems: "center", justifyContent: "center" },
-  brandBadgeText: { color: "#fff", fontWeight: "800", fontSize: 13 },
+  rowMuted: { opacity: 0.6, shadowOpacity: 0 },
+  iconWrap: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  brandTile: {
+    width: 48,
+    height: 48,
+    borderRadius: radii.md,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  brandTileText: { color: "#fff", fontWeight: "800", fontSize: 17 },
   rowText: { flex: 1, gap: 2 },
   rowLabel: { ...typography.bodyBold, color: palette.textPrimary },
   rowDescription: { ...typography.caption, color: palette.textMuted },
+  statusWrap: { flexDirection: "row", alignItems: "center", gap: 6 },
+  statusDot: { width: 7, height: 7, borderRadius: 3.5 },
+  statusText: { ...typography.caption, fontWeight: "700" },
+  // Still used by the MCP connectors section below (its own status pill,
+  // distinct from the brand-connector status dot above).
   badge: { backgroundColor: palette.bgCardAlt, borderRadius: radii.pill, paddingHorizontal: spacing.sm, paddingVertical: 4 },
   badgeConnected: { backgroundColor: palette.success },
   badgeText: { ...typography.caption, color: palette.textSecondary, fontWeight: "700" },
@@ -519,9 +647,33 @@ function makeStyles(palette: Palette) {
     borderWidth: 1,
     borderColor: palette.border,
     padding: spacing.md,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 2,
+  },
+  mcpIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: palette.accent,
+    alignItems: "center",
+    justifyContent: "center",
   },
   mcpRowText: { flex: 1, gap: 2 },
   mcpIconButton: { padding: 6 },
+  mcpApprovalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: palette.bgCardAlt,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: palette.border,
+    padding: spacing.md,
+    marginTop: spacing.xs,
+  },
   mcpWebLink: { ...typography.caption, color: palette.accentBright, textAlign: "center", marginTop: spacing.xs },
   mcpModalError: { ...typography.caption, color: palette.danger, marginTop: spacing.xs },
   badgeError: { backgroundColor: palette.danger },

@@ -1,8 +1,6 @@
 import React from "react";
 import { NavigationContainer, DarkTheme } from "@react-navigation/native";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../lib/AuthContext";
 import { useTheme } from "../lib/ThemeContext";
 
@@ -19,71 +17,50 @@ import { AppearanceScreen } from "../screens/AppearanceScreen";
 import { PermissionsScreen } from "../screens/PermissionsScreen";
 import { CapabilitiesScreen } from "../screens/CapabilitiesScreen";
 import { MemoryFilesScreen } from "../screens/MemoryFilesScreen";
+import { HistoryScreen } from "../screens/HistoryScreen";
 import { ConnectorsScreen } from "../screens/ConnectorsScreen";
 import { ProjectsScreen } from "../screens/ProjectsScreen";
 import { ProjectChatScreen } from "../screens/ProjectChatScreen";
 import { CallScreen } from "../screens/CallScreen";
+import { HelpSupportScreen } from "../screens/HelpSupportScreen";
+import { SupportChatScreen } from "../screens/SupportChatScreen";
 
-const Tab = createBottomTabNavigator();
 const RootStack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
 
-const TAB_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
-  Chat: "chatbubble-ellipses",
-  Camera: "camera",
-  Voice: "call",
-  Projects: "code-slash",
-  Plans: "flash",
-  Credits: "wallet",
-  Agents: "hardware-chip",
-  Settings: "settings",
-};
-
-function MainTabs() {
-  const { palette } = useTheme();
-  return (
-    <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerStyle: { backgroundColor: palette.bgElevated },
-        headerTitleStyle: { color: palette.textPrimary },
-        tabBarStyle: { backgroundColor: palette.bgElevated, borderTopColor: palette.border },
-        tabBarActiveTintColor: palette.accentBright,
-        tabBarInactiveTintColor: palette.textMuted,
-        tabBarIcon: ({ color, size }) => <Ionicons name={TAB_ICONS[route.name]} size={size} color={color} />,
-      })}
-    >
-      <Tab.Screen name="Chat" component={ChatScreen} />
-      <Tab.Screen name="Camera" component={CameraAskScreen} options={{ title: "Ask with camera" }} />
-      <Tab.Screen name="Voice" component={VoiceChatScreen} options={{ title: "Voice chat" }} />
-      <Tab.Screen name="Projects" component={ProjectsScreen} />
-      <Tab.Screen name="Plans" component={PlansScreen} />
-      <Tab.Screen name="Credits" component={CreditsScreen} />
-      <Tab.Screen name="Agents" component={AgentBuilderScreen} options={{ title: "My agents" }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
-    </Tab.Navigator>
-  );
-}
-
-// Wraps the tab bar in a stack so Settings can push full-screen detail
-// pages (Appearance, Permissions, Capabilities, Connectors, Memory files)
-// with a back button, without those pages needing their own tab.
+// No bottom tab bar — every one of these (previously tabs) is reachable from
+// the Chat screen's sidebar drawer (components/ChatSideMenu.tsx) instead,
+// which frees the full width at the bottom of the screen for just the
+// message input. This is a permanent navigation shape for the app: do not
+// reintroduce a bottom tab bar here.
 function HomeFlow() {
   const { palette } = useTheme();
   const headerOptions = {
-    headerStyle: { backgroundColor: palette.bgElevated },
+    headerStyle: { backgroundColor: palette.bg },
     headerTitleStyle: { color: palette.textPrimary },
     headerTintColor: palette.accentBright,
   };
   return (
     <HomeStack.Navigator>
-      <HomeStack.Screen name="MainTabs" component={MainTabs} options={{ headerShown: false }} />
+      <HomeStack.Screen name="Chat" component={ChatScreen} options={{ headerShown: false }} />
+      <HomeStack.Screen name="Camera" component={CameraAskScreen} options={{ ...headerOptions, title: "Ask with camera" }} />
+      <HomeStack.Screen name="Voice" component={VoiceChatScreen} options={{ ...headerOptions, title: "Voice chat" }} />
+      <HomeStack.Screen name="Projects" component={ProjectsScreen} options={headerOptions} />
+      {/* Plans owns its own header — a light, Claude-style upgrade sheet with its own close button, not the app's usual dark header bar. */}
+      <HomeStack.Screen name="Plans" component={PlansScreen} options={{ headerShown: false }} />
+      <HomeStack.Screen name="Credits" component={CreditsScreen} options={headerOptions} />
+      <HomeStack.Screen name="Agents" component={AgentBuilderScreen} options={{ ...headerOptions, title: "My agents" }} />
+      <HomeStack.Screen name="Settings" component={SettingsScreen} options={headerOptions} />
       <HomeStack.Screen name="Appearance" component={AppearanceScreen} options={headerOptions} />
       <HomeStack.Screen name="Permissions" component={PermissionsScreen} options={headerOptions} />
       <HomeStack.Screen name="Capabilities" component={CapabilitiesScreen} options={headerOptions} />
       <HomeStack.Screen name="MemoryFiles" component={MemoryFilesScreen} options={{ ...headerOptions, title: "Memory files" }} />
+      <HomeStack.Screen name="History" component={HistoryScreen} options={{ ...headerOptions, title: "History" }} />
       <HomeStack.Screen name="Connectors" component={ConnectorsScreen} options={headerOptions} />
       <HomeStack.Screen name="ProjectChat" component={ProjectChatScreen} options={headerOptions} />
       <HomeStack.Screen name="Call" component={CallScreen} options={{ headerShown: false, presentation: "fullScreenModal" }} />
+      <HomeStack.Screen name="HelpSupport" component={HelpSupportScreen} options={{ ...headerOptions, title: "Help & Support" }} />
+      <HomeStack.Screen name="SupportChat" component={SupportChatScreen} options={({ route }: any) => ({ ...headerOptions, title: route.params?.title ?? "Support" })} />
     </HomeStack.Navigator>
   );
 }

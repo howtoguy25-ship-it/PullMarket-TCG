@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from "react";
 import { Animated, Easing } from "react-native";
-import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Stop } from "react-native-svg";
+import Svg, { Circle, Defs, Ellipse, LinearGradient, Path, Pattern, Polygon, Rect, Stop } from "react-native-svg";
 import { useTheme } from "../lib/ThemeContext";
 
 const AnimatedEllipse = Animated.createAnimatedComponent(Ellipse);
 
-interface BotAvatarProps {
+export interface BotAvatarProps {
   size?: number;
   mood?: "idle" | "thinking" | "happy" | "talking";
   glowColor?: string;
@@ -22,9 +22,21 @@ interface BotAvatarProps {
 }
 
 /**
- * NexaAi's mascot — a small rounded "star-core" bot, drawn entirely in SVG
- * (no external character asset, no video/gif loop). Two antennae + a soft
- * glowing core. Real, state-driven animations:
+ * NexaAi's mascot — a small rounded "spark" bot, drawn entirely in SVG
+ * (no external character asset, no video/gif loop, no raster image — a
+ * generated reference picture can't itself blink, so this shape was
+ * hand-built from that reference as real vector parts). A single
+ * self-contained rounded gem-like body (deliberately no arms/hands — an
+ * earlier hand+arms version was tried and reverted per feedback: "simple"
+ * won over "character with limbs"), layered with real AI-motif detail
+ * rather than a plain flat body: a small neural-node cluster near the top,
+ * two circuit traces with pads on the lower flanks, a glowing "core"
+ * readout with a small N monogram (legible NexaAi branding at icon scale —
+ * spelling out "NexaAi" would be unreadable mush at the 32px size this
+ * renders at in chat), and a subtle holographic scan-line texture across
+ * the body surface. Colors come entirely from the theme palette
+ * (`useTheme`), so it reads correctly in Original/Black/White rather than
+ * carrying its own fixed brand colors. Real, state-driven animations:
  *  - "thinking": the whole body pulses gently while waiting on a reply.
  *  - "talking": the mouth opens/closes in real sync with `liveMouthLevel`
  *    when the caller supplies real playback-amplitude data (web); otherwise
@@ -100,26 +112,60 @@ export function BotAvatar({ size = 72, mood = "idle", glowColor, liveMouthLevel 
       <Svg width={size} height={size} viewBox="0 0 100 100">
         <Defs>
           <LinearGradient id="botBody" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0" stopColor={palette.bgCardAlt} />
-            <Stop offset="1" stopColor={palette.bgCard} />
+            <Stop offset="0" stopColor={palette.accentBright} />
+            <Stop offset="1" stopColor={palette.accent} />
           </LinearGradient>
           <LinearGradient id="botGlow" x1="0" y1="0" x2="1" y2="1">
             <Stop offset="0" stopColor={glow} stopOpacity="0.9" />
             <Stop offset="1" stopColor={palette.accentBright} stopOpacity="0.6" />
           </LinearGradient>
+          {/* a tileable single scan-line, repeated by the pattern below to
+              give the body a subtle holographic surface texture */}
+          <Pattern id="botScanlines" patternUnits="userSpaceOnUse" width={100} height={4}>
+            <Rect x={0} y={0} width={100} height={1} fill={palette.starBright} />
+          </Pattern>
         </Defs>
 
-        {/* antennae */}
-        <Path d="M35 18 L30 4" stroke={glow} strokeWidth={2.5} strokeLinecap="round" />
-        <Path d="M65 18 L70 4" stroke={glow} strokeWidth={2.5} strokeLinecap="round" />
-        <Circle cx={30} cy={4} r={3.5} fill={palette.accentBright} />
-        <Circle cx={70} cy={4} r={3.5} fill={palette.accentBright} />
+        {/* spark tip — a small raised point at the top, reading as "a spark
+            of intelligence" rather than a literal antenna */}
+        <Polygon points="50,4 55,20 45,20" fill="url(#botGlow)" />
 
-        {/* head/body — one soft rounded blob */}
-        <Ellipse cx={50} cy={56} rx={38} ry={34} fill="url(#botBody)" stroke={palette.border} strokeWidth={1.5} />
+        {/* body — a single rounded gem/"squircle" shape (a Rect with a large
+            corner radius), not a split face */}
+        <Rect x={16} y={20} width={68} height={68} rx={26} ry={26} fill="url(#botBody)" stroke={palette.border} strokeWidth={1.5} />
+
+        {/* holographic scan-line texture on the body surface — the pattern
+            rect shares the body's exact bounds/radius so it never spills
+            past the silhouette */}
+        <Rect x={16} y={20} width={68} height={68} rx={26} ry={26} fill="url(#botScanlines)" opacity={0.08} />
+
+        {/* neural-node cluster near the top — a small connected-dot graph,
+            reading as "a network/a mind" rather than a literal circuit */}
+        <Path d="M30 30 L42 26 M42 26 L58 26 M58 26 L70 30 M42 26 L50 34 M58 26 L50 34" stroke={palette.starBright} strokeWidth={1} fill="none" opacity={0.4} />
+        <Circle cx={30} cy={30} r={1.6} fill={palette.starBright} opacity={0.75} />
+        <Circle cx={42} cy={26} r={1.6} fill={palette.starBright} opacity={0.75} />
+        <Circle cx={58} cy={26} r={1.6} fill={palette.starBright} opacity={0.75} />
+        <Circle cx={70} cy={30} r={1.6} fill={palette.starBright} opacity={0.75} />
+        <Circle cx={50} cy={34} r={1.8} fill={palette.starBright} opacity={0.85} />
+
+        {/* circuit traces + pads on the lower flanks — literal PCB-style
+            detail, kept clear of the eyes/mouth band */}
+        <Path d="M22 50 L22 60 L28 60" stroke={palette.accentBright} strokeWidth={1} fill="none" opacity={0.55} />
+        <Rect x={20} y={48} width={4} height={4} rx={1} fill={palette.accentBright} opacity={0.6} />
+        <Rect x={26} y={58} width={4} height={4} rx={1} fill={palette.accentBright} opacity={0.6} />
+        <Path d="M78 50 L78 60 L72 60" stroke={palette.accentBright} strokeWidth={1} fill="none" opacity={0.55} />
+        <Rect x={76} y={48} width={4} height={4} rx={1} fill={palette.accentBright} opacity={0.6} />
+        <Rect x={70} y={58} width={4} height={4} rx={1} fill={palette.accentBright} opacity={0.6} />
 
         {/* glowing core visor */}
-        <Ellipse cx={50} cy={56} rx={26} ry={20} fill="url(#botGlow)" opacity={0.28} />
+        <Ellipse cx={50} cy={58} rx={26} ry={20} fill="url(#botGlow)" opacity={0.3} />
+
+        {/* a small glowing "core" readout near the base of the body, with a
+            compact N monogram — the legible-at-icon-scale stand-in for
+            spelling out "NexaAi" (unreadable at the 32px this renders at
+            in chat), and the literal "processor" this mascot is themed on */}
+        <Rect x={41} y={79} width={18} height={8} rx={2} fill={palette.bgElevated} stroke={palette.accentBright} strokeWidth={1} opacity={0.9} />
+        <Path d="M46 86 L46 81 L54 86 L54 81" stroke={palette.accentBright} strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
 
         {/* eyes — blink via a scaled ry, driven by an Animated value */}
         <AnimatedEllipse cx={38} cy={56} rx={5} ry={eyeHeight as unknown as number} fill={palette.starBright} />

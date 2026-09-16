@@ -12,14 +12,15 @@
 //      redirect URI.
 //   4. Set GOOGLE_CONNECTOR_CLIENT_ID / GOOGLE_CONNECTOR_CLIENT_SECRET /
 //      APP_BASE_URL in the server environment.
-// (Deliberately separate env vars from the root PullMarket TCG app's own
-// Google Sign-In client — different app, different OAuth client.)
+// (Uses its own dedicated GOOGLE_CONNECTOR_* env vars — never reuse another
+// app's Google Sign-In client for this.)
 
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { eq, and } from "drizzle-orm";
 import { db } from "../../db";
 import { connectors } from "@shared/schema";
+import { appBaseUrl } from "../appBaseUrl";
 
 const SCOPE = "https://www.googleapis.com/auth/calendar.readonly openid email";
 
@@ -28,7 +29,7 @@ export function isGoogleConnectorConfigured(): boolean {
 }
 
 function redirectUri(): string {
-  return `${process.env.APP_BASE_URL}/api/connectors/google/callback`;
+  return `${appBaseUrl()}/api/connectors/google/callback`;
 }
 
 export function buildGoogleAuthUrl(userId: string): string {

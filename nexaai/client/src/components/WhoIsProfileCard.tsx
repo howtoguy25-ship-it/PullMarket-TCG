@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Image, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
 import type { Palette } from "../theme/palettes";
 import { FadeInUp } from "./FadeInUp";
+import { SourceLinksList } from "./SourceLinksList";
 
 interface WhoIsAccount {
   platform: string;
@@ -28,8 +29,8 @@ interface WhoIsProfile {
 /**
  * Parses the exact structured layout WHO_IS_FORMAT requires
  * (shared/src/nexaPersona.ts) into sections for animated rendering. Returns
- * null for anything that doesn't match that shape — a refusal ("only works
- * for public figures...") or an ambiguous-name clarifying question — so
+ * null for anything that doesn't match that shape — a refusal ("no public
+ * footprint found...") or an ambiguous-name clarifying question — so
  * those fall back to plain text rendering instead of being mis-parsed.
  */
 const RESERVED_HEADERS = /^(Bio|Official accounts found|Sources)$/i;
@@ -133,6 +134,53 @@ function iconForPlatform(platform: string): keyof typeof Ionicons.glyphMap {
 }
 
 /**
+ * A brief "found it" flourish — fades in, holds, then fades itself out and
+ * unmounts — layered as an absolute overlay so it never shifts the card's
+ * own layout. Mounts exactly when the real profile card does (i.e. the
+ * moment the actual result arrives), so the handoff from
+ * PersonLookupIndicator's search animation reads as a real conclusion
+ * rather than an abrupt cut, without touching the streaming/data logic.
+ */
+function FoundBadge() {
+  const { palette } = useTheme();
+  const opacity = useRef(new Animated.Value(0)).current;
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const anim = Animated.sequence([
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: 850, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+    ]);
+    anim.start(({ finished }) => finished && setVisible(false));
+    return () => anim.stop();
+  }, [opacity]);
+
+  if (!visible) return null;
+  return (
+    <Animated.View style={[badgeStyles.badge, { opacity, backgroundColor: palette.success }]}>
+      <Ionicons name="checkmark" size={12} color="#FFFFFF" />
+      <Text style={badgeStyles.text}>Found it</Text>
+    </Animated.View>
+  );
+}
+
+const badgeStyles = StyleSheet.create({
+  badge: {
+    position: "absolute",
+    top: -10,
+    right: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  text: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
+});
+
+/**
  * The animated "deep dive" presentation: title and known-for scale/fade in
  * first, then the attributed photo (if any) fades+scales in, then the bio,
  * then each official account slides in one at a time, then a collapsible
@@ -142,10 +190,10 @@ function iconForPlatform(platform: string): keyof typeof Ionicons.glyphMap {
 export function WhoIsProfileCard({ profile }: { profile: WhoIsProfile }) {
   const { palette } = useTheme();
   const styles = useMemo(() => makeStyles(palette), [palette]);
-  const [sourcesOpen, setSourcesOpen] = useState(false);
 
   return (
     <View style={styles.card}>
+      <FoundBadge />
       <FadeInUp delayMs={0}>
         <Text style={[styles.name, { color: palette.textPrimary }]}>{profile.name}</Text>
         {profile.knownFor && <Text style={[styles.knownFor, { color: palette.accentBright }]}>{profile.knownFor}</Text>}
@@ -183,23 +231,7 @@ export function WhoIsProfileCard({ profile }: { profile: WhoIsProfile }) {
 
       {profile.sources.length > 0 && (
         <FadeInUp delayMs={320 + profile.accounts.length * 90 + 100}>
-          <TouchableOpacity style={styles.sourcesToggle} onPress={() => setSourcesOpen((v) => !v)}>
-            <Ionicons name={sourcesOpen ? "chevron-down" : "chevron-forward"} size={14} color={palette.textMuted} />
-            <Text style={styles.sourcesToggleText}>
-              {sourcesOpen ? "Hide" : "Show"} {profile.sources.length} source{profile.sources.length === 1 ? "" : "s"}
-            </Text>
-          </TouchableOpacity>
-          {sourcesOpen && (
-            <View style={styles.sourcesList}>
-              {profile.sources.map((source, i) => (
-                <FadeInUp key={source.url} delayMs={i * 50}>
-                  <Text style={styles.sourceLine} numberOfLines={1}>
-                    {i + 1}. {source.title}
-                  </Text>
-                </FadeInUp>
-              ))}
-            </View>
-          )}
+          <SourceLinksList sources={profile.sources} />
         </FadeInUp>
       )}
     </View>
@@ -218,9 +250,5 @@ function makeStyles(palette: Palette) {
     accountRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 6 },
     accountPlatform: { ...typography.bodyBold, color: palette.textPrimary },
     accountDetail: { ...typography.caption, color: palette.textSecondary, flex: 1 },
-    sourcesToggle: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.sm },
-    sourcesToggleText: { ...typography.caption, color: palette.textMuted, fontWeight: "700" },
-    sourcesList: { marginTop: spacing.xs, gap: 4 },
-    sourceLine: { ...typography.caption, color: palette.textSecondary },
   });
 }

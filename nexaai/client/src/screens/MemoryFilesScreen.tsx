@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { GalaxyBackground } from "../components/GalaxyBackground";
@@ -7,6 +7,7 @@ import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
 import type { Palette } from "../theme/palettes";
 import { api } from "../lib/api";
+import { Alert } from "../lib/alert";
 
 interface MemoryEntry {
   id: string;

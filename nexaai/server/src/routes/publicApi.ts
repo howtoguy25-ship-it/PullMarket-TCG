@@ -14,10 +14,10 @@ import { apiKeys, users } from "@shared/schema";
 import { askModel } from "../lib/modelRouter";
 import { PLAN_DEFINITIONS } from "../lib/plans";
 import { spendCredits } from "../lib/credits";
+import { resolveMaxTokens } from "../lib/anthropic";
+import { estimateChatCreditCostCents } from "../lib/costModel";
 
 export const publicApiRouter = Router();
-
-const CENTS_PER_PUBLIC_API_CALL = 2;
 
 async function authenticateApiKey(rawKey: string | undefined): Promise<{ userId: string; keyId: string } | null> {
   if (!rawKey || !rawKey.startsWith("nxa_")) return null;
@@ -45,12 +45,26 @@ publicApiRouter.post("/generate", async (req, res) => {
 
   const [user] = await db.select().from(users).where(eq(users.id, auth.userId));
   if (!user) return res.status(404).json({ error: "User not found" });
+  // The developer-key path bypasses middleware/auth.ts's requireAuth
+  // entirely, so the owner's suspend action needs its own check here too —
+  // otherwise a suspended user's own external app could keep calling this
+  // endpoint even while their real app account is locked out everywhere else.
+  if (user.isSuspended) {
+    return res.status(403).json({ error: "account_suspended", message: "This account is suspended." });
+  }
 
-  const spend = await spendCredits(db, auth.userId, CENTS_PER_PUBLIC_API_CALL, "api:generate");
+  const plan = PLAN_DEFINITIONS[user.planTier];
+  const creditCostCents = estimateChatCreditCostCents({
+    planProvider: plan.provider,
+    model: plan.model,
+    maxOutputTokens: resolveMaxTokens(plan, "quick", { mode: "chat" }),
+    kindMultiplier: 1,
+  });
+  const spend = await spendCredits(db, auth.userId, creditCostCents, "api:generate");
   if (!spend.allowed) return res.status(402).json({ error: "insufficient_credit", message: "This account is out of credit." });
 
   const result = await askModel({
-    plan: PLAN_DEFINITIONS[user.planTier],
+    plan,
     answerCount: 1,
     userMessage: parsed.data.prompt,
     history: [],

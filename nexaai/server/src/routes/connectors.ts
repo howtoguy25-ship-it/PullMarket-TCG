@@ -5,13 +5,17 @@ import { connectorProviderEnum, connectors, type ConnectorProvider } from "@shar
 import { db } from "../db";
 import { requireAuth, type AuthedRequest } from "../middleware/auth";
 import { buildGoogleAuthUrl, isGoogleConnectorConfigured } from "../lib/connectors/google";
-import { buildInstagramAuthUrl, connectWhatsAppManually, isMetaConfigured } from "../lib/connectors/meta";
+import { buildInstagramAuthUrl, buildFacebookMessengerAuthUrl, connectWhatsAppManually, isMetaConfigured } from "../lib/connectors/meta";
 import { buildSiteSparkAuthUrl, isSiteSparkConnectorConfigured } from "../lib/connectors/sitespark";
 import { buildGitHubAuthUrl, isGitHubConnectorConfigured } from "../lib/connectors/github";
 import { buildVercelAuthUrl, isVercelConnectorConfigured } from "../lib/connectors/vercel";
 import { buildNetlifyAuthUrl, isNetlifyConnectorConfigured } from "../lib/connectors/netlify";
 import { buildStripeAuthUrl, isStripeConnectorConfigured } from "../lib/connectors/stripe";
 import { connectNamecheapManually } from "../lib/connectors/namecheap";
+import { connectTwilioManually } from "../lib/connectors/twilio";
+import { buildNotionAuthUrl, isNotionConfigured } from "../lib/connectors/notion";
+import { buildSlackAuthUrl, isSlackConfigured } from "../lib/connectors/slack";
+import { buildXAuthUrl, isXConfigured } from "../lib/connectors/x";
 
 export const connectorsRouter = Router();
 connectorsRouter.use(requireAuth);
@@ -22,12 +26,15 @@ const PROVIDER_META: Record<ConnectorProvider, { label: string; description: str
   slack: { label: "Slack", description: "Let an agent post drafts into a Slack channel.", icon: "slack" },
   instagram: { label: "Instagram", description: "Powers the Instagram DM auto-reply agent — real send, once connected.", icon: "instagram" },
   whatsapp: { label: "WhatsApp", description: "Powers the WhatsApp autoresponder agent — real send, once connected.", icon: "whatsapp" },
+  facebook_messenger: { label: "Facebook Messenger", description: "Powers the Facebook Messenger auto-reply agent — real send, once connected.", icon: "facebook" },
   sitespark: { label: "SiteSpark", description: "Connect your SiteSpark account so NexaAi can build websites through it, if you want.", icon: "sitespark" },
   github: { label: "GitHub", description: "Push a Project's generated code to a real repo you own.", icon: "github" },
   vercel: { label: "Vercel", description: "Deploy a Project's generated site live with one click.", icon: "vercel" },
   netlify: { label: "Netlify", description: "Deploy a Project's generated site live with one click.", icon: "netlify" },
   stripe: { label: "Stripe", description: "Wire real payments/checkout into a site you build.", icon: "stripe" },
   namecheap: { label: "Namecheap", description: "Manage a custom domain for a site you build.", icon: "namecheap" },
+  x: { label: "X (Twitter)", description: "Powers the X DM auto-reply agent — real send, once connected.", icon: "x" },
+  twilio: { label: "Twilio", description: "Get a real phone number people can call to talk to NexaAi out loud.", icon: "twilio" },
 };
 
 // How the client should prompt the user to connect each provider.
@@ -37,40 +44,48 @@ const CONNECT_METHOD: Record<ConnectorProvider, "oauth" | "manual_entry"> = {
   slack: "oauth",
   instagram: "oauth",
   whatsapp: "manual_entry", // see lib/connectors/meta.ts's header for why
+  facebook_messenger: "oauth",
   sitespark: "oauth",
   github: "oauth",
   vercel: "oauth",
   netlify: "oauth",
   stripe: "oauth",
   namecheap: "manual_entry", // see lib/connectors/namecheap.ts's header for why
+  x: "oauth",
+  twilio: "manual_entry", // see lib/connectors/twilio.ts's header for why
 };
 
 function isConfigured(provider: ConnectorProvider): boolean {
   if (provider === "google") return isGoogleConnectorConfigured();
-  if (provider === "instagram" || provider === "whatsapp") return isMetaConfigured();
+  if (provider === "instagram" || provider === "whatsapp" || provider === "facebook_messenger") return isMetaConfigured();
   if (provider === "sitespark") return isSiteSparkConnectorConfigured();
   if (provider === "github") return isGitHubConnectorConfigured();
   if (provider === "vercel") return isVercelConnectorConfigured();
   if (provider === "netlify") return isNetlifyConnectorConfigured();
   if (provider === "stripe") return isStripeConnectorConfigured();
   if (provider === "namecheap") return true; // manual entry — "configured" just means the UI is ready to accept credentials
-  // Notion/Slack: real UI, honest stub — see each's env var name below,
-  // same "not configured" pattern as Paddle/Apple IAP.
+  if (provider === "notion") return isNotionConfigured();
+  if (provider === "slack") return isSlackConfigured();
+  if (provider === "x") return isXConfigured();
+  if (provider === "twilio") return true; // manual entry — "configured" just means the UI is ready to accept credentials
   return false;
 }
 
 const NOT_CONFIGURED_HINT: Record<ConnectorProvider, string> = {
   google: "Set GOOGLE_CONNECTOR_CLIENT_ID / GOOGLE_CONNECTOR_CLIENT_SECRET / APP_BASE_URL.",
   notion: "Set NOTION_CLIENT_ID / NOTION_CLIENT_SECRET (create an integration at notion.so/my-integrations).",
-  slack: "Set SLACK_CLIENT_ID / SLACK_CLIENT_SECRET (create an app at api.slack.com/apps).",
+  slack: "Set SLACK_CLIENT_ID / SLACK_CLIENT_SECRET / SLACK_SIGNING_SECRET (create an app at api.slack.com/apps).",
   instagram: "Set META_APP_ID / META_APP_SECRET / APP_BASE_URL (create a Meta Developer app with Instagram messaging access).",
   whatsapp: "Set META_APP_ID / META_APP_SECRET / APP_BASE_URL (create a Meta Developer app with WhatsApp Cloud API access).",
-  sitespark: "Set SITESPARK_CLIENT_ID / SITESPARK_CLIENT_SECRET / SITESPARK_OAUTH_BASE_URL / APP_BASE_URL — needs OAuth endpoints built in your SiteSpark app first.",
+  facebook_messenger: "Set META_APP_ID / META_APP_SECRET / APP_BASE_URL (the same Meta Developer app as Instagram, with pages_messaging access).",
+  sitespark: "Set SITESPARK_CLIENT_ID / SITESPARK_CLIENT_SECRET / SITESPARK_OAUTH_BASE_URL / SITESPARK_API_BASE_URL / SITESPARK_API_KEY / APP_BASE_URL — needs the OAuth + site-import endpoints built in your SiteSpark app first (see lib/connectors/sitespark.ts).",
   github: "Set GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET / APP_BASE_URL (create an OAuth App at github.com/settings/developers).",
   vercel: "Set VERCEL_CLIENT_ID / VERCEL_CLIENT_SECRET / VERCEL_INTEGRATION_SLUG / APP_BASE_URL (create an Integration in Vercel's dashboard).",
   netlify: "Set NETLIFY_CLIENT_ID / NETLIFY_CLIENT_SECRET / APP_BASE_URL (create an OAuth App at app.netlify.com/user/applications).",
   stripe: "Set STRIPE_CLIENT_ID / STRIPE_SECRET_KEY / APP_BASE_URL (enable Connect OAuth in your Stripe dashboard).",
   namecheap: "Nothing to configure server-side — enter your Namecheap API key, username, and whitelisted IP in the app.",
+  x: "Set X_CLIENT_ID / X_CLIENT_SECRET / APP_BASE_URL (create a project + app at developer.x.com with DM read/write scopes, pay-per-use billing enabled).",
+  twilio: "Nothing to configure server-side — enter your Twilio Account SID, Auth Token, and phone number (E.164) in the app. Needs a real, public APP_BASE_URL for inbound calls to reach this server.",
 };
 
 connectorsRouter.get("/", async (req: AuthedRequest, res) => {
@@ -107,6 +122,7 @@ connectorsRouter.post("/:provider/connect", async (req: AuthedRequest, res) => {
 
   if (provider === "google") return res.json({ authUrl: buildGoogleAuthUrl(req.userId!) });
   if (provider === "instagram") return res.json({ authUrl: buildInstagramAuthUrl(req.userId!) });
+  if (provider === "facebook_messenger") return res.json({ authUrl: buildFacebookMessengerAuthUrl(req.userId!) });
   if (provider === "whatsapp") return res.json({ manualEntry: true });
   if (provider === "sitespark") return res.json({ authUrl: buildSiteSparkAuthUrl(req.userId!) });
   if (provider === "github") return res.json({ authUrl: buildGitHubAuthUrl(req.userId!) });
@@ -114,8 +130,11 @@ connectorsRouter.post("/:provider/connect", async (req: AuthedRequest, res) => {
   if (provider === "netlify") return res.json({ authUrl: buildNetlifyAuthUrl(req.userId!) });
   if (provider === "stripe") return res.json({ authUrl: buildStripeAuthUrl(req.userId!) });
   if (provider === "namecheap") return res.json({ manualEntry: true });
+  if (provider === "notion") return res.json({ authUrl: buildNotionAuthUrl(req.userId!) });
+  if (provider === "slack") return res.json({ authUrl: buildSlackAuthUrl(req.userId!) });
+  if (provider === "x") return res.json({ authUrl: buildXAuthUrl(req.userId!) });
+  if (provider === "twilio") return res.json({ manualEntry: true });
 
-  // Notion/Slack report as not_configured above before reaching here.
   res.status(501).json({ error: "not_implemented" });
 });
 
@@ -148,6 +167,20 @@ connectorsRouter.post("/namecheap/manual", async (req: AuthedRequest, res) => {
   const result = await connectNamecheapManually(req.userId!, parsed.data.apiUser, parsed.data.apiKey, parsed.data.clientIp);
   if (!result.ok) return res.status(400).json({ error: "verification_failed", message: result.message });
   res.status(201).json({ connected: true });
+});
+
+const twilioManualSchema = z.object({
+  accountSid: z.string().min(1),
+  authToken: z.string().min(1),
+  phoneNumber: z.string().min(1),
+});
+connectorsRouter.post("/twilio/manual", async (req: AuthedRequest, res) => {
+  const parsed = twilioManualSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const result = await connectTwilioManually(req.userId!, parsed.data.accountSid, parsed.data.authToken, parsed.data.phoneNumber);
+  if (!result.ok) return res.status(400).json({ error: "verification_failed", message: result.message });
+  res.status(201).json({ connected: true, webhookConfigured: result.webhookConfigured });
 });
 
 connectorsRouter.delete("/:provider", async (req: AuthedRequest, res) => {

@@ -10,7 +10,7 @@ interface ThemeState {
 const ThemeContext = createContext<ThemeState | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [themeId, setThemeId] = useState<ThemeId>("galaxy_violet");
+  const [themeId, setThemeId] = useState<ThemeId>("dark");
   const palette = PALETTES[themeId];
   return <ThemeContext.Provider value={{ themeId, palette, setThemeId }}>{children}</ThemeContext.Provider>;
 }

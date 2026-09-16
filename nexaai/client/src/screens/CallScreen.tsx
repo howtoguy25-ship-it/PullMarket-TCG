@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Animated, Easing, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, Easing, FlatList, Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { Audio } from "expo-av";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GalaxyBackground } from "../components/GalaxyBackground";
-import { BotAvatar } from "../components/BotAvatar";
+import { HologramAvatar } from "../components/HologramAvatar";
 import { radii, spacing, typography } from "../theme/colors";
 import { useTheme } from "../lib/ThemeContext";
 import type { Palette } from "../theme/palettes";
 import { API_URL, api, ApiError, getToken } from "../lib/api";
+import { Alert } from "../lib/alert";
 import { appendRecordingToForm } from "../lib/voice";
 
 interface VoiceConversation {
@@ -60,6 +62,7 @@ export function CallScreen() {
   const navigation = useNavigation<any>();
   const { palette } = useTheme();
   const styles = useMemo(() => makeStyles(palette), [palette]);
+  const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<CallPhase>("ringing");
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [turns, setTurns] = useState<VoiceTurn[]>([]);
@@ -369,7 +372,7 @@ export function CallScreen() {
   return (
     <GalaxyBackground>
       <View style={styles.container}>
-        <View style={styles.stage}>
+        <View style={[styles.stage, { paddingTop: insets.top + spacing.md }]}>
           <Animated.View
             pointerEvents="none"
             style={[
@@ -379,7 +382,12 @@ export function CallScreen() {
           />
           <View style={[styles.stageRing, { borderColor: palette.border }]} />
           <Animated.View style={{ transform: [{ scale: phase === "ringing" ? ringScale : 1 }] }}>
-            <BotAvatar size={156} mood={avatarMood} liveMouthLevel={Platform.OS === "web" ? mouthLevel : undefined} />
+            <HologramAvatar
+              size={156}
+              mood={avatarMood}
+              liveMouthLevel={Platform.OS === "web" ? mouthLevel : undefined}
+              liveMicLevel={micLevel}
+            />
           </Animated.View>
 
           <View style={[styles.phasePill, { borderColor: palette.border, backgroundColor: palette.bgCard }]}>
@@ -417,7 +425,7 @@ export function CallScreen() {
           )}
         />
 
-        <View style={styles.controls}>
+        <View style={[styles.controls, { paddingBottom: insets.bottom + spacing.md }]}>
           {phase === "listening" && (
             <View style={styles.micWrap}>
               <Animated.View

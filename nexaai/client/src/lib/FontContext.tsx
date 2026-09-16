@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useFonts } from "expo-font";
-import { Inter_400Regular, Inter_500Medium, Inter_700Bold } from "@expo-google-fonts/inter";
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { Fraunces_400Regular, Fraunces_500Medium, Fraunces_700Bold } from "@expo-google-fonts/fraunces";
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from "@expo-google-fonts/space-grotesk";
 import { View, ActivityIndicator } from "react-native";
@@ -44,6 +44,7 @@ export function FontProvider({ children }: { children: React.ReactNode }) {
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
+    Inter_600SemiBold,
     Inter_700Bold,
     Fraunces_400Regular,
     Fraunces_500Medium,

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta
+      name="description"
+      content="NexaAi is a real-time AI chat and voice assistant app with tiered plans (Ember/Nova/Zenith), credit-based billing, a custom-agent builder, and a companion account website."
+    />
+    <title>NexaAi</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /* Real fallback content below is only ever seen before the app's JS
+         mounts (or not at all, for a crawler that doesn't run JS) — once
+         React mounts into #root it replaces this markup outright, so this
+         never fights the real app's own styling. */
+      .fallback {
+        display: flex;
+        flex-direction: column;
+        min-height: 100%;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 32px 20px;
+        background: #05040f;
+        color: #f4f2ff;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      .fallback h1 {
+        font-size: 28px;
+        margin: 0 0 12px;
+      }
+      .fallback p {
+        font-size: 15px;
+        line-height: 1.6;
+        color: #b8b3d9;
+        max-width: 560px;
+        margin: 0 0 12px;
+      }
+      .fallback a {
+        color: #b79cff;
+      }
+      .fallback nav {
+        margin-top: 20px;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- Real, readable-without-JavaScript product description — seen by
+         anything that fetches this page without executing scripts (search
+         crawlers, link previews, automated site checks). Once the app's own
+         JavaScript loads, React replaces everything inside #root with the
+         real interactive app; a signed-in browser never sees this static
+         version render at all beyond the first paint. -->
+    <div id="root">
+      <div class="fallback">
+        <h1>NexaAi</h1>
+        <p>
+          NexaAi is a real-time AI chat and voice assistant app. It answers questions, holds live voice
+          conversations, and can look at a photo you take and answer about it — with tiered plans (Ember, Nova,
+          Zenith), credit-based billing, and a custom-agent builder for connecting NexaAi to your own channels.
+        </p>
+        <p>
+          This page manages your NexaAi account, credits, and settings on the web — the full chat and voice
+          experience lives in the NexaAi mobile app.
+        </p>
+        <nav>
+          <a href="/account/index.html">Sign in</a>
+          <a href="/account/pricing.html">Pricing</a>
+          <a href="/account/terms.html">Terms of Service</a>
+          <a href="/account/privacy.html">Privacy Policy</a>
+        </nav>
+      </div>
+    </div>
+  </body>
+</html>
