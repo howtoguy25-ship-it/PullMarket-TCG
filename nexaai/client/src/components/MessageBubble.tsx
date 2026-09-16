@@ -46,7 +46,12 @@ export interface ChatMessageVM {
   content: string;
   kind?: string;
   attachment?: MessageAttachment;
-  metadata?: { businesses?: NearbyBusiness[]; videoFrames?: VideoFrameBreakdownItem[] } | null;
+  metadata?: {
+    businesses?: NearbyBusiness[];
+    videoFrames?: VideoFrameBreakdownItem[];
+    /** A real gpt-image-2 result (server/src/lib/imageGeneration.ts) — url is a real /uploads/*.png this server generated, never invented. */
+    generatedImage?: { url: string; prompt: string };
+  } | null;
   createdAt?: string;
   /** Set only on a synthetic marker row (ChatScreen.tsx's openSession) — when present, this entry renders as a real "Resumed session" divider with this exact live timestamp instead of a normal chat bubble; every other field on it is meaningless. */
   sessionResumedAt?: string;
@@ -436,6 +441,24 @@ export function MarkdownAnswer({ text }: { text: string }) {
 }
 
 /**
+ * A real gpt-image-2 result (server/src/lib/imageGeneration.ts) — `image.url`
+ * is a genuine /uploads/*.png this server generated from the user's prompt,
+ * served the same way AttachmentPreview's image attachments are.
+ */
+function GeneratedImageCard({ image }: { image: { url: string; prompt: string } }) {
+  const { palette } = useTheme();
+  const styles = useMemo(() => makeStyles(palette), [palette]);
+  return (
+    <View style={styles.generatedImageBlock}>
+      <Image source={{ uri: `${API_URL}${image.url}` }} style={styles.generatedImage} resizeMode="cover" />
+      <Text style={styles.generatedImageCaption} numberOfLines={2}>
+        {image.prompt}
+      </Text>
+    </View>
+  );
+}
+
+/**
  * Real, tappable "Get directions" rows for places NexaAi actually found
  * (server/src/lib/businessLookup.ts's real seeded results, attached as
  * this message's metadata — see routes/chat.ts's finish()). Tapping one
@@ -676,6 +699,7 @@ export function MessageBubble({ message, isStreaming, avatarMood, showSeparatorA
             );
           })()}
           {message.metadata?.businesses && <DirectionsList businesses={message.metadata.businesses} />}
+          {message.metadata?.generatedImage && <GeneratedImageCard image={message.metadata.generatedImage} />}
           {!isStreaming && !parseWhoIsProfile(message.content) && <HelpLinkChip userText={precedingUserText} />}
           {!isStreaming && (
             <View style={styles.actionRow}>
@@ -804,6 +828,10 @@ function makeStyles(palette: Palette) {
     directionsMeta: { ...typography.caption, color: palette.textMuted },
     directionsButton: { flexDirection: "row", alignItems: "center", gap: 4, borderRadius: radii.pill, paddingVertical: 6, paddingHorizontal: spacing.sm },
     directionsButtonText: { ...typography.caption, color: "#fff", fontWeight: "700" },
+
+    generatedImageBlock: { marginTop: spacing.md, gap: 6 },
+    generatedImage: { width: "100%", aspectRatio: 1, borderRadius: radii.md, backgroundColor: palette.bgCardAlt },
+    generatedImageCaption: { ...typography.caption, color: palette.textMuted },
 
     resumedRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginVertical: spacing.lg },
     resumedLine: { flex: 1, height: 1, opacity: 0.8 },
