@@ -120,6 +120,8 @@ export interface AskResult {
   text: string;
   /** True when `signal` fired before the model finished — `text` is whatever was generated up to that point, not a full answer. */
   stopped?: boolean;
+  /** Set when this turn was a real image_generation request — see routes/chat.ts's resolveAnswer(). */
+  generatedImage?: { url: string; prompt: string };
 }
 
 // The "Real images for topics" capability's addendum — deliberately mirrors

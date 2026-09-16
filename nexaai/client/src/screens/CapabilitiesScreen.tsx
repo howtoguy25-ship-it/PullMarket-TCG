@@ -35,6 +35,11 @@ const CAPABILITY_ROWS: { key: keyof NexaCapabilities; label: string; description
     description:
       "When a chat answer is about a real-world topic, let NexaAi search the web and show 1-2 real, matching photos alongside it. Off by default — this uses a real web search per answer, not a fake stock image.",
   },
+  {
+    key: "imageGeneration",
+    label: "Image generation",
+    description: "Ask NexaAi to generate an image right in Chat — a real AI-created picture, not a web search result.",
+  },
 ];
 
 export function CapabilitiesScreen() {

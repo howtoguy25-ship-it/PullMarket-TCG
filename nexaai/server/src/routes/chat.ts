@@ -27,12 +27,14 @@ import { getOwnerSettings } from "../lib/ownerSettings";
 import { getMemoryContext, extractAndStoreMemory } from "../lib/memory";
 import { syncExpiredPlan } from "../lib/planExpiry";
 import { resolveMaxTokens, describeVideoFrame } from "../lib/anthropic";
-import { estimateChatCreditCostCents } from "../lib/costModel";
+import { estimateChatCreditCostCents, estimateImageGenerationCreditCostCents, type ImageQuality } from "../lib/costModel";
 import type { NexaPromptMode } from "@shared/nexaPersona";
 import { getNotionContext } from "../lib/notionContext";
 import { extractFileText } from "../lib/extractFileText";
 import { detectAgentBuildRequest } from "../lib/agents/detectAgentRequest";
 import { detectSiteBuildRequest } from "../lib/build/detectSiteBuildRequest";
+import { detectImageGenerationRequest } from "../lib/imageGen/detectImageGenerationRequest";
+import { generateImage } from "../lib/imageGeneration";
 import { isSiteSparkConnected, pushProjectToSiteSpark } from "../lib/connectors/sitespark";
 import { buildMcpToolBridge } from "../lib/mcp/toolBridge";
 import { persistProjectFiles } from "../lib/projectFiles";
@@ -50,7 +52,7 @@ const sendMessageSchema = z.object({
   // already carries its own projectId in the DB.
   projectId: z.string().uuid().optional(),
   text: z.string().min(1).max(4000),
-  kind: z.enum(["text", "voice_memo", "camera_ask", "who_is_lookup", "assistance_request", "file_attachment"]).default("text"),
+  kind: z.enum(["text", "voice_memo", "camera_ask", "who_is_lookup", "assistance_request", "file_attachment", "image_generation"]).default("text"),
   requestedAnswerCount: z.number().int().min(1).max(6).optional(),
   requestedFocusMode: z.enum(["quick", "build", "auto", "gorilla"]).optional(),
   imageBase64: z.string().optional(),
@@ -86,6 +88,11 @@ const CANCEL_TASK_RE = /^\s*(stop|cancel|cancel (this|that|it)|never ?mind|drop 
 // than a normal answer.
 const WHO_IS_DEEP_DIVE_MULTIPLIER = 3;
 
+// Real gpt-image-2 quality tier used for every in-chat image generation —
+// see server/src/lib/imageGeneration.ts and costModel.ts's real
+// measured-usage pricing per tier.
+const IMAGE_GEN_QUALITY: ImageQuality = "medium";
+
 // "1 minute time frame after that user can't make changes to their texts" —
 // a real, server-enforced window measured from the message's own createdAt,
 // not reset by editing itself, so re-editing can't extend it.
@@ -118,10 +125,22 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
 
   const ownerSettings = await getOwnerSettings();
   const caps = applyOwnerOverrides(resolveCapabilities(user.capabilities), ownerSettings);
+
+  // Deterministic "draw/generate/create me a picture of X" detector
+  // (lib/imageGen/detectImageGenerationRequest.ts), same shape as the
+  // who-is/assistance auto-detection below — a plain-text message that
+  // matches gets rerouted to the real image_generation kind so the
+  // capability gate and cost model below both apply to what this turn
+  // actually is.
+  if (body.kind === "text" && caps.imageGeneration && detectImageGenerationRequest(body.text)) {
+    body.kind = "image_generation";
+  }
+
   const CAPABILITY_BY_KIND: Partial<Record<SendMessageBody["kind"], keyof typeof caps>> = {
     camera_ask: "cameraAsk",
     who_is_lookup: "whoIsLookup",
     assistance_request: "webLookup",
+    image_generation: "imageGeneration",
   };
   const requiredCapability = CAPABILITY_BY_KIND[body.kind];
   if (requiredCapability && !caps[requiredCapability]) {
@@ -232,14 +251,17 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
   // frame-by-frame breakdown below and lib/anthropic.ts's describeVideoFrame).
   const isVideoAttachment = !!(body.attachment && body.attachment.kind !== "image" && body.attachment.kind !== "file");
   const imageCountForCost = body.imageBase64 || body.attachment?.kind === "image" ? 1 : isVideoAttachment ? FRAME_COUNT : 0;
-  const creditCostCents = estimateChatCreditCostCents({
-    planProvider: plan.provider,
-    model: plan.model,
-    maxOutputTokens: maxTokensForCost,
-    kindMultiplier,
-    imageCount: imageCountForCost,
-    videoFrameDescriptionCount: isVideoAttachment ? FRAME_COUNT : 0,
-  });
+  const creditCostCents =
+    body.kind === "image_generation"
+      ? estimateImageGenerationCreditCostCents(IMAGE_GEN_QUALITY)
+      : estimateChatCreditCostCents({
+          planProvider: plan.provider,
+          model: plan.model,
+          maxOutputTokens: maxTokensForCost,
+          kindMultiplier,
+          imageCount: imageCountForCost,
+          videoFrameDescriptionCount: isVideoAttachment ? FRAME_COUNT : 0,
+        });
   const spend = await spendCredits(db, userId, creditCostCents, `chat:${body.kind}:${focusMode}`);
   if (!spend.allowed) {
     return {
@@ -469,7 +491,7 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       // means uncapped (today's plan/focus-mode defaults apply as-is).
       reasoningEffortCap: ownerSettings.reasoningEffortCap ?? undefined,
     },
-    finish: async (text: string, videoFrameBreakdown?: VideoFrameBreakdownEntry[]) => {
+    finish: async (text: string, videoFrameBreakdown?: VideoFrameBreakdownEntry[], generatedImage?: { url: string; prompt: string }) => {
       // NOTE: this key is `message`, not `assistantMsg` — the client
       // (ChatScreen/ProjectChatScreen) reads `final.message` on both the
       // plain and streaming routes. Keep them in sync: a mismatch here
@@ -479,6 +501,7 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
       const metadata: Record<string, unknown> = {};
       if (nearbyBusinesses.length) metadata.businesses = nearbyBusinesses;
       if (videoFrameBreakdown?.length) metadata.videoFrames = videoFrameBreakdown;
+      if (generatedImage) metadata.generatedImage = generatedImage;
       const [message] = await db
         .insert(messages)
         .values({
@@ -573,7 +596,12 @@ async function prepareTurn(userId: string, body: SendMessageBody) {
 // who_is_lookup always goes through the real web-search deep dive
 // (lib/whoIsSearch.ts) instead of the normal plan-tier model — see that
 // file's header comment for why this bypasses modelRouter entirely.
-async function resolveAnswer(askParams: AskParams, kind: SendMessageBody["kind"], onDelta?: (delta: string) => void): Promise<AskResult> {
+async function resolveAnswer(
+  askParams: AskParams,
+  kind: SendMessageBody["kind"],
+  rawUserText: string,
+  onDelta?: (delta: string) => void,
+): Promise<AskResult> {
   if (kind === "who_is_lookup") {
     const result = await deepWhoIsLookup({
       plan: askParams.plan,
@@ -583,6 +611,16 @@ async function resolveAnswer(askParams: AskParams, kind: SendMessageBody["kind"]
     });
     onDelta?.(result.text); // no partial streaming — the search tool loop must finish before any text exists
     return result;
+  }
+  if (kind === "image_generation") {
+    // Real gpt-image-2 call (lib/imageGeneration.ts) — bypasses the normal
+    // chat model entirely, same as who_is_lookup above. Uses the user's
+    // literal typed text, not askParams.userMessage (which carries extra
+    // memory/spelling context this prompt shouldn't be padded with).
+    const generated = await generateImage(rawUserText, IMAGE_GEN_QUALITY, askParams.signal);
+    const text = "Here's what I created.";
+    onDelta?.(text);
+    return { text, generatedImage: { url: generated.url, prompt: rawUserText } };
   }
   return onDelta ? streamModel(askParams, onDelta) : askModel(askParams);
 }
@@ -599,7 +637,7 @@ chatRouter.post("/messages", async (req: AuthedRequest, res) => {
   // certain billing error, so it's refunded automatically, not left for a
   // manual dispute (see prepareTurn's onFailure).
   try {
-    const result = await resolveAnswer(turn.askParams, parsed.data.kind);
+    const result = await resolveAnswer(turn.askParams, parsed.data.kind, parsed.data.text);
 
     // Real per-frame breakdown: one live Claude vision call per sampled video
     // still (see lib/anthropic.ts's describeVideoFrame). Non-streaming route,
@@ -616,7 +654,7 @@ chatRouter.post("/messages", async (req: AuthedRequest, res) => {
       );
     }
 
-    const outcome = await turn.finish(result.text, videoFrameBreakdown);
+    const outcome = await turn.finish(result.text, videoFrameBreakdown, result.generatedImage);
 
     res.json({ sessionId: turn.sessionId, userMessage: turn.userMessage, ...outcome });
   } catch (err) {
@@ -688,13 +726,18 @@ chatRouter.post("/messages/stream", async (req: AuthedRequest, res) => {
       }
     }
 
-    const result = await resolveAnswer({ ...turn.askParams, signal: controller.signal }, parsed.data.kind, (delta) => send({ delta }));
+    const result = await resolveAnswer(
+      { ...turn.askParams, signal: controller.signal },
+      parsed.data.kind,
+      parsed.data.text,
+      (delta) => send({ delta }),
+    );
     if (result.stopped && !result.text.trim()) {
       // Stopped before any real text existed — nothing worth saving, and
       // not a billing error (the user chose to stop), so no auto-refund.
       send({ done: true, stopped: true, sessionId: turn.sessionId });
     } else {
-      const outcome = await turn.finish(result.text, videoFrameBreakdown);
+      const outcome = await turn.finish(result.text, videoFrameBreakdown, result.generatedImage);
       send({ done: true, stopped: result.stopped ?? false, sessionId: turn.sessionId, userMessage: turn.userMessage, ...outcome });
     }
   } catch (err) {
@@ -1026,6 +1069,7 @@ chatRouter.patch("/messages/:id/edit", async (req: AuthedRequest, res) => {
     const result = await resolveAnswer(
       { plan: editPlan, answerCount, userMessage: parsed.data.newText, history: orderedHistory, mode: "chat", memoryContext, focusMode },
       "text",
+      parsed.data.newText,
     );
 
     [assistantMessage] = await db

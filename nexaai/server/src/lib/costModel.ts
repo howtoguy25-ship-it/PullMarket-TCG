@@ -141,3 +141,25 @@ export function estimateVoiceTurnCreditCostCents(input: VoiceTurnCostInput): num
           centsFromTokens(VOICE_REPLY_OUTPUT_TOKENS_ESTIMATE, modelRate(input.reasoningModel ?? "").outputPerMTokCents);
   return Math.ceil((sttCents + ttsCents + reasoningCents) * MARGIN_MULTIPLIER);
 }
+
+export type ImageQuality = "low" | "medium" | "high";
+
+// Real measured usage against this account's actual OpenAI API key
+// (gpt-image-2, /v1/images/generations) — each quality tier's real
+// output_tokens from the API's own usage object, not a guess.
+const IMAGE_GEN_INPUT_TOKENS_ESTIMATE = 14;
+const IMAGE_GEN_OUTPUT_TOKENS_BY_QUALITY: Record<ImageQuality, number> = {
+  low: 196,
+  medium: 1756,
+  high: 7024,
+};
+const IMAGE_GEN_INPUT_RATE_CENTS = 500; // $5 / 1M tokens
+const IMAGE_GEN_OUTPUT_RATE_CENTS = 3000; // $30 / 1M tokens
+
+/** Realistic-usage, margin-applied credit cost (in cents) for one generated image. */
+export function estimateImageGenerationCreditCostCents(quality: ImageQuality): number {
+  const rawCents =
+    centsFromTokens(IMAGE_GEN_INPUT_TOKENS_ESTIMATE, IMAGE_GEN_INPUT_RATE_CENTS) +
+    centsFromTokens(IMAGE_GEN_OUTPUT_TOKENS_BY_QUALITY[quality], IMAGE_GEN_OUTPUT_RATE_CENTS);
+  return Math.ceil(rawCents * MARGIN_MULTIPLIER);
+}
