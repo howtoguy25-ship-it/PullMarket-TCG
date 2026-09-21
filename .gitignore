@@ -14,3 +14,4 @@ uploads/
 *.tsbuildinfo
 *.p8
 credentials/
+nexaai/finetune/data/*.jsonl
