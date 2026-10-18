@@ -131,6 +131,12 @@ export default function ListingDetailScreen() {
     onError: (err) => showAlert("Couldn't add to cart", err instanceof ApiError ? err.message : "Please try again."),
   });
 
+  const messageSellerMutation = useMutation({
+    mutationFn: () => apiJson<{ id: string }>("POST", `/api/chat/conversations/with/${listing!.seller!.id}`),
+    onSuccess: (convo) => navigation.navigate("ChatThread", { conversationId: convo.id, otherUserId: listing!.seller!.id, listingId }),
+    onError: (err) => showAlert("Couldn't open chat", err instanceof ApiError ? err.message : "Please try again."),
+  });
+
   const priceMatchQuery = new URLSearchParams({ franchise: listing?.franchise ?? "both", title: listing?.title ?? "" }).toString();
   const { data: priceMatch } = useQuery<PriceMatchResponse>({
     queryKey: [`/api/prices/match?${priceMatchQuery}`],
@@ -250,7 +256,16 @@ export default function ListingDetailScreen() {
         {listing.seller ? (
           <View style={styles.sellerRow}>
             <Avatar avatarUrl={listing.seller.avatarUrl} seed={listing.seller.username} size={38} />
-            <Text style={styles.sellerName}>@{listing.seller.username}</Text>
+            <Text style={[styles.sellerName, { flex: 1 }]}>@{listing.seller.username}</Text>
+            {!isOwnListing ? (
+              <Button
+                title="Message seller"
+                variant="outline"
+                icon={<Feather name="message-circle" size={16} color={Colors.primary} />}
+                onPress={() => requireAuth(() => messageSellerMutation.mutate())}
+                loading={messageSellerMutation.isPending}
+              />
+            ) : null}
           </View>
         ) : null}
 

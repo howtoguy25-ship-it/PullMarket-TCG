@@ -17,7 +17,8 @@ import { appendMediaToFormData } from "@/lib/formDataImage";
 import { resolveImageUrl } from "@/lib/media";
 import { formatSeenStatus } from "@/lib/timeAgo";
 import { useCall } from "@/contexts/CallContext";
-import { isActivePro } from "@shared/validation";
+import { isActivePro, CONDITION_LABELS } from "@shared/validation";
+import { PriceTag } from "@/components/ui";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type ThreadRoute = RouteProp<RootStackParamList, "ChatThread">;
@@ -44,6 +45,15 @@ interface ReplyPreview {
   text: string | null;
 }
 
+interface SharedListing {
+  id: string;
+  title: string;
+  priceCents: number;
+  condition: string;
+  status: string;
+  imageUrl: string | null;
+}
+
 interface Message {
   id: string;
   senderId: string;
@@ -57,6 +67,7 @@ interface Message {
   replyTo: ReplyPreview | null;
   forwarded: boolean;
   deletedForEveryoneAt: string | null;
+  listing: SharedListing | null;
 }
 
 interface ConversationDetail {
@@ -115,6 +126,47 @@ function formatMessageTime(iso: string): string {
 // (primary-colored) ticks = read — same three-state convention as any
 // real chat app. Tapping the ticks on a message you sent opens a status
 // popup with exactly when it was seen (see SeenStatusModal below).
+// The product card a listing shares as inside a chat bubble (and, before
+// sending, above the composer). Tapping it opens the listing itself unless
+// it's since been taken down.
+function ListingChatCard({ listing, mine, onPress, onRemove }: { listing: SharedListing; mine?: boolean; onPress?: () => void; onRemove?: () => void }) {
+  const unavailable = listing.status === "deleted" || listing.status === "removed" || listing.status === "unlisted";
+  const conditionLabel = CONDITION_LABELS[listing.condition] ?? listing.condition;
+  return (
+    <Pressable onPress={unavailable ? undefined : onPress} disabled={unavailable || !onPress} style={[styles.listingCard, mine && styles.listingCardMine]}>
+      {listing.imageUrl ? (
+        <Image source={{ uri: resolveImageUrl(listing.imageUrl) }} style={styles.listingCardImage} resizeMode="cover" />
+      ) : (
+        <View style={[styles.listingCardImage, styles.listingCardImagePlaceholder]}>
+          <Feather name="image" size={18} color={Colors.textMuted} />
+        </View>
+      )}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={styles.listingCardTitle} numberOfLines={2}>
+          {listing.title}
+        </Text>
+        {unavailable ? (
+          <Text style={styles.listingCardMeta}>No longer available</Text>
+        ) : (
+          <>
+            <PriceTag cents={listing.priceCents} style={styles.listingCardPrice} />
+            <Text style={styles.listingCardMeta} numberOfLines={1}>
+              {listing.status === "sold_out" ? "Sold out" : conditionLabel}
+            </Text>
+          </>
+        )}
+      </View>
+      {onRemove ? (
+        <Pressable onPress={onRemove} hitSlop={8} style={styles.replyBarClose}>
+          <Feather name="x" size={16} color={Colors.textSecondary} />
+        </Pressable>
+      ) : !unavailable && onPress ? (
+        <Feather name="chevron-right" size={16} color={Colors.textMuted} />
+      ) : null}
+    </Pressable>
+  );
+}
+
 function ReceiptTicks({ message, onPress }: { message: Message; onPress: () => void }) {
   const ticks = message.readAt ? (
     <View style={styles.ticksRow}>
@@ -142,7 +194,7 @@ export default function ChatThreadScreen() {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const queryClient = useQueryClient();
-  const { conversationId } = route.params;
+  const { conversationId, listingId: initialListingId } = route.params;
   const { startCall } = useCall();
 
   const [text, setText] = useState("");
@@ -151,6 +203,17 @@ export default function ChatThreadScreen() {
   const [actionMessage, setActionMessage] = useState<Message | null>(null);
   const [forwardMessage, setForwardMessage] = useState<Message | null>(null);
   const [seenStatusMessage, setSeenStatusMessage] = useState<Message | null>(null);
+  // Arriving from "Message seller" on a listing pre-attaches that listing
+  // as a product card to the next message — removable before sending.
+  const [pendingListingId, setPendingListingId] = useState<string | null>(initialListingId ?? null);
+  const { data: pendingListingDetail } = useQuery<{ id: string; title: string; priceCents: number; condition: string; status: string; images: string[] }>({
+    queryKey: [`/api/listings/${pendingListingId}`],
+    enabled: !!pendingListingId,
+  });
+  const pendingListing: SharedListing | null =
+    pendingListingId && pendingListingDetail?.id === pendingListingId
+      ? { ...pendingListingDetail, imageUrl: pendingListingDetail.images?.[0] ?? null }
+      : null;
 
   const { data: convo } = useQuery<ConversationDetail>({ queryKey: [`/api/chat/conversations/${conversationId}`], refetchInterval: 4000, meta: { silent401: true } });
   const { data: messages, isLoading } = useQuery<Message[]>({ queryKey: [`/api/chat/conversations/${conversationId}/messages`], refetchInterval: 3000, meta: { silent401: true } });
@@ -193,6 +256,7 @@ export default function ChatThreadScreen() {
       const formData = new FormData();
       if (text.trim()) formData.append("text", text.trim());
       if (replyingTo) formData.append("replyToMessageId", replyingTo.id);
+      if (pendingListingId) formData.append("listingId", pendingListingId);
       for (let i = 0; i < pendingMedia.length; i++) {
         await appendMediaToFormData(formData, "media", pendingMedia[i], i);
       }
@@ -202,6 +266,7 @@ export default function ChatThreadScreen() {
       setText("");
       setPendingMedia([]);
       setReplyingTo(null);
+      setPendingListingId(null);
       invalidateAll();
       scrollToBottom(true);
     },
@@ -314,7 +379,7 @@ export default function ChatThreadScreen() {
 
   const removeMedia = (index: number) => setPendingMedia((prev) => prev.filter((_, i) => i !== index));
 
-  const canSend = (text.trim().length > 0 || pendingMedia.length > 0) && !sendMutation.isPending && convo?.status !== "declined";
+  const canSend = (text.trim().length > 0 || pendingMedia.length > 0 || !!pendingListing) && !sendMutation.isPending && convo?.status !== "declined";
   const showRequestBanner = convo?.status === "pending" && convo.isIncomingRequest;
   const showSentBanner = convo?.status === "pending" && !convo.isIncomingRequest;
 
@@ -365,6 +430,9 @@ export default function ChatThreadScreen() {
                             {item.replyTo.text || "Attachment"}
                           </Text>
                         </View>
+                      ) : null}
+                      {item.listing ? (
+                        <ListingChatCard listing={item.listing} mine={mine} onPress={() => navigation.navigate("ListingDetail", { listingId: item.listing!.id })} />
                       ) : null}
                       {item.attachments.length > 0 ? (
                         <View style={styles.attachmentsWrap}>
@@ -432,6 +500,12 @@ export default function ChatThreadScreen() {
           <Pressable onPress={() => setReplyingTo(null)} hitSlop={8} style={styles.replyBarClose}>
             <Feather name="x" size={16} color={Colors.textSecondary} />
           </Pressable>
+        </View>
+      ) : null}
+
+      {pendingListing ? (
+        <View style={styles.pendingListingRow}>
+          <ListingChatCard listing={pendingListing} onRemove={() => setPendingListingId(null)} />
         </View>
       ) : null}
 
@@ -634,6 +708,14 @@ const styles = StyleSheet.create({
   deletedText: { ...Typography.body, color: Colors.textMuted, fontStyle: "italic" },
   deletedTextMine: { color: "rgba(255,255,255,0.75)" },
   attachmentsWrap: { gap: 6 },
+  listingCard: { flexDirection: "row", alignItems: "center", gap: Spacing.sm, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: Colors.border, padding: 8, minWidth: 220, maxWidth: 280 },
+  listingCardMine: { borderColor: "rgba(255,255,255,0.35)" },
+  listingCardImage: { width: 56, height: 56, borderRadius: BorderRadius.sm, backgroundColor: Colors.border },
+  listingCardImagePlaceholder: { alignItems: "center", justifyContent: "center" },
+  listingCardTitle: { ...Typography.bodyBold, color: Colors.text, fontSize: 13 },
+  listingCardPrice: { fontSize: 14, marginTop: 2 },
+  listingCardMeta: { ...Typography.small, color: Colors.textMuted, fontSize: 11, marginTop: 1 },
+  pendingListingRow: { paddingHorizontal: Spacing.md, paddingTop: Spacing.sm, backgroundColor: Colors.background, borderTopWidth: 1, borderTopColor: Colors.border },
   attachmentMedia: { width: 200, height: 200, borderRadius: BorderRadius.md, backgroundColor: Colors.border },
   mediaDivider: { height: 1, backgroundColor: Colors.border, marginVertical: 2 },
   mediaDividerMine: { backgroundColor: "rgba(255,255,255,0.3)" },

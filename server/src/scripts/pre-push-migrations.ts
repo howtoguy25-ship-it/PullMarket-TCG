@@ -86,6 +86,9 @@ const STATEMENTS = [
   `ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_for_everyone_at timestamp;`,
   `CREATE INDEX IF NOT EXISTS idx_messages_reply_to ON messages (reply_to_message_id);`,
 
+  // messages: shared listing product card
+  `ALTER TABLE messages ADD COLUMN IF NOT EXISTS listing_id varchar REFERENCES listings(id) ON DELETE SET NULL;`,
+
   // follows: Pro-member follow system
   `CREATE TABLE IF NOT EXISTS follows (
      follower_id varchar NOT NULL REFERENCES users(id) ON DELETE CASCADE,
