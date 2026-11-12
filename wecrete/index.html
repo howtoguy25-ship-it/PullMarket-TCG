@@ -46,6 +46,11 @@ img,svg,canvas{display:block}
 .btn:hover{background:var(--amber-2);transform:translateY(-1px)}
 .btn.ghost{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.25)}
 .btn.ghost:hover{border-color:var(--amber);color:var(--amber)}
+.nav-ig{color:var(--muted);display:grid;place-items:center;width:40px;height:40px;border-radius:999px;border:1px solid var(--line);margin-left:auto;margin-right:12px;transition:color .2s,border-color .2s}
+.nav-ig:hover{color:var(--amber);border-color:var(--amber)}
+.btn svg{flex:none}
+.copy{background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;font:inherit;font-size:12px;padding:4px 12px;cursor:pointer;margin-left:10px;vertical-align:middle}
+.copy:hover{color:var(--amber);border-color:var(--amber)}
 .menu-btn{display:none;background:none;border:0;color:var(--text);cursor:pointer;padding:6px}
 .menu-btn svg{width:28px;height:28px}
 @media (max-width:960px){
@@ -213,6 +218,7 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
     <li><a href="#faq">FAQ</a></li>
     <li><a href="#contact">Contact</a></li>
   </ul>
+  <a data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener" class="nav-ig" aria-label="WeCrete on Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg></a>
   <a href="#contact" class="btn nav-cta">Get a Quote</a>
   <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
 </nav>
@@ -374,7 +380,7 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
         <div><div class="eyebrow">Order</div><div class="num" id="cOut">3.25<small>YD³</small></div></div>
         <div style="text-align:right"><div class="eyebrow">Exact volume</div><div id="cExact" style="font-family:var(--mono);font-size:18px;margin-top:6px">2.96 yd³</div><div id="cTrucks" class="muted" style="font-size:13px;margin-top:4px">1 truck</div></div>
       </div>
-      <p class="note">Estimates only. Footings, curbs and irregular shapes need separate calculations — call dispatch and we'll help you check the number.</p>
+      <p class="note">Estimates only. Footings, curbs and irregular shapes need separate calculations. Call us and we'll help you check the number.</p>
     </div>
   </div>
 </section>
@@ -389,7 +395,7 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
       <p class="muted" style="margin-top:16px">Deliveries outside the standard area are available and may carry a distance charge. Early-morning, night and weekend pours can be arranged in advance.</p>
     </div>
     <div class="reveal">
-      <div class="eyebrow">Dispatch hours</div>
+      <div class="eyebrow">Hours</div>
       <div class="hours" id="hours"></div>
     </div>
   </div>
@@ -521,7 +527,7 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
       <details><summary>How long does the driver stay?</summary><div class="body"><p>Each load includes unloading time based on its size. After that, standby time is billed in 15-minute increments. Having your crew, forms and tools ready keeps costs down.</p></div></details>
       <details><summary>What happens if it rains?</summary><div class="body"><p>Call us before the load is batched and we'll reschedule without a fee. Light rain may be workable if your crew is prepared to protect the surface.</p></div></details>
       <details><summary>When can I walk or drive on it?</summary><div class="body"><p>Generally, light foot traffic after 24–48 hours, passenger vehicles after about 7 days, and heavy loads after 28 days, when concrete reaches its design strength. Temperature and mix change this, so follow your contractor's advice.</p></div></details>
-      <details><summary>Do you place and finish the concrete?</summary><div class="body"><p>We supply and deliver ready-mix concrete. Ask dispatch and we can point you to placing and finishing contractors in your area.</p></div></details>
+      <details><summary>How do I see examples of your work?</summary><div class="body"><p>Our latest jobs are on Instagram at <a data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener">@wecreteconcreting</a>. Message us there or call <span data-cfg="phone"></span>.</p></div></details>
     </div>
   </div>
 </section>
@@ -531,10 +537,11 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
   <div class="wrap reveal">
     <div class="eyebrow">Ready when you are</div>
     <h2 class="title">Let's pour.</h2>
-    <p class="lead" style="margin:0 auto">Call dispatch or send your job details. We'll confirm your mix, price and pour window.</p>
+    <p class="lead" style="margin:0 auto">Call or text <span data-cfg="phone"></span>, or send your job details. We'll confirm your mix, price and pour date.</p>
     <div style="display:flex;gap:12px;justify-content:center;margin-top:30px;flex-wrap:wrap">
-      <a class="btn" data-cfg-href="tel" href="#">Call <span data-cfg="phone"></span></a>
+      <a class="btn" data-cfg-href="tel" href="tel:+61424018148">Call <span data-cfg="phone"></span></a>
       <a class="btn ghost" href="#contact">Request a Quote</a>
+      <a class="btn ghost" data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg> See our work</a>
     </div>
   </div>
 </section>
@@ -545,11 +552,10 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
     <div class="reveal">
       <div class="eyebrow">Contact</div>
       <h2 class="title">Get a quote.</h2>
-      <p class="lead">Fill in what you know. Dispatch will reply to confirm details and pricing.</p>
+      <p class="lead">Fill in what you know. We'll get back to you to confirm details and pricing.</p>
       <ul class="contact-list">
-        <li><small>Dispatch</small><a data-cfg="phone" data-cfg-href="tel" href="#"></a></li>
-        <li><small>Email</small><a data-cfg="email" data-cfg-href="mailto" href="#"></a></li>
-        <li><small>Plant</small><span data-cfg="address"></span></li>
+        <li><small>Call or text</small><a data-cfg="phone" data-cfg-href="tel" href="tel:+61424018148"></a><button class="copy" type="button" data-copy="phone">Copy</button></li>
+        <li><small>Instagram</small><a data-cfg="instagramHandle" data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener"></a></li>
       </ul>
     </div>
     <form class="calc reveal" id="quoteForm" novalidate>
@@ -564,12 +570,12 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
         <div class="field" style="grid-column:1/-1"><label for="fMsg">Project details</label><textarea id="fMsg" name="message" placeholder="Placement method, access, pump needed, add-ons…"></textarea></div>
       </div>
       <button class="btn" type="submit" style="margin-top:20px;width:100%;justify-content:center">Send Quote Request</button>
-      <p class="form-note" id="formNote">We'll prepare your request so you can send it to dispatch by email or read it out over the phone.</p>
+      <p class="form-note" id="formNote">We'll put your details together so you can text them to us or send them on Instagram.</p>
       <div class="summary" id="summary" hidden>
         <div class="eyebrow">Your request is ready</div>
-        <p class="form-note" style="margin-top:6px">Send this to <strong data-cfg="email"></strong> or call <strong data-cfg="phone"></strong>.</p>
+        <p class="form-note" style="margin-top:6px">Copy it, then text it to <strong data-cfg="phone"></strong> or send it to <strong data-cfg="instagramHandle"></strong> on Instagram.</p>
         <pre id="summaryText"></pre>
-        <div class="row"><button class="btn" type="button" id="copyBtn">Copy request</button><a class="btn ghost" id="mailBtn" href="#">Open email app</a></div>
+        <div class="row"><button class="btn" type="button" id="copyBtn">Copy request</button><a class="btn ghost" id="smsBtn" href="sms:+61424018148">Text it</a><a class="btn ghost" data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener">Open Instagram</a></div>
       </div>
     </form>
   </div>
@@ -583,7 +589,7 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
     </div>
     <div><h4>Company</h4><ul><li><a href="#about">About</a></li><li><a href="#services">Services</a></li><li><a href="#mixes">Mix Guide</a></li><li><a href="#area">Service Area</a></li></ul></div>
     <div><h4>Customers</h4><ul><li><a href="#calculator">Calculator</a></li><li><a href="#policies">Policies</a></li><li><a href="#faq">FAQ</a></li><li><a href="#contact">Get a Quote</a></li></ul></div>
-    <div><h4>Contact</h4><ul><li><a data-cfg="phone" data-cfg-href="tel" href="#"></a></li><li><a data-cfg="email" data-cfg-href="mailto" href="#"></a></li><li data-cfg="address"></li></ul></div>
+    <div><h4>Contact</h4><ul><li><a data-cfg="phone" data-cfg-href="tel" href="tel:+61424018148"></a></li><li><a data-cfg="instagramHandle" data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener"></a></li><li><a href="#contact">Request a quote</a></li></ul></div>
   </div>
   <div class="legal"><span>© <span id="yr">2026</span> WeCrete. All rights reserved.</span><span><a href="#privacy" data-open>Privacy</a> · <a href="#terms" data-open>Terms</a> · <a href="#policies">Policies</a></span></div>
 </footer>
@@ -593,17 +599,28 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
    BUSINESS DETAILS — edit these to update every place they appear.
    ===================================================================== */
 const CONFIG = {
-  phone: "(555) 010-0199",            // placeholder — replace with your real number
-  phoneHref: "+15550100199",
-  email: "orders@wecrete.example",    // placeholder — replace with your real email
-  address: "Your plant address, City, ST 00000",
-  serviceArea: "We deliver across Your City and surrounding communities within roughly 40 miles of our plant.",
+  phone: "0424 018 148",
+  phoneHref: "+61424018148",
+  instagram: "https://www.instagram.com/wecreteconcreting/",
+  instagramHandle: "@wecreteconcreting",
+  serviceArea: "Call or message us with your suburb and we'll confirm we can service your job.",
   hours: [["Monday – Friday","6:00 AM – 5:00 PM"],["Saturday","6:00 AM – 12:00 PM"],["Sunday","By arrangement"]]
 };
 
 /* ---------- fill config ---------- */
 document.querySelectorAll("[data-cfg]").forEach(el=>{ const v=CONFIG[el.dataset.cfg]; if(v) el.textContent=v; });
-document.querySelectorAll("[data-cfg-href]").forEach(el=>{ el.href = el.dataset.cfgHref==="tel" ? "tel:"+CONFIG.phoneHref : "mailto:"+CONFIG.email; });
+document.querySelectorAll("[data-cfg-href]").forEach(el=>{
+  const k=el.dataset.cfgHref;
+  if(k==="tel") el.href="tel:"+CONFIG.phoneHref;
+  else if(k==="sms") el.href="sms:"+CONFIG.phoneHref;
+  else if(k==="ig"){ el.href=CONFIG.instagram; el.target="_blank"; el.rel="noopener"; }
+});
+/* copy-number buttons (phone links can't always open a dialler) */
+document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",()=>{
+  const t=CONFIG[b.dataset.copy], old=b.textContent;
+  const done=m=>{b.textContent=m;setTimeout(()=>b.textContent=old,1800)};
+  try{navigator.clipboard.writeText(t).then(()=>done("Copied"),()=>done(t))}catch(e){done(t)}
+}));
 document.getElementById("hours").innerHTML = CONFIG.hours.map(([d,h])=>`<div><span>${d}</span><span>${h}</span></div>`).join("");
 document.getElementById("yr").textContent = new Date().getFullYear();
 
@@ -630,14 +647,14 @@ function calc(){
 }
 ["cL","cW","cT","cQ"].forEach(id=>$(id).addEventListener("input",calc)); calc();
 
-/* ---------- quote form (opens email client) ---------- */
+/* ---------- quote form (prepares a message to text or send on Instagram) ---------- */
 $("quoteForm").addEventListener("submit",e=>{
   e.preventDefault();
   const f=e.target; if(!f.name.value.trim()||!f.phone.value.trim()){ $("formNote").textContent="Please add at least your name and phone number."; $("formNote").style.color="#ffb35c"; return; }
   const body=[["Name",f.name.value],["Phone",f.phone.value],["Email",f.email.value],["Pour date",f.date.value],["Job site",f.site.value],["Yardage",f.yards.value],["Mix",f.mix.value],["Details",f.message.value]].map(([k,v])=>`${k}: ${v||"-"}`).join("\n");
   $("formNote").style.color="";
   $("summaryText").textContent=body; $("summary").hidden=false;
-  $("mailBtn").href=`mailto:${CONFIG.email}?subject=${encodeURIComponent("Quote request — "+f.name.value)}&body=${encodeURIComponent(body)}`;
+  $("smsBtn").href=`sms:${CONFIG.phoneHref}?&body=${encodeURIComponent("Quote request\n"+body)}`;
   $("summary").scrollIntoView({behavior:"smooth",block:"nearest"});
 });
 $("copyBtn").addEventListener("click",()=>{
