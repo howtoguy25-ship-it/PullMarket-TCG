@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WeCrete</title>
-<meta name="description" content="WeCrete supplies and delivers ready-mix concrete for residential, commercial and decorative pours. Batched to order, dispatched to your window.">
+<meta name="description" content="WeCrete Concreting forms, pours and finishes driveways, garage slabs, paths and coloured concrete. Call or text 0424 018 148 for a quote.">
 <meta name="theme-color" content="#0b0d10">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,8 +17,10 @@
   --line:rgba(255,255,255,.09);
   --text:#ece9e3;
   --muted:#9a978f;
-  --amber:#e9a23b;
-  --amber-2:#ffcb7a;
+  --accent:#8db6c9;      /* light tint of the logo steel blue, readable on dark */
+  --accent-2:#b7d4e1;
+  --brand:#446674;       /* logo blue */
+  --warn:#ffb35c;
   --concrete:#8e8a83;
   --radius:14px;
   --display:"Anton",Impact,"Arial Narrow",sans-serif;
@@ -31,29 +33,29 @@ html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
 body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
 a{color:inherit}
 img,svg,canvas{display:block}
-::selection{background:var(--amber);color:#111}
+::selection{background:var(--accent);color:#111}
 
 /* ---------- NAV ---------- */
 .nav{position:fixed;inset:0 0 auto 0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:calc(18px + env(safe-area-inset-top,0px)) clamp(16px,4vw,48px) 18px;transition:background .4s,backdrop-filter .4s,border-color .4s;border-bottom:1px solid transparent}
 .nav.solid{background:rgba(11,13,16,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-color:var(--line)}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--display);font-size:26px;letter-spacing:.04em}
-.brand b{color:var(--amber);font-weight:400}
-.brand svg{width:30px;height:30px}
-.nav ul{display:flex;gap:28px;list-style:none;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+.brand b{color:var(--accent);font-weight:400}
+.brand img{height:42px;width:auto;flex:none}
+.nav ul{display:flex;gap:28px;margin-left:40px;list-style:none;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
 .nav ul a{text-decoration:none;color:var(--muted);transition:color .2s}
 .nav ul a:hover{color:var(--text)}
-.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:999px;background:var(--amber);color:#14110b;font-weight:600;font-size:14px;letter-spacing:.04em;text-decoration:none;border:0;cursor:pointer;transition:transform .2s,background .2s;font-family:var(--sans)}
-.btn:hover{background:var(--amber-2);transform:translateY(-1px)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:999px;background:var(--accent);color:#0b1418;font-weight:600;font-size:14px;letter-spacing:.04em;text-decoration:none;border:0;cursor:pointer;transition:transform .2s,background .2s;font-family:var(--sans)}
+.btn:hover{background:var(--accent-2);transform:translateY(-1px)}
 .btn.ghost{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.25)}
-.btn.ghost:hover{border-color:var(--amber);color:var(--amber)}
+.btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
 .nav-ig{color:var(--muted);display:grid;place-items:center;width:40px;height:40px;border-radius:999px;border:1px solid var(--line);margin-left:auto;margin-right:12px;transition:color .2s,border-color .2s}
-.nav-ig:hover{color:var(--amber);border-color:var(--amber)}
+.nav-ig:hover{color:var(--accent);border-color:var(--accent)}
 .btn svg{flex:none}
 .copy{background:none;border:1px solid var(--line);color:var(--muted);border-radius:999px;font:inherit;font-size:12px;padding:4px 12px;cursor:pointer;margin-left:10px;vertical-align:middle}
-.copy:hover{color:var(--amber);border-color:var(--amber)}
+.copy:hover{color:var(--accent);border-color:var(--accent)}
 .menu-btn{display:none;background:none;border:0;color:var(--text);cursor:pointer;padding:6px}
 .menu-btn svg{width:28px;height:28px}
-@media (max-width:960px){
+@media (max-width:1120px){
   .nav ul{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;gap:0;background:rgba(11,13,16,.97);border-bottom:1px solid var(--line)}
   .nav ul.open{display:flex}
   .nav ul li a{display:block;padding:16px clamp(16px,4vw,48px);border-top:1px solid var(--line)}
@@ -71,23 +73,23 @@ img,svg,canvas{display:block}
 .letterbox.top{top:0}.letterbox.bot{bottom:0}
 .chapter{position:absolute;z-index:4;left:clamp(16px,6vw,96px);top:20vh;max-width:min(620px,88vw);opacity:0;will-change:opacity,transform;pointer-events:none}
 .chapter.right{left:auto;right:clamp(16px,6vw,96px);text-align:right}
-.chapter .k{font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--amber);text-transform:uppercase;margin-bottom:14px}
+.chapter .k{font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:14px}
 .chapter h2{font-family:var(--display);font-weight:400;font-size:clamp(40px,6.4vw,104px);line-height:.95;letter-spacing:.01em;text-transform:uppercase;text-shadow:0 8px 40px rgba(0,0,0,.6)}
 .chapter p{margin-top:18px;font-size:clamp(15px,1.3vw,19px);color:#d6d2ca;max-width:520px;text-shadow:0 2px 20px rgba(0,0,0,.8)}
 .chapter.right p{margin-left:auto}
 .chapter.hero h1{font-family:var(--display);font-weight:400;font-size:clamp(76px,15vw,240px);line-height:.85;letter-spacing:.01em;text-shadow:0 10px 60px rgba(0,0,0,.6)}
-.chapter.hero h1 b{color:var(--amber);font-weight:400}
+.chapter.hero h1 b{color:var(--accent);font-weight:400}
 .chapter.hero{top:16vh}
 .chapter.final{top:15vh;pointer-events:auto}
 .chapter.final .row{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
 .chapter.final .btn.ghost{background:rgba(0,0,0,.45);backdrop-filter:blur(6px)}
 .scroll-hint{position:absolute;z-index:4;left:50%;bottom:9vh;transform:translateX(-50%);font-family:var(--mono);font-size:11px;letter-spacing:.35em;color:var(--muted);text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:10px}
-.scroll-hint i{width:1px;height:46px;background:linear-gradient(var(--amber),transparent);animation:drip 1.8s ease-in-out infinite}
+.scroll-hint i{width:1px;height:46px;background:linear-gradient(var(--accent),transparent);animation:drip 1.8s ease-in-out infinite}
 @keyframes drip{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
 .hud{position:absolute;z-index:4;right:clamp(16px,4vw,48px);bottom:calc(5.5vh + 18px);font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:#bdb8ad;text-transform:uppercase;display:grid;grid-template-columns:auto auto;gap:4px 18px;background:rgba(0,0,0,.35);border:1px solid var(--line);padding:12px 16px;border-radius:10px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
-.hud span:nth-child(even){color:var(--amber);text-align:right}
+.hud span:nth-child(even){color:var(--accent);text-align:right}
 .progress{position:absolute;z-index:4;left:clamp(16px,4vw,48px);bottom:calc(5.5vh + 22px);width:min(260px,40vw);height:2px;background:rgba(255,255,255,.15)}
-.progress i{position:absolute;inset:0;background:var(--amber);transform-origin:left;transform:scaleX(0)}
+.progress i{position:absolute;inset:0;background:var(--accent);transform-origin:left;transform:scaleX(0)}
 .progress em{position:absolute;bottom:10px;left:0;font-family:var(--mono);font-style:normal;font-size:11px;letter-spacing:.2em;color:var(--muted)}
 @media (max-width:640px){
   .hud{display:none}
@@ -99,7 +101,7 @@ img,svg,canvas{display:block}
 /* ---------- CONTENT ---------- */
 section.block{position:relative;padding:clamp(80px,12vw,160px) clamp(16px,6vw,96px);border-top:1px solid var(--line)}
 .wrap{max-width:1240px;margin:0 auto}
-.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--amber);text-transform:uppercase}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase}
 h2.title{font-family:var(--display);font-weight:400;text-transform:uppercase;font-size:clamp(40px,6vw,88px);line-height:.95;margin:16px 0 22px;letter-spacing:.01em}
 .lead{font-size:clamp(17px,1.5vw,21px);color:#cfcbc3;max-width:720px}
 .muted{color:var(--muted)}
@@ -110,18 +112,39 @@ h2.title{font-family:var(--display);font-weight:400;text-transform:uppercase;fon
 @media (max-width:980px){.g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){.g2,.g3,.g4{grid-template-columns:1fr}}
 .card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01));border:1px solid var(--line);border-radius:var(--radius);padding:28px;position:relative;overflow:hidden;transition:border-color .3s,transform .3s}
-.card:hover{border-color:rgba(233,162,59,.45);transform:translateY(-3px)}
+.card:hover{border-color:rgba(141,182,201,.45);transform:translateY(-3px)}
 .card h3{font-size:19px;font-weight:600;margin:14px 0 8px;letter-spacing:.01em}
 .card p{color:var(--muted);font-size:15px}
-.card .ico{width:42px;height:42px;border-radius:10px;background:rgba(233,162,59,.12);display:grid;place-items:center;color:var(--amber)}
+.card .ico{width:42px;height:42px;border-radius:10px;background:rgba(141,182,201,.12);display:grid;place-items:center;color:var(--accent)}
 .card .ico svg{width:22px;height:22px}
 .num{font-family:var(--display);font-size:clamp(44px,5vw,72px);line-height:1;color:var(--text)}
-.num small{font-family:var(--mono);font-size:14px;color:var(--amber);margin-left:6px;letter-spacing:.1em}
+.num small{font-family:var(--mono);font-size:14px;color:var(--accent);margin-left:6px;letter-spacing:.1em}
 .stat p{font-size:14px;color:var(--muted);margin-top:8px}
 .split{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(32px,6vw,90px);align-items:start}
 @media (max-width:900px){.split{grid-template-columns:1fr}}
 .reveal{transform:translateY(28px);transition:transform .9s cubic-bezier(.2,.7,.2,1)}
 .reveal.in{transform:none}
+
+/* gallery */
+.gallery{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:44px}
+@media (max-width:980px){.gallery{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.gallery{grid-template-columns:1fr}}
+.shot{position:relative;display:block;padding:0;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel);cursor:zoom-in;color:var(--text);font:inherit;text-align:left}
+.shot img{display:block;width:100%;max-width:100%;height:auto;aspect-ratio:4/5;object-fit:cover;transition:transform .6s cubic-bezier(.2,.7,.2,1)}
+.shot:hover img,.shot:focus-visible img{transform:scale(1.04)}
+.shot span{position:absolute;left:0;right:0;bottom:0;padding:40px 16px 14px;font-size:14px;font-weight:600;background:linear-gradient(transparent,rgba(0,0,0,.78))}
+.shot:focus-visible,.btn:focus-visible,a:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+dialog#lb{margin:auto;border:0;padding:0;background:transparent;max-width:min(94vw,1100px);max-height:92vh;color:var(--text);overflow:visible}
+dialog#lb::backdrop{background:rgba(4,6,8,.9)}
+#lbImg{display:block;max-width:100%;max-height:82vh;width:auto;margin:0 auto;border-radius:12px}
+#lbCap{text-align:center;margin-top:12px;font-size:15px;color:#d6d2ca}
+.lb-btn{position:absolute;width:46px;height:46px;border-radius:999px;border:1px solid rgba(255,255,255,.3);background:rgba(0,0,0,.6);color:#fff;font-size:28px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.lb-btn:hover{border-color:var(--accent);color:var(--accent)}
+.lb-close{top:-14px;right:-14px}
+.lb-prev{left:-14px;top:calc(50% - 40px)}
+.lb-next{right:-14px;top:calc(50% - 40px)}
+@media (max-width:640px){.lb-close{top:8px;right:8px}.lb-prev{left:8px}.lb-next{right:8px}}
+.hours a{text-decoration:none}.hours a:hover{text-decoration:underline}
 
 /* table */
 .tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);margin-top:40px}
@@ -130,15 +153,15 @@ th,td{text-align:left;padding:18px 22px;border-bottom:1px solid var(--line);vert
 th{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);font-weight:400;background:rgba(255,255,255,.02)}
 tr:last-child td{border-bottom:0}
 td:first-child{font-weight:600;white-space:nowrap}
-td .tag{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--amber);border:1px solid rgba(233,162,59,.35);border-radius:999px;padding:2px 10px}
+td .tag{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--accent);border:1px solid rgba(141,182,201,.35);border-radius:999px;padding:2px 10px}
 .note{font-size:13px;color:var(--muted);margin-top:14px}
 
 /* steps */
 .steps{counter-reset:s;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:48px}
 @media (max-width:980px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:560px){.steps{grid-template-columns:1fr}}
-.step{border-top:2px solid var(--amber);padding-top:22px}
-.step:before{counter-increment:s;content:"0" counter(s);font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--amber)}
+.step{border-top:2px solid var(--accent);padding-top:22px}
+.step:before{counter-increment:s;content:"0" counter(s);font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--accent)}
 .step h3{font-family:var(--display);font-weight:400;font-size:32px;text-transform:uppercase;margin:10px 0 8px;letter-spacing:.02em}
 .step p{color:var(--muted);font-size:15px}
 
@@ -147,47 +170,47 @@ td .tag{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--
 .field{display:flex;flex-direction:column;gap:8px}
 .field label{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
 .field input,.field select,.field textarea{background:#0c0f13;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font:inherit;font-size:16px;padding:14px 16px;outline:none;transition:border-color .2s;width:100%}
-.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--amber)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
 .field textarea{min-height:120px;resize:vertical}
-.result{margin-top:26px;padding:22px;border-radius:14px;background:linear-gradient(135deg,rgba(233,162,59,.14),rgba(233,162,59,.03));border:1px solid rgba(233,162,59,.3);display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
-.result .num{color:var(--amber-2)}
+.result{margin-top:26px;padding:22px;border-radius:14px;background:linear-gradient(135deg,rgba(141,182,201,.14),rgba(141,182,201,.03));border:1px solid rgba(141,182,201,.3);display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.result .num{color:var(--accent-2)}
 .checklist{list-style:none;display:grid;gap:14px;margin-top:28px}
 .checklist li{display:flex;gap:14px;align-items:flex-start;color:#d2cec6}
-.checklist li:before{content:"";flex:none;width:18px;height:18px;margin-top:4px;border-radius:5px;border:1.5px solid var(--amber);background:linear-gradient(135deg,transparent 45%,var(--amber) 46%,var(--amber) 54%,transparent 55%)}
+.checklist li:before{content:"";flex:none;width:18px;height:18px;margin-top:4px;border-radius:5px;border:1.5px solid var(--accent);background:linear-gradient(135deg,transparent 45%,var(--accent) 46%,var(--accent) 54%,transparent 55%)}
 
 /* policies */
 .policies{margin-top:44px;display:grid;gap:10px}
 details{border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.015);transition:border-color .2s}
-details[open]{border-color:rgba(233,162,59,.35);background:rgba(255,255,255,.03)}
+details[open]{border-color:rgba(141,182,201,.35);background:rgba(255,255,255,.03)}
 summary{cursor:pointer;list-style:none;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;font-weight:600;font-size:17px}
 summary::-webkit-details-marker{display:none}
-summary .n{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.2em;margin-right:14px;font-weight:400}
-summary:after{content:"+";font-family:var(--mono);font-size:22px;color:var(--amber);transition:transform .25s;flex:none}
+summary .n{font-family:var(--mono);font-size:11px;color:var(--accent);letter-spacing:.2em;margin-right:14px;font-weight:400}
+summary:after{content:"+";font-family:var(--mono);font-size:22px;color:var(--accent);transition:transform .25s;flex:none}
 details[open] summary:after{transform:rotate(45deg)}
 details .body{padding:0 24px 22px;color:#c4c0b8;font-size:15px}
 details .body ul{padding-left:20px;display:grid;gap:8px}
 details .body p+p,details .body p+ul,details .body ul+p{margin-top:10px}
-.warn{border-left:3px solid var(--amber);padding:14px 18px;background:rgba(233,162,59,.08);border-radius:0 10px 10px 0;margin-top:12px;color:#e8dcc6}
+.warn{border-left:3px solid var(--accent);padding:14px 18px;background:rgba(141,182,201,.08);border-radius:0 10px 10px 0;margin-top:12px;color:#e8dcc6}
 
 /* hours */
 .hours{display:grid;gap:0;margin-top:20px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
 .hours div{display:flex;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);font-size:15px}
 .hours div:last-child{border-bottom:0}
-.hours div span:last-child{font-family:var(--mono);color:var(--amber-2)}
+.hours div span:last-child{font-family:var(--mono);color:var(--accent-2)}
 
 /* contact */
 .contact-list{list-style:none;display:grid;gap:22px;margin-top:30px}
 .contact-list li small{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
 .contact-list li a,.contact-list li span{font-size:20px;text-decoration:none}
-.contact-list li a:hover{color:var(--amber)}
+.contact-list li a:hover{color:var(--accent)}
 form .grid{gap:16px}
 .form-note{font-size:13px;color:var(--muted);margin-top:14px}
-.summary{margin-top:20px;padding:18px;border-radius:12px;background:#0c0f13;border:1px solid rgba(233,162,59,.35)}
+.summary{margin-top:20px;padding:18px;border-radius:12px;background:#0c0f13;border:1px solid rgba(141,182,201,.35)}
 .summary pre{white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:13px;color:var(--text);margin:10px 0 14px;user-select:all}
 .summary .row{display:flex;gap:10px;flex-wrap:wrap}
 
 /* cta band */
-.band{text-align:center;background:radial-gradient(ellipse at 50% 120%,rgba(233,162,59,.22),transparent 60%),var(--bg-2)}
+.band{text-align:center;background:radial-gradient(ellipse at 50% 120%,rgba(141,182,201,.22),transparent 60%),var(--bg-2)}
 .band h2.title{font-size:clamp(48px,9vw,150px)}
 
 footer{border-top:1px solid var(--line);padding:56px clamp(16px,6vw,96px) 40px;background:#08090b;font-size:14px;color:var(--muted)}
@@ -196,7 +219,7 @@ footer .cols{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;max-wid
 footer h4{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text);margin-bottom:14px;font-weight:400}
 footer ul{list-style:none;display:grid;gap:8px}
 footer a{text-decoration:none}
-footer a:hover{color:var(--amber)}
+footer a:hover{color:var(--accent)}
 footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px}
 @media (prefers-reduced-motion:reduce){.grain,.scroll-hint i{animation:none}.reveal{transition:none;opacity:1;transform:none}}
 </style>
@@ -205,14 +228,13 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
 
 <!-- ============ NAV ============ -->
 <nav class="nav" id="nav">
-  <a href="#top" class="brand" aria-label="WeCrete home">
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" stroke="#e9a23b" stroke-width="2"/><path d="M7 10l3.5 12L14 13l2 0 3.5 9L23 10" stroke="#ece9e3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span>We<b>Crete</b></span>
+  <a href="#top" class="brand" aria-label="WeCrete Concreting, back to top">
+    <img src="img/logo.png" alt="WeCrete" width="92" height="42">
   </a>
   <ul id="menu">
-    <li><a href="#about">About</a></li>
     <li><a href="#services">Services</a></li>
-    <li><a href="#mixes">Mixes</a></li>
+    <li><a href="#work">Our Work</a></li>
+    <li><a href="#finishes">Finishes</a></li>
     <li><a href="#calculator">Calculator</a></li>
     <li><a href="#policies">Policies</a></li>
     <li><a href="#faq">FAQ</a></li>
@@ -231,44 +253,44 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
     <div class="letterbox top"></div><div class="letterbox bot"></div>
 
     <div class="chapter hero" data-in="-1" data-out="0.12">
-      <div class="k">Ready-Mix Concrete · Batched to Order</div>
+      <div class="k">Concreting · Driveways · Slabs · Paths</div>
       <h1>We<b>Crete</b></h1>
-      <p>Ready-mix concrete, delivered with precision. The right mix, at the right site, at the right minute.</p>
+      <p>Driveways, slabs and paths, formed, poured and finished by a crew that cares about the surface you'll look at every day.</p>
     </div>
     <div class="chapter" data-in="0.13" data-out="0.27">
       <div class="k">01 — Arrival</div>
-      <h2>On site.<br>On schedule.</h2>
-      <p>Every truck is dispatched to your pour window and tracked from our plant to your forms.</p>
+      <h2>On site.<br>On time.</h2>
+      <p>Forms set, reinforcement in and the crew ready before the truck turns into your street.</p>
     </div>
     <div class="chapter" data-in="0.31" data-out="0.50">
       <div class="k">02 — The Pour</div>
-      <h2>Mixed in transit.<br>Placed fresh.</h2>
-      <p>Batched to your ticket, kept turning on the road, and discharged inside the 90-minute window the industry standard calls for.</p>
+      <h2>Poured fresh.<br>Placed right.</h2>
+      <p>Concrete goes straight into properly set forms and mesh, and gets worked while it's at its best.</p>
     </div>
     <div class="chapter" data-in="0.53" data-out="0.76">
-      <div class="k">03 — The Mix</div>
-      <h2>2,500 to<br>6,000 PSI.</h2>
-      <p>Footings, driveways, structural slabs, decorative flatwork — mixes engineered for the job in front of you.</p>
+      <div class="k">03 — The Work</div>
+      <h2>Driveways.<br>Slabs. Paths.</h2>
+      <p>Full driveways, garage slabs and side access paths, in plain grey or coloured concrete.</p>
     </div>
     <div class="chapter" data-in="0.80" data-out="0.92">
       <div class="k">04 — The Finish</div>
-      <h2>Screeded.<br>Leveled. Ready.</h2>
-      <p>Clean pours, clean chutes, clean sites. We leave nothing behind but the slab.</p>
+      <h2>Screeded.<br>Floated. Finished.</h2>
+      <p>Hand-finished with clean edges and a non-slip swirl texture, then the site is cleaned up before we go.</p>
     </div>
     <div class="chapter final" data-in="0.93" data-out="2">
-      <div class="k">WeCrete</div>
+      <div class="k">WeCrete Concreting</div>
       <h2>Built to last.</h2>
-      <p>Tell us the site, the yardage and the date. We'll handle the rest.</p>
-      <div class="row"><a class="btn" href="#contact">Get a Quote</a><a class="btn ghost" href="#calculator">Estimate Yardage</a></div>
+      <p>Tell us about your job and we'll get you a quote.</p>
+      <div class="row"><a class="btn" href="#contact">Get a Quote</a><a class="btn ghost" href="#work">See Our Work</a></div>
     </div>
 
     <div class="scroll-hint" id="hint">Scroll to pour<i></i></div>
     <div class="progress"><em id="pct">00%</em><i id="bar"></i></div>
     <div class="hud" aria-hidden="true">
-      <span>Drum load</span><span>10.0 yd³</span>
-      <span>Poured</span><span id="hudPoured">0.0 yd³</span>
-      <span>Drum</span><span id="hudDrum">Charging</span>
-      <span>Status</span><span id="hudStatus">En route</span>
+      <span>Truck load</span><span>6.0 m³</span>
+      <span>Poured</span><span id="hudPoured">0.0 m³</span>
+      <span>Drum</span><span id="hudDrum">Mixing</span>
+      <span>Status</span><span id="hudStatus">Arriving</span>
     </div>
   </div>
 </section>
@@ -278,15 +300,15 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
   <div class="wrap split">
     <div class="reveal">
       <div class="eyebrow">About WeCrete</div>
-      <h2 class="title">Poured right<br>the first time.</h2>
-      <p class="lead">WeCrete is a ready-mix concrete supplier and delivery service built around one idea: the right mix, at the right site, at the right minute. We batch to order, dispatch to your window, and stay on the line with your crew until the last yard is placed.</p>
-      <p class="muted" style="margin-top:18px">Concrete doesn't wait — once it's batched, the clock is running. That's why every order is scheduled around your crew, your access and your weather, not ours.</p>
+      <h2 class="title">Concrete,<br>done properly.</h2>
+      <p class="lead">WeCrete Concreting forms, pours and finishes residential concrete: driveways, garage slabs, paths and side access. We prepare the base, set the forms and reinforcement, pour and finish the job, and leave your site clean.</p>
+      <p class="muted" style="margin-top:18px">See our latest jobs on Instagram at <a data-cfg="instagramHandle" data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener"></a>.</p>
     </div>
     <div class="grid g2 reveal">
-      <div class="card stat"><div class="num">90<small>MIN</small></div><p>Maximum time from batching to full discharge, per ASTM C94.</p></div>
-      <div class="card stat"><div class="num">10<small>YD³</small></div><p>Typical full load per mixer truck.</p></div>
-      <div class="card stat"><div class="num">6K<small>PSI</small></div><p>Strengths from 2,500 up to 6,000 PSI and beyond to spec.</p></div>
-      <div class="card stat"><div class="num">48<small>HRS</small></div><p>Recommended notice to lock in your preferred pour window.</p></div>
+      <div class="card"><h3>Swirl finish</h3><p>A hand-worked swirl texture that grips underfoot and under tyres, and looks sharp.</p></div>
+      <div class="card"><h3>Coloured concrete</h3><p>Charcoal and other colours mixed through the concrete, not painted on.</p></div>
+      <div class="card"><h3>Proper prep</h3><p>Excavation, compacted base, formwork, reinforcement mesh and drainage set before every pour.</p></div>
+      <div class="card"><h3>Clean sites</h3><p>Edges tidied, forms stripped and the mess cleared before we leave.</p></div>
     </div>
   </div>
 </section>
@@ -296,43 +318,68 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
   <div class="wrap">
     <div class="reveal">
       <div class="eyebrow">Services</div>
-      <h2 class="title">Everything that pours.</h2>
-      <p class="lead">From a single backyard pad to a multi-truck commercial pour, we supply the concrete and the coordination.</p>
+      <h2 class="title">What we pour.</h2>
+      <p class="lead">Residential concreting from the first dig to the final finish.</p>
     </div>
     <div class="grid g3" style="margin-top:48px">
-      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17h2m14 0h2M5 17a2 2 0 104 0 2 2 0 00-4 0zm10 0a2 2 0 104 0 2 2 0 00-4 0zM3 17V9h11v8M14 11h4l3 3v3"/></svg></div><h3>Ready-Mix Delivery</h3><p>Full and partial loads from 1 to 10 yd³ per truck, batched fresh and scheduled to your pour window.</p></div>
-      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9H3z M9 20v-6h6v6"/></svg></div><h3>Residential</h3><p>Driveways, patios, sidewalks, garage floors, footings, steps and slabs-on-grade.</p></div>
-      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V5l6-2v18M10 21V9l10 3v9M2 21h20M14 15h2M14 18h2"/></svg></div><h3>Commercial &amp; Industrial</h3><p>Foundations, parking lots, loading docks, equipment pads and structural pours built to plan.</p></div>
-      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></div><h3>Decorative</h3><p>Integral color, exposed aggregate and stamp-ready mixes for flatwork that has to look as good as it performs.</p></div>
-      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 20h6l3-8 4 2 5-9M9 20v-4"/></svg></div><h3>Pump Coordination</h3><p>Line and boom pump scheduling for backyards, upper floors and placements a chute can't reach.</p></div>
-      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6M10 3v6L5 19a1.5 1.5 0 001.3 2h11.4A1.5 1.5 0 0019 19l-5-10V3"/></svg></div><h3>Specialty Mixes</h3><p>Fiber-reinforced, high-early strength, hot- and cold-weather blends and flowable fill.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 21l3-18M17 21l-3-18M12 5v2M12 11v2M12 17v2"/></svg></div><h3>Driveways</h3><p>New driveways and replacements, with falls set for drainage and grated drains where needed.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9H3z M8 20v-6h8v6"/></svg></div><h3>Garage &amp; house slabs</h3><p>Garage floors and slabs poured level and finished to suit how the space will be used.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 21c0-6 6-9 6-18M4 21h16"/></svg></div><h3>Paths &amp; side access</h3><p>Paths, side access and walkways that fit between fences and boundaries.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 000 16z" fill="currentColor"/></svg></div><h3>Coloured concrete</h3><p>Charcoal and other colours mixed through the concrete for a deeper, longer-lasting look.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12a3 3 0 016 0 3 3 0 006 0M5 18a3 3 0 016 0 3 3 0 006 0M5 6a3 3 0 016 0 3 3 0 006 0"/></svg></div><h3>Finishes</h3><p>Swirl finish as standard. Ask us about broom and smooth trowel finishes.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 20h18M5 20v-5h14v5M9 15V9h6v6M4 9h16"/></svg></div><h3>Site prep &amp; formwork</h3><p>Excavation, base preparation, formwork, reinforcement mesh and drainage, all done before the pour.</p></div>
     </div>
   </div>
 </section>
 
-<!-- ============ MIXES ============ -->
-<section class="block" id="mixes">
+<!-- ============ OUR WORK ============ -->
+<section class="block" id="work">
   <div class="wrap">
     <div class="reveal">
-      <div class="eyebrow">Mix Guide</div>
-      <h2 class="title">Pick the right strength.</h2>
-      <p class="lead">A starting point for common work. Your project's plans, local building code and engineer of record always come first.</p>
+      <div class="eyebrow">Our Work</div>
+      <h2 class="title">Recent jobs.</h2>
+      <p class="lead">Straight from our job sites. Tap a photo to see it full size.</p>
+    </div>
+    <div class="gallery">
+      <button class="shot reveal" type="button" data-i="0"><img src="img/finishing-swirl.jpg" alt="WeCrete crew member hand-finishing a swirl-finish driveway" loading="lazy" width="1170" height="1488"><span>Hand-finishing a swirl-finish driveway</span></button>
+      <button class="shot reveal" type="button" data-i="1"><img src="img/garage-slab.jpg" alt="Freshly finished garage slab with swirl finish beside a brick house" loading="lazy" width="1170" height="1240"><span>Garage slab, swirl finish</span></button>
+      <button class="shot reveal" type="button" data-i="2"><img src="img/driveway-drain.jpg" alt="Swirl-finish front driveway with a grated drain in front of a brick fence" loading="lazy" width="1170" height="1205"><span>Front driveway with grated drain</span></button>
+      <button class="shot reveal" type="button" data-i="3"><img src="img/charcoal-side-driveway.jpg" alt="Long charcoal-coloured side driveway between a green fence and a house" loading="lazy" width="1170" height="1247"><span>Charcoal coloured side driveway</span></button>
+    </div>
+    <div style="margin-top:32px;display:flex;gap:12px;flex-wrap:wrap">
+      <a class="btn" data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="18" height="18" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg> More on Instagram</a>
+      <a class="btn ghost" href="#contact">Get a Quote</a>
+    </div>
+  </div>
+  <dialog id="lb" aria-label="Photo viewer">
+    <img id="lbImg" alt="">
+    <p id="lbCap"></p>
+    <button type="button" class="lb-btn lb-close" id="lbClose" aria-label="Close">×</button>
+    <button type="button" class="lb-btn lb-prev" id="lbPrev" aria-label="Previous photo">‹</button>
+    <button type="button" class="lb-btn lb-next" id="lbNext" aria-label="Next photo">›</button>
+  </dialog>
+</section>
+
+<!-- ============ FINISHES ============ -->
+<section class="block" id="finishes">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Finishes &amp; Specs</div>
+      <h2 class="title">Pick your finish.</h2>
+      <p class="lead">The finish sets how your concrete looks and how much grip it has. Here's how we usually match them to the job.</p>
     </div>
     <div class="tablewrap reveal">
       <table>
-        <thead><tr><th>Mix</th><th>Typical uses</th><th>Slump</th><th>Notes</th></tr></thead>
+        <thead><tr><th>Finish</th><th>Look</th><th>Best for</th></tr></thead>
         <tbody>
-          <tr><td>Flowable Fill</td><td>Trench and utility backfill, void and abandoned-tank fill</td><td><span class="tag">Flowable</span></td><td>Low-strength, self-leveling, excavatable</td></tr>
-          <tr><td>2,500 PSI</td><td>Footings, fence and post bases, non-structural fill</td><td><span class="tag">4″</span></td><td>Economical general-purpose mix</td></tr>
-          <tr><td>3,000 PSI</td><td>Patios, walkways, interior slabs-on-grade</td><td><span class="tag">4″</span></td><td>Common residential baseline</td></tr>
-          <tr><td>3,500 PSI</td><td>Driveways, garage floors, steps</td><td><span class="tag">4″</span></td><td>Air-entrained recommended where it freezes</td></tr>
-          <tr><td>4,000 PSI</td><td>Exterior flatwork in freeze–thaw climates, light commercial</td><td><span class="tag">4–5″</span></td><td>Air-entrained; good durability</td></tr>
-          <tr><td>4,500 PSI</td><td>Commercial driveways, aprons, heavy-use pavement</td><td><span class="tag">4–5″</span></td><td>Lower water-cement ratio</td></tr>
-          <tr><td>5,000–6,000 PSI</td><td>Structural, columns, beams, heavy industrial floors</td><td><span class="tag">Per spec</span></td><td>Engineered mix design; testing available</td></tr>
+          <tr><td>Swirl</td><td>Overlapping circular trowel marks with good grip</td><td>Driveways, paths and sloped areas</td></tr>
+          <tr><td>Broom</td><td>Fine parallel lines brushed across the surface</td><td>Paths and outdoor areas that need extra grip</td></tr>
+          <tr><td>Smooth trowel</td><td>Dense, smooth surface</td><td>Garage floors and undercover slabs</td></tr>
+          <tr><td>Coloured</td><td>Colour such as charcoal mixed through the concrete</td><td>Driveways and side access, with any of the finishes above</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">Add-ons available on request: fiber reinforcement, accelerators and retarders, water reducers, integral color, and hot- or cold-weather adjustments. Add-ons are priced per yard.</p>
+    <p class="note">Residential driveways are commonly poured at 25–32 MPa with steel reinforcement mesh. We set the strength, thickness and reinforcement in your quote to suit the job and any engineering or council requirements.</p>
   </div>
 </section>
 
@@ -341,46 +388,46 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
   <div class="wrap">
     <div class="reveal">
       <div class="eyebrow">How it works</div>
-      <h2 class="title">From call to cure.</h2>
+      <h2 class="title">From quote to cure.</h2>
     </div>
     <div class="steps">
-      <div class="step reveal"><h3>Quote</h3><p>Send us the site address, yardage, mix and placement method. We confirm pricing and availability.</p></div>
-      <div class="step reveal"><h3>Schedule</h3><p>Lock your date and pour window. We reconfirm the business day before and spacing between trucks.</p></div>
-      <div class="step reveal"><h3>Pour</h3><p>The driver arrives, reviews access with your crew, and discharges where you direct the chute.</p></div>
-      <div class="step reveal"><h3>Cure</h3><p>Your crew finishes and cures. Light foot traffic in about 24–48 hours; vehicles typically after 7 days.</p></div>
+      <div class="step reveal"><h3>Quote</h3><p>We look at the site, measure up and send you a written quote with the scope, finish and price.</p></div>
+      <div class="step reveal"><h3>Prep</h3><p>We excavate, compact the base, set the formwork, lay the reinforcement and fit any drainage.</p></div>
+      <div class="step reveal"><h3>Pour &amp; finish</h3><p>We pour, screed, float and finish, then cut control joints to manage cracking.</p></div>
+      <div class="step reveal"><h3>Cure</h3><p>Keep foot traffic off for 24–48 hours and cars off for at least 7 days. We'll give you aftercare tips.</p></div>
     </div>
   </div>
 </section>
 
-<!-- ============ CALCULATOR + ORDERING ============ -->
+<!-- ============ CALCULATOR ============ -->
 <section class="block" id="calculator">
   <div class="wrap split">
     <div class="reveal">
-      <div class="eyebrow">Yardage Calculator</div>
-      <h2 class="title">How much do<br>you need?</h2>
-      <p class="lead">Enter your slab dimensions. We add a 10% allowance for subgrade variation and spillage, then round up to the nearest quarter yard.</p>
-      <div class="eyebrow" style="margin-top:44px">Before you order, have ready</div>
+      <div class="eyebrow">Concrete Calculator</div>
+      <h2 class="title">How much<br>concrete?</h2>
+      <p class="lead">Enter the area's size. We add 10% for base variation and spillage, then round up to the nearest 0.2 m³.</p>
+      <div class="eyebrow" style="margin-top:44px">Before you book, have ready</div>
       <ul class="checklist">
-        <li>Site address and a description of truck access (gate width, slope, overhead wires)</li>
-        <li>Total yardage and the mix or PSI you need</li>
-        <li>Placement method: chute, pump, buggy or wheelbarrow</li>
-        <li>Pour date and preferred arrival window</li>
-        <li>Name and phone number of the on-site contact</li>
-        <li>Payment method, or your approved account number</li>
+        <li>Site address, and how a concrete truck or pump would get in</li>
+        <li>Rough size of the area, or photos of it</li>
+        <li>What's there now: grass, soil, pavers or old concrete</li>
+        <li>The finish and colour you'd like</li>
+        <li>Council approval if the job includes a driveway crossover or footpath</li>
+        <li>Your preferred dates</li>
       </ul>
     </div>
     <div class="calc reveal">
       <div class="grid g3">
-        <div class="field"><label for="cL">Length (ft)</label><input id="cL" type="number" min="0" step="0.5" value="20" inputmode="decimal"></div>
-        <div class="field"><label for="cW">Width (ft)</label><input id="cW" type="number" min="0" step="0.5" value="12" inputmode="decimal"></div>
-        <div class="field"><label for="cT">Thickness (in)</label><input id="cT" type="number" min="0" step="0.5" value="4" inputmode="decimal"></div>
+        <div class="field"><label for="cL">Length (m)</label><input id="cL" type="number" min="0" step="0.1" value="6" inputmode="decimal"></div>
+        <div class="field"><label for="cW">Width (m)</label><input id="cW" type="number" min="0" step="0.1" value="3" inputmode="decimal"></div>
+        <div class="field"><label for="cT">Thickness (mm)</label><input id="cT" type="number" min="0" step="5" value="100" inputmode="numeric"></div>
       </div>
-      <div class="field" style="margin-top:16px"><label for="cQ">Number of identical slabs</label><input id="cQ" type="number" min="1" step="1" value="1" inputmode="numeric"></div>
+      <div class="field" style="margin-top:16px"><label for="cQ">Number of identical areas</label><input id="cQ" type="number" min="1" step="1" value="1" inputmode="numeric"></div>
       <div class="result">
-        <div><div class="eyebrow">Order</div><div class="num" id="cOut">3.25<small>YD³</small></div></div>
-        <div style="text-align:right"><div class="eyebrow">Exact volume</div><div id="cExact" style="font-family:var(--mono);font-size:18px;margin-top:6px">2.96 yd³</div><div id="cTrucks" class="muted" style="font-size:13px;margin-top:4px">1 truck</div></div>
+        <div><div class="eyebrow">Allow for</div><div class="num" id="cOut">2.0<small>M³</small></div></div>
+        <div style="text-align:right"><div class="eyebrow">Exact volume</div><div id="cExact" style="font-family:var(--mono);font-size:18px;margin-top:6px">1.80 m³</div><div id="cArea" class="muted" style="font-size:13px;margin-top:4px">18.0 m² area</div></div>
       </div>
-      <p class="note">Estimates only. Footings, curbs and irregular shapes need separate calculations. Call us and we'll help you check the number.</p>
+      <p class="note">An estimate only. Footings, edge beams and odd shapes change the number, so we confirm quantities in your quote.</p>
     </div>
   </div>
 </section>
@@ -389,14 +436,17 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
 <section class="block" id="area">
   <div class="wrap split">
     <div class="reveal">
-      <div class="eyebrow">Service Area &amp; Hours</div>
-      <h2 class="title">Where we pour.</h2>
+      <div class="eyebrow">Service Area</div>
+      <h2 class="title">Where we work.</h2>
       <p class="lead" data-cfg="serviceArea"></p>
-      <p class="muted" style="margin-top:16px">Deliveries outside the standard area are available and may carry a distance charge. Early-morning, night and weekend pours can be arranged in advance.</p>
     </div>
     <div class="reveal">
-      <div class="eyebrow">Hours</div>
-      <div class="hours" id="hours"></div>
+      <div class="eyebrow">Fastest way to reach us</div>
+      <div class="hours">
+        <div><span>Call or text</span><span><a data-cfg="phone" data-cfg-href="tel" href="tel:+61424018148"></a></span></div>
+        <div><span>Instagram</span><span><a data-cfg="instagramHandle" data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener"></a></span></div>
+        <div><span>Online</span><span><a href="#contact">Quote request form</a></span></div>
+      </div>
     </div>
   </div>
 </section>
@@ -407,106 +457,84 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
     <div class="reveal">
       <div class="eyebrow">Policies</div>
       <h2 class="title">The fine print,<br>in plain words.</h2>
-      <p class="lead">These policies apply to every order unless your written quote or credit agreement says otherwise. Last updated: November 2026.</p>
+      <p class="lead">These apply to every job unless your written quote says otherwise. Last updated: November 2026.</p>
     </div>
     <div class="policies reveal">
-      <details open><summary><span><span class="n">01</span>Ordering &amp; Scheduling</span></summary><div class="body"><ul>
-        <li>Please place orders at least 48 hours ahead. Same-day and next-day orders are accepted when trucks and plant capacity allow.</li>
-        <li>Every order is reconfirmed by phone by 2:00 PM the business day before the pour.</li>
-        <li>You are responsible for the quantity, mix and strength ordered. We are happy to help you check your numbers.</li>
-        <li>For multi-truck pours, we set the spacing between trucks with you in advance so concrete arrives at the pace your crew can place it.</li>
+      <details open><summary><span><span class="n">01</span>Quotes</span></summary><div class="body"><ul>
+        <li>We quote in writing after seeing the site or reviewing photos and measurements.</li>
+        <li>Quotes are valid for 30 days. Concrete and material prices can change after that.</li>
+        <li>The quote lists exactly what's included. Anything not listed is extra and is agreed before we do it.</li>
       </ul></div></details>
 
-      <details><summary><span><span class="n">02</span>Cancellations &amp; Changes</span></summary><div class="body"><ul>
-        <li>Cancel or reschedule free of charge until 2:00 PM the business day before your pour.</li>
-        <li>Later cancellations may incur a cancellation fee.</li>
-        <li>Once a load has been batched it cannot be cancelled and is billed in full, including any delivery charges.</li>
-        <li>Changes to quantity or mix after batching are treated as a new order.</li>
+      <details><summary><span><span class="n">02</span>Booking &amp; Payment</span></summary><div class="body"><ul>
+        <li>Your job is booked once you accept the quote.</li>
+        <li>Any deposit and the payment schedule are set out in your quote.</li>
+        <li>Unless agreed otherwise, the balance is due when the job is finished.</li>
       </ul></div></details>
 
-      <details><summary><span><span class="n">03</span>Weather</span></summary><div class="body"><ul>
-        <li>We watch the forecast with you. Pours may be postponed for heavy rain, freezing temperatures or unsafe conditions.</li>
-        <li>Weather reschedules requested before batching carry no fee.</li>
-        <li>Hot- and cold-weather adjustments (retarders, accelerators, heated water) are available and priced per yard.</li>
-        <li>Protecting fresh concrete from rain, frost and rapid drying after placement is the responsibility of the placing contractor.</li>
+      <details><summary><span><span class="n">03</span>Changes &amp; Variations</span></summary><div class="body"><ul>
+        <li>Changes to size, finish or colour are agreed in writing (a text is fine) before we do the work, with any price change.</li>
+        <li>Problems found during excavation, such as rock, tree roots, poor ground or buried services, can add cost. We'll stop and talk to you before going ahead.</li>
       </ul></div></details>
 
-      <details><summary><span><span class="n">04</span>Delivery &amp; Site Access</span></summary><div class="body">
-        <p>A loaded mixer truck can weigh up to about 70,000 lbs. Access must be firm, reasonably level and clear.</p>
-        <ul>
-          <li>Plan for roughly 12 ft of width and 14 ft of overhead clearance, and keep the truck well clear of power lines.</li>
-          <li>The driver has final say on whether a route is safe and may decline unsafe access or positions.</li>
-          <li>Delivery past the curb line — onto driveways, lawns or private property — is at the customer's request and risk. We are not responsible for damage to pavement, curbs, landscaping or underground utilities, and you may be asked to sign a release.</li>
-          <li>You are responsible for permits, site preparation, forms, reinforcement and any traffic control required.</li>
-        </ul></div></details>
-
-      <details><summary><span><span class="n">05</span>Unloading Time &amp; Standby</span></summary><div class="body"><ul>
-        <li>Each load includes a set amount of unloading time, based on its size, confirmed in your quote.</li>
-        <li>Time beyond the allowance — including waiting for the site, forms or pump to be ready — is billed as standby time in 15-minute increments.</li>
-        <li>Concrete must be fully discharged within 90 minutes of batching. If a delay at the site pushes past that limit, the load may be rejected for quality reasons and still billed.</li>
+      <details><summary><span><span class="n">04</span>Weather</span></summary><div class="body"><ul>
+        <li>We don't pour in heavy rain or conditions that would damage the finish.</li>
+        <li>If weather moves your pour, we reschedule at no charge and let you know as early as we can.</li>
+        <li>In hot weather we may start early to give the concrete the best chance.</li>
       </ul></div></details>
 
-      <details><summary><span><span class="n">06</span>Water Added on Site</span></summary><div class="body">
-        <p>Adding water at the job site makes concrete easier to place, but it lowers strength and durability.</p>
-        <ul>
-          <li>Water is added only at the request of the customer or their authorized representative.</li>
-          <li>The amount added is recorded on the delivery ticket and signed for.</li>
-          <li>Water added beyond the mix design voids any strength guarantee for that load.</li>
-        </ul></div></details>
-
-      <details><summary><span><span class="n">07</span>Short Loads &amp; Returned Concrete</span></summary><div class="body"><ul>
-        <li>Loads under 4 yd³ carry a short-load fee, shown on your quote.</li>
-        <li>Concrete left over and returned to our plant may incur a return and disposal fee.</li>
-        <li>Drivers will place leftover concrete on site only where you have a legal, approved area for it.</li>
+      <details><summary><span><span class="n">05</span>Site Access &amp; Preparation</span></summary><div class="body"><ul>
+        <li>Please move cars, bins and anything in the work area before we arrive.</li>
+        <li>We need access for a concrete truck or pump. Tell us about narrow gates, steep slopes or overhead wires.</li>
+        <li>Keep pets and children inside while we work.</li>
+        <li>Let us know about any private pipes, cables or sprinklers you know of in the work area.</li>
+        <li>Driveway crossovers and footpaths usually need council approval. We can tell you what's needed.</li>
       </ul></div></details>
 
-      <details><summary><span><span class="n">08</span>Pricing &amp; Payment</span></summary><div class="body"><ul>
-        <li>Quotes are valid for 30 days. Prices can change with material and fuel costs; fuel and environmental surcharges may apply.</li>
-        <li>Cash customers pay when the order is placed or before the first load is batched. We accept major credit and debit cards and bank transfer.</li>
-        <li>Approved commercial accounts are invoiced on the terms in their credit agreement. Past-due balances may incur late charges and pause future deliveries.</li>
-        <li>Sales tax is applied where required.</li>
+      <details><summary><span><span class="n">06</span>Curing &amp; Aftercare</span></summary><div class="body"><ul>
+        <li>Keep foot traffic off for 24–48 hours.</li>
+        <li>Keep cars off for at least 7 days, and heavy vehicles off for 28 days.</li>
+        <li>In hot weather, lightly hosing the slab for the first few days helps it cure.</li>
+        <li>Don't pressure-wash new concrete in its first month.</li>
       </ul></div></details>
 
-      <details><summary><span><span class="n">09</span>Quality &amp; Limited Warranty</span></summary><div class="body">
-        <p>We warrant that our concrete meets the strength ordered when it is sampled at discharge and tested to ASTM C31 and C39 by a qualified testing agency.</p>
-        <ul>
-          <li>We are not responsible for results controlled by others: subgrade, forming, placement, consolidation, finishing, jointing, curing and protection.</li>
-          <li>Hairline shrinkage cracking is a normal property of concrete and is not a defect.</li>
-          <li>Quality claims must be reported in writing within 30 days of delivery, with supporting test reports.</li>
-          <li>Our liability is limited to the cost of the concrete delivered.</li>
-        </ul></div></details>
+      <details><summary><span><span class="n">07</span>Cracking &amp; Colour</span></summary><div class="body"><ul>
+        <li>Concrete shrinks as it cures, so fine hairline cracks are normal. We cut control joints to guide where they form.</li>
+        <li>Coloured concrete can vary slightly between truckloads and settles in colour over the first few weeks.</li>
+        <li>Swirl and broom finishes are hand-worked, so small variations in pattern are part of the look.</li>
+      </ul></div></details>
 
-      <details><summary><span><span class="n">10</span>Safety</span></summary><div class="body">
-        <div class="warn"><strong>Fresh concrete is caustic.</strong> Prolonged contact with wet concrete can cause severe chemical burns, sometimes without pain until hours later.</div>
+      <details><summary><span><span class="n">08</span>Workmanship</span></summary><div class="body"><ul>
+        <li>We stand behind our work. If something isn't right, contact us and we'll come and look at it.</li>
+        <li>Warranty terms for your job are set out in your written quote, in addition to your rights under Australian Consumer Law.</li>
+      </ul></div></details>
+
+      <details><summary><span><span class="n">09</span>Safety</span></summary><div class="body">
+        <div class="warn"><strong>Wet concrete is caustic.</strong> It can burn skin and eyes, sometimes without pain until hours later.</div>
         <ul style="margin-top:14px">
-          <li>Wear waterproof gloves, long sleeves, long pants, waterproof boots and eye protection.</li>
-          <li>If concrete gets on your skin or into your boots, wash it off with clean water promptly. If it gets in your eyes, rinse for at least 15 minutes and get medical help.</li>
-          <li>Stay clear of the rotating drum, the chute's swing path and the area behind a reversing truck.</li>
-          <li>Keep children and pets away from the pour area.</li>
-          <li>Safety Data Sheets (SDS) are available on request.</li>
+          <li>Stay out of the work area while we're pouring and finishing.</li>
+          <li>Keep clear of the concrete truck, pump and hoses.</li>
+          <li>If wet concrete gets on your skin, wash it off with clean water straight away. If it gets in your eyes, rinse for at least 15 minutes and get medical help.</li>
         </ul></div></details>
 
-      <details><summary><span><span class="n">11</span>Environmental &amp; Washout</span></summary><div class="body"><ul>
-        <li>Concrete washout water must never go into storm drains, streets or waterways.</li>
-        <li>Drivers rinse chutes only into a designated washout area you provide or into our own containment.</li>
-        <li>Let us know in advance if your site requires a specific washout setup.</li>
+      <details><summary><span><span class="n">10</span>Clean-up &amp; Environment</span></summary><div class="body"><ul>
+        <li>Concrete washout never goes into stormwater drains, gutters or gardens.</li>
+        <li>We remove our forms, offcuts and rubbish when the job is done.</li>
       </ul></div></details>
 
-      <details id="privacy"><summary><span><span class="n">12</span>Privacy Policy</span></summary><div class="body">
-        <p>We collect only what we need to quote, schedule, deliver and invoice your order: your name, phone number, email, job-site address and payment details.</p>
+      <details id="privacy"><summary><span><span class="n">11</span>Privacy Policy</span></summary><div class="body">
+        <p>We collect only what we need to quote, book and invoice your job: your name, phone number, email and job address.</p>
         <ul>
-          <li>We use this information to run your order and to contact you about it.</li>
-          <li>We do not sell your personal information.</li>
-          <li>We share it only with the service providers who help us operate — for example payment processing — and when the law requires it.</li>
-          <li>Payment card details are handled by our payment processor; we do not keep full card numbers.</li>
-          <li>You can ask us to review, correct or delete your information at any time by contacting us.</li>
-          <li>This website does not use advertising trackers.</li>
+          <li>We use it to contact you about your job.</li>
+          <li>We don't sell or share it, except where the law requires.</li>
+          <li>The quote form on this site doesn't send or store anything. It prepares a message you choose to send us.</li>
+          <li>You can ask us to update or delete your details at any time.</li>
         </ul></div></details>
 
-      <details id="terms"><summary><span><span class="n">13</span>Terms of Use</span></summary><div class="body"><ul>
-        <li>Information on this website, including the mix guide and yardage calculator, is general guidance and not engineering advice.</li>
-        <li>Prices, availability and services can change without notice. Your written quote and delivery ticket govern each order.</li>
-        <li>All content, including the WeCrete name and logo, belongs to WeCrete and may not be used without permission.</li>
+      <details id="terms"><summary><span><span class="n">12</span>Terms of Use</span></summary><div class="body"><ul>
+        <li>Information on this site, including the calculator and finish guide, is general guidance.</li>
+        <li>Your written quote sets out the scope and price of your job.</li>
+        <li>The WeCrete name, logo and photos belong to WeCrete and may not be used without permission.</li>
       </ul></div></details>
     </div>
   </div>
@@ -520,14 +548,14 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
       <h2 class="title">Good questions.</h2>
     </div>
     <div class="policies reveal">
-      <details><summary>How much concrete do I need?</summary><div class="body"><p>Multiply length × width × thickness (all in feet) and divide by 27 to get cubic yards. A 4-inch slab is 0.333 ft thick. Add about 10% for waste, or use the <a href="#calculator">calculator above</a>.</p></div></details>
-      <details><summary>Is there a minimum order?</summary><div class="body"><p>We deliver loads as small as 1 yd³. Loads under 4 yd³ carry a short-load fee.</p></div></details>
-      <details><summary>How far ahead should I book?</summary><div class="body"><p>48 hours is recommended, and earlier for Fridays, weekends and peak season. Same-day orders are possible when trucks are available.</p></div></details>
-      <details><summary>Can the truck drive on my driveway or lawn?</summary><div class="body"><p>Sometimes, but a loaded truck is very heavy and can crack pavement or rut soft ground. Driving past the curb is at your risk. For tight or soft sites, a pump is often the better choice.</p></div></details>
-      <details><summary>How long does the driver stay?</summary><div class="body"><p>Each load includes unloading time based on its size. After that, standby time is billed in 15-minute increments. Having your crew, forms and tools ready keeps costs down.</p></div></details>
-      <details><summary>What happens if it rains?</summary><div class="body"><p>Call us before the load is batched and we'll reschedule without a fee. Light rain may be workable if your crew is prepared to protect the surface.</p></div></details>
-      <details><summary>When can I walk or drive on it?</summary><div class="body"><p>Generally, light foot traffic after 24–48 hours, passenger vehicles after about 7 days, and heavy loads after 28 days, when concrete reaches its design strength. Temperature and mix change this, so follow your contractor's advice.</p></div></details>
-      <details><summary>How do I see examples of your work?</summary><div class="body"><p>Our latest jobs are on Instagram at <a data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener">@wecreteconcreting</a>. Message us there or call <span data-cfg="phone"></span>.</p></div></details>
+      <details><summary>How much does a concrete driveway cost?</summary><div class="body"><p>It depends on the size, access, how much prep is needed, thickness, finish and colour. Call or text <span data-cfg="phone"></span> or send the <a href="#contact">quote form</a> and we'll give you a written price.</p></div></details>
+      <details><summary>How much concrete do I need?</summary><div class="body"><p>Multiply length × width × thickness, all in metres. A 100 mm slab is 0.1 m thick. Add about 10%, or use the <a href="#calculator">calculator</a>.</p></div></details>
+      <details><summary>Which finish is best for a driveway?</summary><div class="body"><p>Swirl is our most popular. It has good grip for cars and feet and hides everyday marks well. See examples in <a href="#work">Our Work</a>.</p></div></details>
+      <details><summary>When can I walk or drive on it?</summary><div class="body"><p>Walk on it after 24–48 hours. Drive cars on it after at least 7 days. Heavy vehicles should wait 28 days, when the concrete reaches its design strength.</p></div></details>
+      <details><summary>Do I need council approval?</summary><div class="body"><p>Work on your own property usually doesn't. A new driveway crossover or footpath usually does. Ask us and we'll tell you what's needed for your job.</p></div></details>
+      <details><summary>Will my concrete crack?</summary><div class="body"><p>All concrete can develop fine hairline cracks as it shrinks. Good base prep, reinforcement and control joints keep cracking small and in the right places.</p></div></details>
+      <details><summary>What happens if it rains?</summary><div class="body"><p>We won't pour in heavy rain. We'll move your pour to the next good day at no charge.</p></div></details>
+      <details><summary>Where can I see more of your work?</summary><div class="body"><p>On Instagram at <a data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener">@wecreteconcreting</a>.</p></div></details>
     </div>
   </div>
 </section>
@@ -537,7 +565,7 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
   <div class="wrap reveal">
     <div class="eyebrow">Ready when you are</div>
     <h2 class="title">Let's pour.</h2>
-    <p class="lead" style="margin:0 auto">Call or text <span data-cfg="phone"></span>, or send your job details. We'll confirm your mix, price and pour date.</p>
+    <p class="lead" style="margin:0 auto">Call or text <span data-cfg="phone"></span>, or send us your job details for a quote.</p>
     <div style="display:flex;gap:12px;justify-content:center;margin-top:30px;flex-wrap:wrap">
       <a class="btn" data-cfg-href="tel" href="tel:+61424018148">Call <span data-cfg="phone"></span></a>
       <a class="btn ghost" href="#contact">Request a Quote</a>
@@ -552,7 +580,7 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
     <div class="reveal">
       <div class="eyebrow">Contact</div>
       <h2 class="title">Get a quote.</h2>
-      <p class="lead">Fill in what you know. We'll get back to you to confirm details and pricing.</p>
+      <p class="lead">Fill in what you know. We'll get back to you to confirm the details and price.</p>
       <ul class="contact-list">
         <li><small>Call or text</small><a data-cfg="phone" data-cfg-href="tel" href="tel:+61424018148"></a><button class="copy" type="button" data-copy="phone">Copy</button></li>
         <li><small>Instagram</small><a data-cfg="instagramHandle" data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener"></a></li>
@@ -562,14 +590,15 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
       <div class="grid g2">
         <div class="field"><label for="fName">Name</label><input id="fName" name="name" required autocomplete="name"></div>
         <div class="field"><label for="fPhone">Phone</label><input id="fPhone" name="phone" type="tel" required autocomplete="tel"></div>
-        <div class="field"><label for="fEmail">Email</label><input id="fEmail" name="email" type="email" autocomplete="email"></div>
-        <div class="field"><label for="fDate">Pour date</label><input id="fDate" name="date" type="date"></div>
-        <div class="field" style="grid-column:1/-1"><label for="fSite">Job-site address</label><input id="fSite" name="site" autocomplete="street-address"></div>
-        <div class="field"><label for="fYards">Yardage (yd³)</label><input id="fYards" name="yards" type="number" min="0" step="0.25" inputmode="decimal"></div>
-        <div class="field"><label for="fMix">Mix</label><select id="fMix" name="mix"><option>Not sure — help me choose</option><option>Flowable Fill</option><option>2,500 PSI</option><option>3,000 PSI</option><option>3,500 PSI</option><option>4,000 PSI</option><option>4,500 PSI</option><option>5,000–6,000 PSI</option></select></div>
-        <div class="field" style="grid-column:1/-1"><label for="fMsg">Project details</label><textarea id="fMsg" name="message" placeholder="Placement method, access, pump needed, add-ons…"></textarea></div>
+        <div class="field"><label for="fEmail">Email (optional)</label><input id="fEmail" name="email" type="email" autocomplete="email"></div>
+        <div class="field"><label for="fSuburb">Suburb</label><input id="fSuburb" name="suburb" autocomplete="address-level2"></div>
+        <div class="field"><label for="fJob">Job type</label><select id="fJob" name="job"><option>Driveway</option><option>Garage or house slab</option><option>Path or side access</option><option>Coloured concrete</option><option>Other</option></select></div>
+        <div class="field"><label for="fFinish">Finish</label><select id="fFinish" name="finish"><option>Not sure, help me choose</option><option>Swirl</option><option>Broom</option><option>Smooth trowel</option></select></div>
+        <div class="field"><label for="fArea">Approx. area (m²)</label><input id="fArea" name="area" type="number" min="0" step="1" inputmode="numeric"></div>
+        <div class="field"><label for="fDate">Preferred date</label><input id="fDate" name="date" type="date"></div>
+        <div class="field" style="grid-column:1/-1"><label for="fMsg">Job details</label><textarea id="fMsg" name="message" placeholder="What's there now, access for the truck, colour, anything else we should know"></textarea></div>
       </div>
-      <button class="btn" type="submit" style="margin-top:20px;width:100%;justify-content:center">Send Quote Request</button>
+      <button class="btn" type="submit" style="margin-top:20px;width:100%;justify-content:center">Prepare My Quote Request</button>
       <p class="form-note" id="formNote">We'll put your details together so you can text them to us or send them on Instagram.</p>
       <div class="summary" id="summary" hidden>
         <div class="eyebrow">Your request is ready</div>
@@ -584,14 +613,14 @@ footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1p
 <footer>
   <div class="cols">
     <div>
-      <a href="#top" class="brand" style="margin-bottom:14px"><span>We<b>Crete</b></span></a>
-      <p style="max-width:340px">Ready-mix concrete, batched to order and delivered to your pour window.</p>
+      <a href="#top" class="brand" style="margin-bottom:14px" aria-label="WeCrete Concreting, back to top"><img src="img/logo.png" alt="WeCrete" width="110" height="50"></a>
+      <p style="max-width:340px">Driveways, slabs and paths, formed, poured and finished.</p>
     </div>
-    <div><h4>Company</h4><ul><li><a href="#about">About</a></li><li><a href="#services">Services</a></li><li><a href="#mixes">Mix Guide</a></li><li><a href="#area">Service Area</a></li></ul></div>
-    <div><h4>Customers</h4><ul><li><a href="#calculator">Calculator</a></li><li><a href="#policies">Policies</a></li><li><a href="#faq">FAQ</a></li><li><a href="#contact">Get a Quote</a></li></ul></div>
-    <div><h4>Contact</h4><ul><li><a data-cfg="phone" data-cfg-href="tel" href="tel:+61424018148"></a></li><li><a data-cfg="instagramHandle" data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener"></a></li><li><a href="#contact">Request a quote</a></li></ul></div>
+    <div><h4>Company</h4><ul><li><a href="#about">About</a></li><li><a href="#services">Services</a></li><li><a href="#work">Our Work</a></li><li><a href="#finishes">Finishes</a></li></ul></div>
+    <div><h4>Customers</h4><ul><li><a href="#calculator">Calculator</a></li><li><a href="#area">Service Area</a></li><li><a href="#policies">Policies</a></li><li><a href="#faq">FAQ</a></li></ul></div>
+    <div><h4>Contact</h4><ul><li><a data-cfg="phone" data-cfg-href="tel" href="tel:+61424018148"></a></li><li><a data-cfg="instagramHandle" data-cfg-href="ig" href="https://www.instagram.com/wecreteconcreting/" target="_blank" rel="noopener"></a></li><li><a href="#contact">Get a quote</a></li></ul></div>
   </div>
-  <div class="legal"><span>© <span id="yr">2026</span> WeCrete. All rights reserved.</span><span><a href="#privacy" data-open>Privacy</a> · <a href="#terms" data-open>Terms</a> · <a href="#policies">Policies</a></span></div>
+  <div class="legal"><span>© <span id="yr">2026</span> WeCrete Concreting. All rights reserved.</span><span><a href="#privacy" data-open>Privacy</a> · <a href="#terms" data-open>Terms</a> · <a href="#policies">Policies</a></span></div>
 </footer>
 
 <script>
@@ -603,8 +632,7 @@ const CONFIG = {
   phoneHref: "+61424018148",
   instagram: "https://www.instagram.com/wecreteconcreting/",
   instagramHandle: "@wecreteconcreting",
-  serviceArea: "Call or message us with your suburb and we'll confirm we can service your job.",
-  hours: [["Monday – Friday","6:00 AM – 5:00 PM"],["Saturday","6:00 AM – 12:00 PM"],["Sunday","By arrangement"]]
+  serviceArea: "Call or text us your suburb and we'll let you know if we can take on your job."
 };
 
 /* ---------- fill config ---------- */
@@ -621,7 +649,6 @@ document.querySelectorAll("[data-copy]").forEach(b=>b.addEventListener("click",(
   const done=m=>{b.textContent=m;setTimeout(()=>b.textContent=old,1800)};
   try{navigator.clipboard.writeText(t).then(()=>done("Copied"),()=>done(t))}catch(e){done(t)}
 }));
-document.getElementById("hours").innerHTML = CONFIG.hours.map(([d,h])=>`<div><span>${d}</span><span>${h}</span></div>`).join("");
 document.getElementById("yr").textContent = new Date().getFullYear();
 
 /* ---------- nav ---------- */
@@ -634,25 +661,35 @@ document.querySelectorAll("[data-open]").forEach(a=>a.addEventListener("click",(
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}}),{threshold:.12});
 document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
 
-/* ---------- calculator ---------- */
+/* ---------- gallery viewer ---------- */
 const $=id=>document.getElementById(id);
+const shots=[...document.querySelectorAll(".shot")], lb=$("lb");
+let li=0;
+function showShot(i){ li=(i+shots.length)%shots.length; const im=shots[li].querySelector("img"); $("lbImg").src=im.src; $("lbImg").alt=im.alt; $("lbCap").textContent=shots[li].querySelector("span").textContent; }
+shots.forEach((s,i)=>s.addEventListener("click",()=>{ showShot(i); if(lb.showModal) lb.showModal(); else lb.setAttribute("open",""); }));
+$("lbClose").addEventListener("click",()=>lb.close());
+$("lbPrev").addEventListener("click",()=>showShot(li-1));
+$("lbNext").addEventListener("click",()=>showShot(li+1));
+lb.addEventListener("click",e=>{ if(e.target===lb) lb.close(); });
+lb.addEventListener("keydown",e=>{ if(e.key==="ArrowLeft") showShot(li-1); if(e.key==="ArrowRight") showShot(li+1); });
+
+/* ---------- calculator (metric) ---------- */
 function calc(){
   const L=+$("cL").value||0, W=+$("cW").value||0, T=+$("cT").value||0, Q=Math.max(1,Math.round(+$("cQ").value||1));
-  const exact = L*W*(T/12)/27*Q;
-  const order = exact>0 ? Math.ceil(exact*1.10*4)/4 : 0;
-  $("cOut").innerHTML = order.toFixed(2)+"<small>YD³</small>";
-  $("cExact").textContent = exact.toFixed(2)+" yd³";
-  const trucks = Math.max(1,Math.ceil(order/10));
-  $("cTrucks").textContent = order>0 ? trucks+(trucks===1?" truck":" trucks")+(order<4?" · short-load fee applies":"") : "—";
+  const area=L*W*Q, exact=area*(T/1000);
+  const order = exact>0 ? Math.ceil(exact*1.10*5-1e-9)/5 : 0;
+  $("cOut").innerHTML = order.toFixed(1)+"<small>M³</small>";
+  $("cExact").textContent = exact.toFixed(2)+" m³";
+  $("cArea").textContent = area.toFixed(1)+" m² area";
 }
 ["cL","cW","cT","cQ"].forEach(id=>$(id).addEventListener("input",calc)); calc();
 
 /* ---------- quote form (prepares a message to text or send on Instagram) ---------- */
 $("quoteForm").addEventListener("submit",e=>{
   e.preventDefault();
-  const f=e.target; if(!f.name.value.trim()||!f.phone.value.trim()){ $("formNote").textContent="Please add at least your name and phone number."; $("formNote").style.color="#ffb35c"; return; }
-  const body=[["Name",f.name.value],["Phone",f.phone.value],["Email",f.email.value],["Pour date",f.date.value],["Job site",f.site.value],["Yardage",f.yards.value],["Mix",f.mix.value],["Details",f.message.value]].map(([k,v])=>`${k}: ${v||"-"}`).join("\n");
-  $("formNote").style.color="";
+  const f=e.target; if(!f.name.value.trim()||!f.phone.value.trim()){ $("formNote").textContent="Please add at least your name and phone number."; $("formNote").style.color="var(--warn)"; return; }
+  const body=[["Name",f.name.value],["Phone",f.phone.value],["Email",f.email.value],["Suburb",f.suburb.value],["Job",f.job.value],["Finish",f.finish.value],["Area",f.area.value?f.area.value+" m²":""],["Preferred date",f.date.value],["Details",f.message.value]].map(([k,v])=>`${k}: ${v||"-"}`).join("\n");
+  $("formNote").style.color=""; $("formNote").textContent="Done. Your request is below.";
   $("summaryText").textContent=body; $("summary").hidden=false;
   $("smsBtn").href=`sms:${CONFIG.phoneHref}?&body=${encodeURIComponent("Quote request\n"+body)}`;
   $("summary").scrollIntoView({behavior:"smooth",block:"nearest"});
@@ -684,6 +721,7 @@ const eio=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 const hex=h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];
 const mix=(a,b,t,al=1)=>{const A=hex(a),B=hex(b);return`rgba(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(",")},${al})`};
 let SUNK=1;
+const LOGO=new Image(); LOGO.src="img/logo.png";
 /* truck path: drives in forward, backs up to the forms, parks for the pour, drives away */
 function truckX(p){
   if(p<.09) return lerp(-650,1260,eio(p/.09));
@@ -792,13 +830,14 @@ function truck(tx,wAng,dPhase,theta,flow,tsec,reversing,bob,wBlur){
   const per=110,off=((dPhase%per)+per)%per;
   for(let b=-520+off;b<420;b+=per){
     ctx.beginPath();ctx.moveTo(b,-140);ctx.lineTo(b+46,-140);ctx.lineTo(b+46-150,140);ctx.lineTo(b-150,140);ctx.closePath();
-    const sg=ctx.createLinearGradient(0,-140,0,140);sg.addColorStop(0,"rgba(233,162,59,.95)");sg.addColorStop(.6,"rgba(176,112,30,.95)");sg.addColorStop(1,"rgba(70,44,12,.95)");
+    const sg=ctx.createLinearGradient(0,-140,0,140);sg.addColorStop(0,"rgba(98,140,158,.95)");sg.addColorStop(.6,"rgba(68,102,116,.95)");sg.addColorStop(1,"rgba(22,36,44,.95)");
     ctx.fillStyle=sg;ctx.fill();
   }
   // brand
-  ctx.font="400 74px Anton, Impact, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
-  ctx.lineWidth=8;ctx.strokeStyle="rgba(20,18,15,.85)";ctx.strokeText("WECRETE",40,-8);
-  ctx.fillStyle="#fbf7ef";ctx.fillText("WECRETE",40,-8);
+  // WeCrete logo badge on the drum
+  ctx.fillStyle="#0c0e11";ctx.beginPath();ctx.roundRect(-112,-74,300,138,18);ctx.fill();
+  if(LOGO.complete&&LOGO.naturalWidth){ctx.drawImage(LOGO,-100,-62,276,276*LOGO.naturalHeight/LOGO.naturalWidth)}
+  else{ctx.font="400 60px Anton, Impact, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";ctx.fillStyle="#fbf7ef";ctx.fillText("WECRETE",38,-4)}
   // low sun rim light on the drum
   const rl=ctx.createLinearGradient(120,0,300,0);rl.addColorStop(0,"rgba(255,170,90,0)");rl.addColorStop(1,`rgba(255,170,90,${.4*SUNK})`);
   ctx.fillStyle=rl;ctx.fillRect(120,-140,200,280);
@@ -821,7 +860,7 @@ function truck(tx,wAng,dPhase,theta,flow,tsec,reversing,bob,wBlur){
   ctx.fillStyle="#4a4f56";ctx.beginPath();ctx.moveTo(ox-16,oy+30);ctx.lineTo(ox+14,oy+30);ctx.lineTo(PIV[0]+12,PIV[1]);ctx.lineTo(PIV[0]-12,PIV[1]);ctx.closePath();ctx.fill();
 
   // CAB
-  g=ctx.createLinearGradient(0,530,0,700);g.addColorStop(0,"#f6b85a");g.addColorStop(.55,"#e39a2f");g.addColorStop(1,"#9a6116");
+  g=ctx.createLinearGradient(0,530,0,700);g.addColorStop(0,"#f7f8f8");g.addColorStop(.55,"#d6dbde");g.addColorStop(1,"#7d878d");
   ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(682,700);ctx.lineTo(682,548);ctx.quadraticCurveTo(682,536,694,536);ctx.lineTo(796,536);ctx.lineTo(866,600);ctx.quadraticCurveTo(902,606,904,622);ctx.lineTo(906,700);ctx.closePath();ctx.fill();
   // window
   g=ctx.createLinearGradient(700,550,850,610);g.addColorStop(0,"#1c2a36");g.addColorStop(.5,"#36505f");g.addColorStop(1,"#0f171e");
@@ -830,7 +869,8 @@ function truck(tx,wAng,dPhase,theta,flow,tsec,reversing,bob,wBlur){
   // door, handle, grille, bumper
   ctx.strokeStyle="rgba(0,0,0,.35)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(700,546);ctx.lineTo(700,692);ctx.lineTo(820,692);ctx.lineTo(820,606);ctx.stroke();
   ctx.fillStyle="#2a2d31";ctx.fillRect(712,618,20,5);
-  ctx.font="400 22px Anton, Impact, sans-serif";ctx.textAlign="left";ctx.fillStyle="#1a140b";ctx.fillText("WECRETE",716,650);
+  ctx.fillStyle="#446674";ctx.fillRect(682,664,224,12);
+  ctx.font="400 22px Anton, Impact, sans-serif";ctx.textAlign="left";ctx.fillStyle="#2c4552";ctx.fillText("WECRETE",716,650);
   ctx.fillStyle="#26292e";ctx.fillRect(890,626,16,58);
   ctx.fillStyle="#c9cdd2";ctx.beginPath();ctx.roundRect(880,686,40,20,4);ctx.fill();
   // mirror
@@ -1068,7 +1108,7 @@ function render(now){
     const x=lerp(FR+6,FL-6,screedK),y=BOT-FULL;
     ctx.globalAlpha=a;ctx.fillStyle="#c9cdd2";ctx.fillRect(x-5,y-8,10,12);
     ctx.strokeStyle="#9aa0a7";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x,y-4);ctx.lineTo(x+150,y-170);ctx.stroke();
-    ctx.fillStyle="#e9a23b";ctx.fillRect(x+140,y-182,26,14);ctx.globalAlpha=1;
+    ctx.fillStyle="#8db6c9";ctx.fillRect(x+140,y-182,26,14);ctx.globalAlpha=1;
   }
 
   // FRONT BOARD + stakes
@@ -1116,8 +1156,8 @@ function render(now){
   });
   bar.style.transform=`scaleX(${p})`;pct.textContent=String(Math.round(p*100)).padStart(2,"0")+"%";
   hint.style.opacity=1-smooth(.01,.05,p);
-  hudPoured.textContent=(10*smooth(.30,.80,p)).toFixed(1)+" yd³";
-  hudDrum.textContent=flow>.05?"Discharging":p>.8?"Empty":"Charging";
+  hudPoured.textContent=(6*smooth(.30,.80,p)).toFixed(1)+" m³";
+  hudDrum.textContent=flow>.05?"Discharging":p>.8?"Empty":"Mixing";
   hudStatus.textContent=p<.09?"Arriving":p<.19?"Reversing":p<.28?"Positioning":p<.80?"Pouring":p<.905?"Screeding":p<.95?"Complete":"Departing";
 
   requestAnimationFrame(render);
