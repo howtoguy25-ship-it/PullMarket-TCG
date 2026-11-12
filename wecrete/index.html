@@ -1,0 +1,1020 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WeCrete — Ready-Mix Concrete Delivered</title>
+<meta name="description" content="WeCrete supplies and delivers ready-mix concrete for residential, commercial and decorative pours. Batched to order, dispatched to your window.">
+<meta name="theme-color" content="#0b0d10">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0d10;
+  --bg-2:#111419;
+  --panel:#151920;
+  --line:rgba(255,255,255,.09);
+  --text:#ece9e3;
+  --muted:#9a978f;
+  --amber:#e9a23b;
+  --amber-2:#ffcb7a;
+  --concrete:#8e8a83;
+  --radius:14px;
+  --display:"Anton",Impact,"Arial Narrow",sans-serif;
+  --sans:"Inter",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+img,svg,canvas{display:block}
+::selection{background:var(--amber);color:#111}
+
+/* ---------- NAV ---------- */
+.nav{position:fixed;inset:0 0 auto 0;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:18px clamp(16px,4vw,48px);transition:background .4s,backdrop-filter .4s,border-color .4s;border-bottom:1px solid transparent}
+.nav.solid{background:rgba(11,13,16,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-color:var(--line)}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--display);font-size:26px;letter-spacing:.04em}
+.brand b{color:var(--amber);font-weight:400}
+.brand svg{width:30px;height:30px}
+.nav ul{display:flex;gap:28px;list-style:none;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+.nav ul a{text-decoration:none;color:var(--muted);transition:color .2s}
+.nav ul a:hover{color:var(--text)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;border-radius:999px;background:var(--amber);color:#14110b;font-weight:600;font-size:14px;letter-spacing:.04em;text-decoration:none;border:0;cursor:pointer;transition:transform .2s,background .2s;font-family:var(--sans)}
+.btn:hover{background:var(--amber-2);transform:translateY(-1px)}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,.25)}
+.btn.ghost:hover{border-color:var(--amber);color:var(--amber)}
+.menu-btn{display:none;background:none;border:0;color:var(--text);cursor:pointer;padding:6px}
+.menu-btn svg{width:28px;height:28px}
+@media (max-width:960px){
+  .nav ul{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;gap:0;background:rgba(11,13,16,.97);border-bottom:1px solid var(--line)}
+  .nav ul.open{display:flex}
+  .nav ul li a{display:block;padding:16px clamp(16px,4vw,48px);border-top:1px solid var(--line)}
+  .menu-btn{display:block}
+  .nav .btn.nav-cta{display:none}
+}
+
+/* ---------- FILM (scroll-driven) ---------- */
+#film{position:relative;height:720vh}
+.stage{position:sticky;top:0;height:100vh;height:100svh;overflow:hidden;background:#07090c}
+#scene{position:absolute;inset:0;width:100%;height:100%}
+.grain{position:absolute;inset:-50%;pointer-events:none;opacity:.07;mix-blend-mode:overlay;animation:grain 1s steps(6) infinite}
+@keyframes grain{0%{transform:translate(0,0)}20%{transform:translate(-3%,2%)}40%{transform:translate(2%,-3%)}60%{transform:translate(-2%,-1%)}80%{transform:translate(3%,3%)}100%{transform:translate(0,0)}}
+.letterbox{position:absolute;left:0;right:0;height:5.5vh;background:#000;z-index:3;pointer-events:none}
+.letterbox.top{top:0}.letterbox.bot{bottom:0}
+.chapter{position:absolute;z-index:4;left:clamp(16px,6vw,96px);top:20vh;max-width:min(620px,88vw);opacity:0;will-change:opacity,transform;pointer-events:none}
+.chapter.right{left:auto;right:clamp(16px,6vw,96px);text-align:right}
+.chapter .k{font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--amber);text-transform:uppercase;margin-bottom:14px}
+.chapter h2{font-family:var(--display);font-weight:400;font-size:clamp(40px,6.4vw,104px);line-height:.95;letter-spacing:.01em;text-transform:uppercase;text-shadow:0 8px 40px rgba(0,0,0,.6)}
+.chapter p{margin-top:18px;font-size:clamp(15px,1.3vw,19px);color:#d6d2ca;max-width:520px;text-shadow:0 2px 20px rgba(0,0,0,.8)}
+.chapter.right p{margin-left:auto}
+.chapter.hero h1{font-family:var(--display);font-weight:400;font-size:clamp(76px,15vw,240px);line-height:.85;letter-spacing:.01em;text-shadow:0 10px 60px rgba(0,0,0,.6)}
+.chapter.hero h1 b{color:var(--amber);font-weight:400}
+.chapter.hero{top:16vh}
+.chapter.final{top:15vh;pointer-events:auto}
+.chapter.final .row{display:flex;gap:12px;margin-top:26px;flex-wrap:wrap}
+.chapter.final .btn.ghost{background:rgba(0,0,0,.45);backdrop-filter:blur(6px)}
+.scroll-hint{position:absolute;z-index:4;left:50%;bottom:9vh;transform:translateX(-50%);font-family:var(--mono);font-size:11px;letter-spacing:.35em;color:var(--muted);text-transform:uppercase;display:flex;flex-direction:column;align-items:center;gap:10px}
+.scroll-hint i{width:1px;height:46px;background:linear-gradient(var(--amber),transparent);animation:drip 1.8s ease-in-out infinite}
+@keyframes drip{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+.hud{position:absolute;z-index:4;right:clamp(16px,4vw,48px);bottom:calc(5.5vh + 18px);font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:#bdb8ad;text-transform:uppercase;display:grid;grid-template-columns:auto auto;gap:4px 18px;background:rgba(0,0,0,.35);border:1px solid var(--line);padding:12px 16px;border-radius:10px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.hud span:nth-child(even){color:var(--amber);text-align:right}
+.progress{position:absolute;z-index:4;left:clamp(16px,4vw,48px);bottom:calc(5.5vh + 22px);width:min(260px,40vw);height:2px;background:rgba(255,255,255,.15)}
+.progress i{position:absolute;inset:0;background:var(--amber);transform-origin:left;transform:scaleX(0)}
+.progress em{position:absolute;bottom:10px;left:0;font-family:var(--mono);font-style:normal;font-size:11px;letter-spacing:.2em;color:var(--muted)}
+@media (max-width:640px){
+  .hud{display:none}
+  .chapter{top:13vh}
+  .chapter.right{right:auto;left:16px;text-align:left}
+  .chapter.right p{margin-left:0}
+}
+
+/* ---------- CONTENT ---------- */
+section.block{position:relative;padding:clamp(80px,12vw,160px) clamp(16px,6vw,96px);border-top:1px solid var(--line)}
+.wrap{max-width:1240px;margin:0 auto}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--amber);text-transform:uppercase}
+h2.title{font-family:var(--display);font-weight:400;text-transform:uppercase;font-size:clamp(40px,6vw,88px);line-height:.95;margin:16px 0 22px;letter-spacing:.01em}
+.lead{font-size:clamp(17px,1.5vw,21px);color:#cfcbc3;max-width:720px}
+.muted{color:var(--muted)}
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:980px){.g3,.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){.g2,.g3,.g4{grid-template-columns:1fr}}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,.01));border:1px solid var(--line);border-radius:var(--radius);padding:28px;position:relative;overflow:hidden;transition:border-color .3s,transform .3s}
+.card:hover{border-color:rgba(233,162,59,.45);transform:translateY(-3px)}
+.card h3{font-size:19px;font-weight:600;margin:14px 0 8px;letter-spacing:.01em}
+.card p{color:var(--muted);font-size:15px}
+.card .ico{width:42px;height:42px;border-radius:10px;background:rgba(233,162,59,.12);display:grid;place-items:center;color:var(--amber)}
+.card .ico svg{width:22px;height:22px}
+.num{font-family:var(--display);font-size:clamp(44px,5vw,72px);line-height:1;color:var(--text)}
+.num small{font-family:var(--mono);font-size:14px;color:var(--amber);margin-left:6px;letter-spacing:.1em}
+.stat p{font-size:14px;color:var(--muted);margin-top:8px}
+.split{display:grid;grid-template-columns:1.1fr .9fr;gap:clamp(32px,6vw,90px);align-items:start}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1)}
+.reveal.in{opacity:1;transform:none}
+
+/* table */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);margin-top:40px}
+table{width:100%;border-collapse:collapse;min-width:640px;font-size:15px}
+th,td{text-align:left;padding:18px 22px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);font-weight:400;background:rgba(255,255,255,.02)}
+tr:last-child td{border-bottom:0}
+td:first-child{font-weight:600;white-space:nowrap}
+td .tag{display:inline-block;font-family:var(--mono);font-size:12px;color:var(--amber);border:1px solid rgba(233,162,59,.35);border-radius:999px;padding:2px 10px}
+.note{font-size:13px;color:var(--muted);margin-top:14px}
+
+/* steps */
+.steps{counter-reset:s;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:48px}
+@media (max-width:980px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.steps{grid-template-columns:1fr}}
+.step{border-top:2px solid var(--amber);padding-top:22px}
+.step:before{counter-increment:s;content:"0" counter(s);font-family:var(--mono);font-size:12px;letter-spacing:.3em;color:var(--amber)}
+.step h3{font-family:var(--display);font-weight:400;font-size:32px;text-transform:uppercase;margin:10px 0 8px;letter-spacing:.02em}
+.step p{color:var(--muted);font-size:15px}
+
+/* calculator */
+.calc{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:clamp(22px,4vw,40px)}
+.field{display:flex;flex-direction:column;gap:8px}
+.field label{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+.field input,.field select,.field textarea{background:#0c0f13;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--text);font:inherit;font-size:16px;padding:14px 16px;outline:none;transition:border-color .2s;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--amber)}
+.field textarea{min-height:120px;resize:vertical}
+.result{margin-top:26px;padding:22px;border-radius:14px;background:linear-gradient(135deg,rgba(233,162,59,.14),rgba(233,162,59,.03));border:1px solid rgba(233,162,59,.3);display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.result .num{color:var(--amber-2)}
+.checklist{list-style:none;display:grid;gap:14px;margin-top:28px}
+.checklist li{display:flex;gap:14px;align-items:flex-start;color:#d2cec6}
+.checklist li:before{content:"";flex:none;width:18px;height:18px;margin-top:4px;border-radius:5px;border:1.5px solid var(--amber);background:linear-gradient(135deg,transparent 45%,var(--amber) 46%,var(--amber) 54%,transparent 55%)}
+
+/* policies */
+.policies{margin-top:44px;display:grid;gap:10px}
+details{border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.015);transition:border-color .2s}
+details[open]{border-color:rgba(233,162,59,.35);background:rgba(255,255,255,.03)}
+summary{cursor:pointer;list-style:none;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;font-weight:600;font-size:17px}
+summary::-webkit-details-marker{display:none}
+summary .n{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:.2em;margin-right:14px;font-weight:400}
+summary:after{content:"+";font-family:var(--mono);font-size:22px;color:var(--amber);transition:transform .25s;flex:none}
+details[open] summary:after{transform:rotate(45deg)}
+details .body{padding:0 24px 22px;color:#c4c0b8;font-size:15px}
+details .body ul{padding-left:20px;display:grid;gap:8px}
+details .body p+p,details .body p+ul,details .body ul+p{margin-top:10px}
+.warn{border-left:3px solid var(--amber);padding:14px 18px;background:rgba(233,162,59,.08);border-radius:0 10px 10px 0;margin-top:12px;color:#e8dcc6}
+
+/* hours */
+.hours{display:grid;gap:0;margin-top:20px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.hours div{display:flex;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);font-size:15px}
+.hours div:last-child{border-bottom:0}
+.hours div span:last-child{font-family:var(--mono);color:var(--amber-2)}
+
+/* contact */
+.contact-list{list-style:none;display:grid;gap:22px;margin-top:30px}
+.contact-list li small{display:block;font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:4px}
+.contact-list li a,.contact-list li span{font-size:20px;text-decoration:none}
+.contact-list li a:hover{color:var(--amber)}
+form .grid{gap:16px}
+.form-note{font-size:13px;color:var(--muted);margin-top:14px}
+
+/* cta band */
+.band{text-align:center;background:radial-gradient(ellipse at 50% 120%,rgba(233,162,59,.22),transparent 60%),var(--bg-2)}
+.band h2.title{font-size:clamp(48px,9vw,150px)}
+
+footer{border-top:1px solid var(--line);padding:56px clamp(16px,6vw,96px) 40px;background:#08090b;font-size:14px;color:var(--muted)}
+footer .cols{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:32px;max-width:1240px;margin:0 auto}
+@media (max-width:820px){footer .cols{grid-template-columns:1fr 1fr}}
+footer h4{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--text);margin-bottom:14px;font-weight:400}
+footer ul{list-style:none;display:grid;gap:8px}
+footer a{text-decoration:none}
+footer a:hover{color:var(--amber)}
+footer .legal{max-width:1240px;margin:44px auto 0;padding-top:24px;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px}
+@media (prefers-reduced-motion:reduce){.grain,.scroll-hint i{animation:none}.reveal{transition:none;opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="nav" id="nav">
+  <a href="#top" class="brand" aria-label="WeCrete home">
+    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect x="1" y="1" width="30" height="30" rx="7" stroke="#e9a23b" stroke-width="2"/><path d="M7 10l3.5 12L14 13l2 0 3.5 9L23 10" stroke="#ece9e3" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>We<b>Crete</b></span>
+  </a>
+  <ul id="menu">
+    <li><a href="#about">About</a></li>
+    <li><a href="#services">Services</a></li>
+    <li><a href="#mixes">Mixes</a></li>
+    <li><a href="#calculator">Calculator</a></li>
+    <li><a href="#policies">Policies</a></li>
+    <li><a href="#faq">FAQ</a></li>
+    <li><a href="#contact">Contact</a></li>
+  </ul>
+  <a href="#contact" class="btn nav-cta">Get a Quote</a>
+  <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+</nav>
+
+<!-- ============ SCROLL FILM ============ -->
+<section id="film" aria-label="WeCrete cinematic introduction">
+  <div class="stage" id="top">
+    <canvas id="scene" aria-hidden="true"></canvas>
+    <div class="grain" id="grain"></div>
+    <div class="letterbox top"></div><div class="letterbox bot"></div>
+
+    <div class="chapter hero" data-in="-1" data-out="0.12">
+      <div class="k">Ready-Mix Concrete · Batched to Order</div>
+      <h1>We<b>Crete</b></h1>
+      <p>Ready-mix concrete, delivered with precision. The right mix, at the right site, at the right minute.</p>
+    </div>
+    <div class="chapter" data-in="0.13" data-out="0.27">
+      <div class="k">01 — Arrival</div>
+      <h2>On site.<br>On schedule.</h2>
+      <p>Every truck is dispatched to your pour window and tracked from our plant to your forms.</p>
+    </div>
+    <div class="chapter" data-in="0.31" data-out="0.50">
+      <div class="k">02 — The Pour</div>
+      <h2>Mixed in transit.<br>Placed fresh.</h2>
+      <p>Batched to your ticket, kept turning on the road, and discharged inside the 90-minute window the industry standard calls for.</p>
+    </div>
+    <div class="chapter" data-in="0.53" data-out="0.76">
+      <div class="k">03 — The Mix</div>
+      <h2>2,500 to<br>6,000 PSI.</h2>
+      <p>Footings, driveways, structural slabs, decorative flatwork — mixes engineered for the job in front of you.</p>
+    </div>
+    <div class="chapter" data-in="0.80" data-out="0.92">
+      <div class="k">04 — The Finish</div>
+      <h2>Screeded.<br>Leveled. Ready.</h2>
+      <p>Clean pours, clean chutes, clean sites. We leave nothing behind but the slab.</p>
+    </div>
+    <div class="chapter final" data-in="0.93" data-out="2">
+      <div class="k">WeCrete</div>
+      <h2>Built to last.</h2>
+      <p>Tell us the site, the yardage and the date. We'll handle the rest.</p>
+      <div class="row"><a class="btn" href="#contact">Get a Quote</a><a class="btn ghost" href="#calculator">Estimate Yardage</a></div>
+    </div>
+
+    <div class="scroll-hint" id="hint">Scroll to pour<i></i></div>
+    <div class="progress"><em id="pct">00%</em><i id="bar"></i></div>
+    <div class="hud" aria-hidden="true">
+      <span>Drum load</span><span>10.0 yd³</span>
+      <span>Poured</span><span id="hudPoured">0.0 yd³</span>
+      <span>Drum</span><span id="hudDrum">Charging</span>
+      <span>Status</span><span id="hudStatus">En route</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ABOUT ============ -->
+<section class="block" id="about">
+  <div class="wrap split">
+    <div class="reveal">
+      <div class="eyebrow">About WeCrete</div>
+      <h2 class="title">Poured right<br>the first time.</h2>
+      <p class="lead">WeCrete is a ready-mix concrete supplier and delivery service built around one idea: the right mix, at the right site, at the right minute. We batch to order, dispatch to your window, and stay on the line with your crew until the last yard is placed.</p>
+      <p class="muted" style="margin-top:18px">Concrete doesn't wait — once it's batched, the clock is running. That's why every order is scheduled around your crew, your access and your weather, not ours.</p>
+    </div>
+    <div class="grid g2 reveal">
+      <div class="card stat"><div class="num">90<small>MIN</small></div><p>Maximum time from batching to full discharge, per ASTM C94.</p></div>
+      <div class="card stat"><div class="num">10<small>YD³</small></div><p>Typical full load per mixer truck.</p></div>
+      <div class="card stat"><div class="num">6K<small>PSI</small></div><p>Strengths from 2,500 up to 6,000 PSI and beyond to spec.</p></div>
+      <div class="card stat"><div class="num">48<small>HRS</small></div><p>Recommended notice to lock in your preferred pour window.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SERVICES ============ -->
+<section class="block" id="services">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Services</div>
+      <h2 class="title">Everything that pours.</h2>
+      <p class="lead">From a single backyard pad to a multi-truck commercial pour, we supply the concrete and the coordination.</p>
+    </div>
+    <div class="grid g3" style="margin-top:48px">
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 17h2m14 0h2M5 17a2 2 0 104 0 2 2 0 00-4 0zm10 0a2 2 0 104 0 2 2 0 00-4 0zM3 17V9h11v8M14 11h4l3 3v3"/></svg></div><h3>Ready-Mix Delivery</h3><p>Full and partial loads from 1 to 10 yd³ per truck, batched fresh and scheduled to your pour window.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9H3z M9 20v-6h6v6"/></svg></div><h3>Residential</h3><p>Driveways, patios, sidewalks, garage floors, footings, steps and slabs-on-grade.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 21V5l6-2v18M10 21V9l10 3v9M2 21h20M14 15h2M14 18h2"/></svg></div><h3>Commercial &amp; Industrial</h3><p>Foundations, parking lots, loading docks, equipment pads and structural pours built to plan.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z"/></svg></div><h3>Decorative</h3><p>Integral color, exposed aggregate and stamp-ready mixes for flatwork that has to look as good as it performs.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 20h6l3-8 4 2 5-9M9 20v-4"/></svg></div><h3>Pump Coordination</h3><p>Line and boom pump scheduling for backyards, upper floors and placements a chute can't reach.</p></div>
+      <div class="card reveal"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 3h6M10 3v6L5 19a1.5 1.5 0 001.3 2h11.4A1.5 1.5 0 0019 19l-5-10V3"/></svg></div><h3>Specialty Mixes</h3><p>Fiber-reinforced, high-early strength, hot- and cold-weather blends and flowable fill.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MIXES ============ -->
+<section class="block" id="mixes">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Mix Guide</div>
+      <h2 class="title">Pick the right strength.</h2>
+      <p class="lead">A starting point for common work. Your project's plans, local building code and engineer of record always come first.</p>
+    </div>
+    <div class="tablewrap reveal">
+      <table>
+        <thead><tr><th>Mix</th><th>Typical uses</th><th>Slump</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Flowable Fill</td><td>Trench and utility backfill, void and abandoned-tank fill</td><td><span class="tag">Flowable</span></td><td>Low-strength, self-leveling, excavatable</td></tr>
+          <tr><td>2,500 PSI</td><td>Footings, fence and post bases, non-structural fill</td><td><span class="tag">4″</span></td><td>Economical general-purpose mix</td></tr>
+          <tr><td>3,000 PSI</td><td>Patios, walkways, interior slabs-on-grade</td><td><span class="tag">4″</span></td><td>Common residential baseline</td></tr>
+          <tr><td>3,500 PSI</td><td>Driveways, garage floors, steps</td><td><span class="tag">4″</span></td><td>Air-entrained recommended where it freezes</td></tr>
+          <tr><td>4,000 PSI</td><td>Exterior flatwork in freeze–thaw climates, light commercial</td><td><span class="tag">4–5″</span></td><td>Air-entrained; good durability</td></tr>
+          <tr><td>4,500 PSI</td><td>Commercial driveways, aprons, heavy-use pavement</td><td><span class="tag">4–5″</span></td><td>Lower water-cement ratio</td></tr>
+          <tr><td>5,000–6,000 PSI</td><td>Structural, columns, beams, heavy industrial floors</td><td><span class="tag">Per spec</span></td><td>Engineered mix design; testing available</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Add-ons available on request: fiber reinforcement, accelerators and retarders, water reducers, integral color, and hot- or cold-weather adjustments. Add-ons are priced per yard.</p>
+  </div>
+</section>
+
+<!-- ============ PROCESS ============ -->
+<section class="block" id="process">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">How it works</div>
+      <h2 class="title">From call to cure.</h2>
+    </div>
+    <div class="steps">
+      <div class="step reveal"><h3>Quote</h3><p>Send us the site address, yardage, mix and placement method. We confirm pricing and availability.</p></div>
+      <div class="step reveal"><h3>Schedule</h3><p>Lock your date and pour window. We reconfirm the business day before and spacing between trucks.</p></div>
+      <div class="step reveal"><h3>Pour</h3><p>The driver arrives, reviews access with your crew, and discharges where you direct the chute.</p></div>
+      <div class="step reveal"><h3>Cure</h3><p>Your crew finishes and cures. Light foot traffic in about 24–48 hours; vehicles typically after 7 days.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CALCULATOR + ORDERING ============ -->
+<section class="block" id="calculator">
+  <div class="wrap split">
+    <div class="reveal">
+      <div class="eyebrow">Yardage Calculator</div>
+      <h2 class="title">How much do<br>you need?</h2>
+      <p class="lead">Enter your slab dimensions. We add a 10% allowance for subgrade variation and spillage, then round up to the nearest quarter yard.</p>
+      <div class="eyebrow" style="margin-top:44px">Before you order, have ready</div>
+      <ul class="checklist">
+        <li>Site address and a description of truck access (gate width, slope, overhead wires)</li>
+        <li>Total yardage and the mix or PSI you need</li>
+        <li>Placement method: chute, pump, buggy or wheelbarrow</li>
+        <li>Pour date and preferred arrival window</li>
+        <li>Name and phone number of the on-site contact</li>
+        <li>Payment method, or your approved account number</li>
+      </ul>
+    </div>
+    <div class="calc reveal">
+      <div class="grid g3">
+        <div class="field"><label for="cL">Length (ft)</label><input id="cL" type="number" min="0" step="0.5" value="20" inputmode="decimal"></div>
+        <div class="field"><label for="cW">Width (ft)</label><input id="cW" type="number" min="0" step="0.5" value="12" inputmode="decimal"></div>
+        <div class="field"><label for="cT">Thickness (in)</label><input id="cT" type="number" min="0" step="0.5" value="4" inputmode="decimal"></div>
+      </div>
+      <div class="field" style="margin-top:16px"><label for="cQ">Number of identical slabs</label><input id="cQ" type="number" min="1" step="1" value="1" inputmode="numeric"></div>
+      <div class="result">
+        <div><div class="eyebrow">Order</div><div class="num" id="cOut">3.25<small>YD³</small></div></div>
+        <div style="text-align:right"><div class="eyebrow">Exact volume</div><div id="cExact" style="font-family:var(--mono);font-size:18px;margin-top:6px">2.96 yd³</div><div id="cTrucks" class="muted" style="font-size:13px;margin-top:4px">1 truck</div></div>
+      </div>
+      <p class="note">Estimates only. Footings, curbs and irregular shapes need separate calculations — call dispatch and we'll help you check the number.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SERVICE AREA ============ -->
+<section class="block" id="area">
+  <div class="wrap split">
+    <div class="reveal">
+      <div class="eyebrow">Service Area &amp; Hours</div>
+      <h2 class="title">Where we pour.</h2>
+      <p class="lead" data-cfg="serviceArea"></p>
+      <p class="muted" style="margin-top:16px">Deliveries outside the standard area are available and may carry a distance charge. Early-morning, night and weekend pours can be arranged in advance.</p>
+    </div>
+    <div class="reveal">
+      <div class="eyebrow">Dispatch hours</div>
+      <div class="hours" id="hours"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ POLICIES ============ -->
+<section class="block" id="policies">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">Policies</div>
+      <h2 class="title">The fine print,<br>in plain words.</h2>
+      <p class="lead">These policies apply to every order unless your written quote or credit agreement says otherwise. Last updated: November 2026.</p>
+    </div>
+    <div class="policies reveal">
+      <details open><summary><span><span class="n">01</span>Ordering &amp; Scheduling</span></summary><div class="body"><ul>
+        <li>Please place orders at least 48 hours ahead. Same-day and next-day orders are accepted when trucks and plant capacity allow.</li>
+        <li>Every order is reconfirmed by phone by 2:00 PM the business day before the pour.</li>
+        <li>You are responsible for the quantity, mix and strength ordered. We are happy to help you check your numbers.</li>
+        <li>For multi-truck pours, we set the spacing between trucks with you in advance so concrete arrives at the pace your crew can place it.</li>
+      </ul></div></details>
+
+      <details><summary><span><span class="n">02</span>Cancellations &amp; Changes</span></summary><div class="body"><ul>
+        <li>Cancel or reschedule free of charge until 2:00 PM the business day before your pour.</li>
+        <li>Later cancellations may incur a cancellation fee.</li>
+        <li>Once a load has been batched it cannot be cancelled and is billed in full, including any delivery charges.</li>
+        <li>Changes to quantity or mix after batching are treated as a new order.</li>
+      </ul></div></details>
+
+      <details><summary><span><span class="n">03</span>Weather</span></summary><div class="body"><ul>
+        <li>We watch the forecast with you. Pours may be postponed for heavy rain, freezing temperatures or unsafe conditions.</li>
+        <li>Weather reschedules requested before batching carry no fee.</li>
+        <li>Hot- and cold-weather adjustments (retarders, accelerators, heated water) are available and priced per yard.</li>
+        <li>Protecting fresh concrete from rain, frost and rapid drying after placement is the responsibility of the placing contractor.</li>
+      </ul></div></details>
+
+      <details><summary><span><span class="n">04</span>Delivery &amp; Site Access</span></summary><div class="body">
+        <p>A loaded mixer truck can weigh up to about 70,000 lbs. Access must be firm, reasonably level and clear.</p>
+        <ul>
+          <li>Plan for roughly 12 ft of width and 14 ft of overhead clearance, and keep the truck well clear of power lines.</li>
+          <li>The driver has final say on whether a route is safe and may decline unsafe access or positions.</li>
+          <li>Delivery past the curb line — onto driveways, lawns or private property — is at the customer's request and risk. We are not responsible for damage to pavement, curbs, landscaping or underground utilities, and you may be asked to sign a release.</li>
+          <li>You are responsible for permits, site preparation, forms, reinforcement and any traffic control required.</li>
+        </ul></div></details>
+
+      <details><summary><span><span class="n">05</span>Unloading Time &amp; Standby</span></summary><div class="body"><ul>
+        <li>Each load includes a set amount of unloading time, based on its size, confirmed in your quote.</li>
+        <li>Time beyond the allowance — including waiting for the site, forms or pump to be ready — is billed as standby time in 15-minute increments.</li>
+        <li>Concrete must be fully discharged within 90 minutes of batching. If a delay at the site pushes past that limit, the load may be rejected for quality reasons and still billed.</li>
+      </ul></div></details>
+
+      <details><summary><span><span class="n">06</span>Water Added on Site</span></summary><div class="body">
+        <p>Adding water at the job site makes concrete easier to place, but it lowers strength and durability.</p>
+        <ul>
+          <li>Water is added only at the request of the customer or their authorized representative.</li>
+          <li>The amount added is recorded on the delivery ticket and signed for.</li>
+          <li>Water added beyond the mix design voids any strength guarantee for that load.</li>
+        </ul></div></details>
+
+      <details><summary><span><span class="n">07</span>Short Loads &amp; Returned Concrete</span></summary><div class="body"><ul>
+        <li>Loads under 4 yd³ carry a short-load fee, shown on your quote.</li>
+        <li>Concrete left over and returned to our plant may incur a return and disposal fee.</li>
+        <li>Drivers will place leftover concrete on site only where you have a legal, approved area for it.</li>
+      </ul></div></details>
+
+      <details><summary><span><span class="n">08</span>Pricing &amp; Payment</span></summary><div class="body"><ul>
+        <li>Quotes are valid for 30 days. Prices can change with material and fuel costs; fuel and environmental surcharges may apply.</li>
+        <li>Cash customers pay when the order is placed or before the first load is batched. We accept major credit and debit cards and bank transfer.</li>
+        <li>Approved commercial accounts are invoiced on the terms in their credit agreement. Past-due balances may incur late charges and pause future deliveries.</li>
+        <li>Sales tax is applied where required.</li>
+      </ul></div></details>
+
+      <details><summary><span><span class="n">09</span>Quality &amp; Limited Warranty</span></summary><div class="body">
+        <p>We warrant that our concrete meets the strength ordered when it is sampled at discharge and tested to ASTM C31 and C39 by a qualified testing agency.</p>
+        <ul>
+          <li>We are not responsible for results controlled by others: subgrade, forming, placement, consolidation, finishing, jointing, curing and protection.</li>
+          <li>Hairline shrinkage cracking is a normal property of concrete and is not a defect.</li>
+          <li>Quality claims must be reported in writing within 30 days of delivery, with supporting test reports.</li>
+          <li>Our liability is limited to the cost of the concrete delivered.</li>
+        </ul></div></details>
+
+      <details><summary><span><span class="n">10</span>Safety</span></summary><div class="body">
+        <div class="warn"><strong>Fresh concrete is caustic.</strong> Prolonged contact with wet concrete can cause severe chemical burns, sometimes without pain until hours later.</div>
+        <ul style="margin-top:14px">
+          <li>Wear waterproof gloves, long sleeves, long pants, waterproof boots and eye protection.</li>
+          <li>If concrete gets on your skin or into your boots, wash it off with clean water promptly. If it gets in your eyes, rinse for at least 15 minutes and get medical help.</li>
+          <li>Stay clear of the rotating drum, the chute's swing path and the area behind a reversing truck.</li>
+          <li>Keep children and pets away from the pour area.</li>
+          <li>Safety Data Sheets (SDS) are available on request.</li>
+        </ul></div></details>
+
+      <details><summary><span><span class="n">11</span>Environmental &amp; Washout</span></summary><div class="body"><ul>
+        <li>Concrete washout water must never go into storm drains, streets or waterways.</li>
+        <li>Drivers rinse chutes only into a designated washout area you provide or into our own containment.</li>
+        <li>Let us know in advance if your site requires a specific washout setup.</li>
+      </ul></div></details>
+
+      <details id="privacy"><summary><span><span class="n">12</span>Privacy Policy</span></summary><div class="body">
+        <p>We collect only what we need to quote, schedule, deliver and invoice your order: your name, phone number, email, job-site address and payment details.</p>
+        <ul>
+          <li>We use this information to run your order and to contact you about it.</li>
+          <li>We do not sell your personal information.</li>
+          <li>We share it only with the service providers who help us operate — for example payment processing — and when the law requires it.</li>
+          <li>Payment card details are handled by our payment processor; we do not keep full card numbers.</li>
+          <li>You can ask us to review, correct or delete your information at any time by contacting us.</li>
+          <li>This website does not use advertising trackers.</li>
+        </ul></div></details>
+
+      <details id="terms"><summary><span><span class="n">13</span>Terms of Use</span></summary><div class="body"><ul>
+        <li>Information on this website, including the mix guide and yardage calculator, is general guidance and not engineering advice.</li>
+        <li>Prices, availability and services can change without notice. Your written quote and delivery ticket govern each order.</li>
+        <li>All content, including the WeCrete name and logo, belongs to WeCrete and may not be used without permission.</li>
+      </ul></div></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FAQ ============ -->
+<section class="block" id="faq">
+  <div class="wrap">
+    <div class="reveal">
+      <div class="eyebrow">FAQ</div>
+      <h2 class="title">Good questions.</h2>
+    </div>
+    <div class="policies reveal">
+      <details><summary>How much concrete do I need?</summary><div class="body"><p>Multiply length × width × thickness (all in feet) and divide by 27 to get cubic yards. A 4-inch slab is 0.333 ft thick. Add about 10% for waste, or use the <a href="#calculator">calculator above</a>.</p></div></details>
+      <details><summary>Is there a minimum order?</summary><div class="body"><p>We deliver loads as small as 1 yd³. Loads under 4 yd³ carry a short-load fee.</p></div></details>
+      <details><summary>How far ahead should I book?</summary><div class="body"><p>48 hours is recommended, and earlier for Fridays, weekends and peak season. Same-day orders are possible when trucks are available.</p></div></details>
+      <details><summary>Can the truck drive on my driveway or lawn?</summary><div class="body"><p>Sometimes, but a loaded truck is very heavy and can crack pavement or rut soft ground. Driving past the curb is at your risk. For tight or soft sites, a pump is often the better choice.</p></div></details>
+      <details><summary>How long does the driver stay?</summary><div class="body"><p>Each load includes unloading time based on its size. After that, standby time is billed in 15-minute increments. Having your crew, forms and tools ready keeps costs down.</p></div></details>
+      <details><summary>What happens if it rains?</summary><div class="body"><p>Call us before the load is batched and we'll reschedule without a fee. Light rain may be workable if your crew is prepared to protect the surface.</p></div></details>
+      <details><summary>When can I walk or drive on it?</summary><div class="body"><p>Generally, light foot traffic after 24–48 hours, passenger vehicles after about 7 days, and heavy loads after 28 days, when concrete reaches its design strength. Temperature and mix change this, so follow your contractor's advice.</p></div></details>
+      <details><summary>Do you place and finish the concrete?</summary><div class="body"><p>We supply and deliver ready-mix concrete. Ask dispatch and we can point you to placing and finishing contractors in your area.</p></div></details>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA BAND ============ -->
+<section class="block band">
+  <div class="wrap reveal">
+    <div class="eyebrow">Ready when you are</div>
+    <h2 class="title">Let's pour.</h2>
+    <p class="lead" style="margin:0 auto">Call dispatch or send your job details. We'll confirm your mix, price and pour window.</p>
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:30px;flex-wrap:wrap">
+      <a class="btn" data-cfg-href="tel" href="#">Call <span data-cfg="phone"></span></a>
+      <a class="btn ghost" href="#contact">Request a Quote</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONTACT ============ -->
+<section class="block" id="contact">
+  <div class="wrap split">
+    <div class="reveal">
+      <div class="eyebrow">Contact</div>
+      <h2 class="title">Get a quote.</h2>
+      <p class="lead">Fill in what you know. Dispatch will reply to confirm details and pricing.</p>
+      <ul class="contact-list">
+        <li><small>Dispatch</small><a data-cfg="phone" data-cfg-href="tel" href="#"></a></li>
+        <li><small>Email</small><a data-cfg="email" data-cfg-href="mailto" href="#"></a></li>
+        <li><small>Plant</small><span data-cfg="address"></span></li>
+      </ul>
+    </div>
+    <form class="calc reveal" id="quoteForm" novalidate>
+      <div class="grid g2">
+        <div class="field"><label for="fName">Name</label><input id="fName" name="name" required autocomplete="name"></div>
+        <div class="field"><label for="fPhone">Phone</label><input id="fPhone" name="phone" type="tel" required autocomplete="tel"></div>
+        <div class="field"><label for="fEmail">Email</label><input id="fEmail" name="email" type="email" autocomplete="email"></div>
+        <div class="field"><label for="fDate">Pour date</label><input id="fDate" name="date" type="date"></div>
+        <div class="field" style="grid-column:1/-1"><label for="fSite">Job-site address</label><input id="fSite" name="site" autocomplete="street-address"></div>
+        <div class="field"><label for="fYards">Yardage (yd³)</label><input id="fYards" name="yards" type="number" min="0" step="0.25" inputmode="decimal"></div>
+        <div class="field"><label for="fMix">Mix</label><select id="fMix" name="mix"><option>Not sure — help me choose</option><option>Flowable Fill</option><option>2,500 PSI</option><option>3,000 PSI</option><option>3,500 PSI</option><option>4,000 PSI</option><option>4,500 PSI</option><option>5,000–6,000 PSI</option></select></div>
+        <div class="field" style="grid-column:1/-1"><label for="fMsg">Project details</label><textarea id="fMsg" name="message" placeholder="Placement method, access, pump needed, add-ons…"></textarea></div>
+      </div>
+      <button class="btn" type="submit" style="margin-top:20px;width:100%;justify-content:center">Send Quote Request</button>
+      <p class="form-note" id="formNote">Sending opens your email app with your details filled in, addressed to WeCrete dispatch.</p>
+    </form>
+  </div>
+</section>
+
+<footer>
+  <div class="cols">
+    <div>
+      <a href="#top" class="brand" style="margin-bottom:14px"><span>We<b>Crete</b></span></a>
+      <p style="max-width:340px">Ready-mix concrete, batched to order and delivered to your pour window.</p>
+    </div>
+    <div><h4>Company</h4><ul><li><a href="#about">About</a></li><li><a href="#services">Services</a></li><li><a href="#mixes">Mix Guide</a></li><li><a href="#area">Service Area</a></li></ul></div>
+    <div><h4>Customers</h4><ul><li><a href="#calculator">Calculator</a></li><li><a href="#policies">Policies</a></li><li><a href="#faq">FAQ</a></li><li><a href="#contact">Get a Quote</a></li></ul></div>
+    <div><h4>Contact</h4><ul><li><a data-cfg="phone" data-cfg-href="tel" href="#"></a></li><li><a data-cfg="email" data-cfg-href="mailto" href="#"></a></li><li data-cfg="address"></li></ul></div>
+  </div>
+  <div class="legal"><span>© <span id="yr">2026</span> WeCrete. All rights reserved.</span><span><a href="#privacy" data-open>Privacy</a> · <a href="#terms" data-open>Terms</a> · <a href="#policies">Policies</a></span></div>
+</footer>
+
+<script>
+/* =====================================================================
+   BUSINESS DETAILS — edit these to update every place they appear.
+   ===================================================================== */
+const CONFIG = {
+  phone: "(555) 010-0199",            // placeholder — replace with your real number
+  phoneHref: "+15550100199",
+  email: "orders@wecrete.example",    // placeholder — replace with your real email
+  address: "Your plant address, City, ST 00000",
+  serviceArea: "We deliver across Your City and surrounding communities within roughly 40 miles of our plant.",
+  hours: [["Monday – Friday","6:00 AM – 5:00 PM"],["Saturday","6:00 AM – 12:00 PM"],["Sunday","By arrangement"]]
+};
+
+/* ---------- fill config ---------- */
+document.querySelectorAll("[data-cfg]").forEach(el=>{ const v=CONFIG[el.dataset.cfg]; if(v) el.textContent=v; });
+document.querySelectorAll("[data-cfg-href]").forEach(el=>{ el.href = el.dataset.cfgHref==="tel" ? "tel:"+CONFIG.phoneHref : "mailto:"+CONFIG.email; });
+document.getElementById("hours").innerHTML = CONFIG.hours.map(([d,h])=>`<div><span>${d}</span><span>${h}</span></div>`).join("");
+document.getElementById("yr").textContent = new Date().getFullYear();
+
+/* ---------- nav ---------- */
+const nav=document.getElementById("nav"), menu=document.getElementById("menu"), menuBtn=document.getElementById("menuBtn");
+menuBtn.addEventListener("click",()=>{ const o=menu.classList.toggle("open"); menuBtn.setAttribute("aria-expanded",o); nav.classList.add("solid"); });
+menu.querySelectorAll("a").forEach(a=>a.addEventListener("click",()=>{menu.classList.remove("open");menuBtn.setAttribute("aria-expanded",false)}));
+document.querySelectorAll("[data-open]").forEach(a=>a.addEventListener("click",()=>{const d=document.querySelector(a.getAttribute("href")); if(d) d.open=true;}));
+
+/* ---------- reveal ---------- */
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add("in");io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
+
+/* ---------- calculator ---------- */
+const $=id=>document.getElementById(id);
+function calc(){
+  const L=+$("cL").value||0, W=+$("cW").value||0, T=+$("cT").value||0, Q=Math.max(1,Math.round(+$("cQ").value||1));
+  const exact = L*W*(T/12)/27*Q;
+  const order = exact>0 ? Math.ceil(exact*1.10*4)/4 : 0;
+  $("cOut").innerHTML = order.toFixed(2)+"<small>YD³</small>";
+  $("cExact").textContent = exact.toFixed(2)+" yd³";
+  const trucks = Math.max(1,Math.ceil(order/10));
+  $("cTrucks").textContent = order>0 ? trucks+(trucks===1?" truck":" trucks")+(order<4?" · short-load fee applies":"") : "—";
+}
+["cL","cW","cT","cQ"].forEach(id=>$(id).addEventListener("input",calc)); calc();
+
+/* ---------- quote form (opens email client) ---------- */
+$("quoteForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const f=e.target; if(!f.name.value.trim()||!f.phone.value.trim()){ $("formNote").textContent="Please add at least your name and phone number."; $("formNote").style.color="#ffb35c"; return; }
+  const body=[["Name",f.name.value],["Phone",f.phone.value],["Email",f.email.value],["Pour date",f.date.value],["Job site",f.site.value],["Yardage",f.yards.value],["Mix",f.mix.value],["Details",f.message.value]].map(([k,v])=>`${k}: ${v||"-"}`).join("\n");
+  location.href=`mailto:${CONFIG.email}?subject=${encodeURIComponent("Quote request — "+f.name.value)}&body=${encodeURIComponent(body)}`;
+  $("formNote").style.color=""; $("formNote").textContent="Your email app should open with the request ready to send. If it doesn't, call dispatch at "+CONFIG.phone+".";
+});
+
+/* =====================================================================
+   SCROLL-DRIVEN CINEMATIC SCENE
+   Every pour quantity, truck position, chute angle and drum rotation is a
+   pure function of scroll progress — scroll back and the pour reverses.
+   Rendered at device pixel ratio (up to 2×, i.e. 3840 px wide on a 4K screen).
+   ===================================================================== */
+(()=>{
+const film=$("film"), cv=$("scene"), ctx=cv.getContext("2d");
+const chapters=[...document.querySelectorAll(".chapter")];
+const bar=$("bar"), pct=$("pct"), hint=$("hint");
+const hudPoured=$("hudPoured"), hudDrum=$("hudDrum"), hudStatus=$("hudStatus");
+let W=0,H=0,DPR=1;
+
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v));
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=(a,b,x)=>{const t=clamp((x-a)/(b-a));return t*t*(3-2*t)};
+const easeOut=t=>1-Math.pow(1-t,3);
+const frac=x=>x-Math.floor(x);
+function rng(seed){return()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+
+/* grain texture */
+(()=>{const g=document.createElement("canvas");g.width=g.height=180;const c=g.getContext("2d"),d=c.createImageData(180,180);for(let i=0;i<d.data.length;i+=4){const v=Math.random()*255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=255}c.putImageData(d,0,0);$("grain").style.backgroundImage=`url(${g.toDataURL()})`})();
+
+/* static scene data */
+const R=rng(7);
+const far=[],near=[],gravel=[],motes=[],drops=[],splash=[];
+for(let x=-2200;x<4400;){const w=50+R()*130,h=70+R()*240;far.push({x,w,h});x+=w+R()*14}
+for(let x=-2200;x<4400;){const w=60+R()*160,h=40+R()*170;const win=[];for(let k=0;k<10;k++)if(R()<.35)win.push([R()*(w-10)+4,R()*(h-14)+8]);near.push({x,w,h,win});x+=w+20+R()*90}
+for(let i=0;i<420;i++)gravel.push([-1500+R()*4200,822+Math.pow(R(),1.6)*300,.6+R()*2.2,R()]);
+for(let i=0;i<70;i++)motes.push([R(),R(),R(),R()]);
+for(let i=0;i<40;i++)drops.push([R(),R(),R()]);
+for(let i=0;i<28;i++)splash.push([R(),R(),R()]);
+
+function resize(){
+  DPR=Math.min(window.devicePixelRatio||1,2);
+  W=cv.clientWidth;H=cv.clientHeight;
+  cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
+}
+addEventListener("resize",resize);resize();
+
+let target=0,cur=0;
+function readScroll(){const r=film.getBoundingClientRect();const span=film.offsetHeight-innerHeight;target=clamp(-r.top/span);nav.classList.toggle("solid",r.bottom<innerHeight*0.5||menu.classList.contains("open"))}
+addEventListener("scroll",readScroll,{passive:true});readScroll();cur=target;
+
+/* ---------- camera ---------- */
+let S=1,FX=1000,FY=640;
+function cam(par=1){
+  const s=S*(1+(cam.z-1)*par), fx=1000+(FX-1000)*par;
+  ctx.setTransform(DPR*s,0,0,DPR*s,DPR*(W/2-fx*s),DPR*(H*0.58-FY*s));
+}
+const sx=x=>W/2+(x-FX)*S*cam.z, sy=y=>H*0.58+(y-FY)*S*cam.z;
+
+/* ---------- drawing helpers ---------- */
+function wheel(cx,cy,r,ang){
+  ctx.save();ctx.translate(cx,cy);
+  ctx.fillStyle="#0c0c0d";ctx.beginPath();ctx.arc(0,0,r,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle="#1d1d1f";ctx.lineWidth=4;ctx.beginPath();ctx.arc(0,0,r-6,0,Math.PI*2);ctx.stroke();
+  const g=ctx.createRadialGradient(-6,-8,2,0,0,r*.62);g.addColorStop(0,"#d7dade");g.addColorStop(1,"#6b7077");
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(0,0,r*.6,0,Math.PI*2);ctx.fill();
+  ctx.rotate(ang);ctx.fillStyle="#3c4046";
+  for(let i=0;i<8;i++){ctx.rotate(Math.PI/4);ctx.beginPath();ctx.arc(r*.4,0,3.4,0,Math.PI*2);ctx.fill()}
+  ctx.fillStyle="#2a2d31";ctx.beginPath();ctx.arc(0,0,r*.2,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#9aa0a7";ctx.beginPath();ctx.arc(0,0,r*.09,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+function drumR(u){const t=(u+280)/540;if(t<.45)return 50+85*Math.sin(t/.45*Math.PI/2);if(t<.65)return 135;return 135-62*Math.pow((t-.65)/.35,1.6)}
+function drumPath(){ctx.beginPath();ctx.moveTo(-280,-drumR(-280));for(let u=-280;u<=260;u+=10)ctx.lineTo(u,-drumR(u));ctx.quadraticCurveTo(292,0,260,drumR(260));for(let u=260;u>=-280;u-=10)ctx.lineTo(u,drumR(u));ctx.closePath()}
+
+const DRUM_C=[360,590],DRUM_A=0.2,PIV=[70,600],CHUTE_L=240;
+
+function truck(tx,wAng,dPhase,theta,flow,tsec,reversing){
+  ctx.save();ctx.translate(tx,0);
+  // ground shadow
+  ctx.fillStyle="rgba(0,0,0,.45)";ctx.beginPath();ctx.ellipse(470,820,500,20,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="rgba(0,0,0,.5)";ctx.fillRect(10,814,900,10);
+
+  // chassis
+  ctx.fillStyle="#1b1e22";ctx.fillRect(14,698,830,36);
+  ctx.fillStyle="#2a2e34";ctx.fillRect(14,698,830,6);
+  // tool box + tank
+  let g=ctx.createLinearGradient(0,736,0,778);g.addColorStop(0,"#cfd3d8");g.addColorStop(.5,"#8f959c");g.addColorStop(1,"#5b6066");
+  ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(520,734,110,38,6);ctx.fill();
+  ctx.strokeStyle="rgba(0,0,0,.35)";ctx.lineWidth=2;for(let i=0;i<4;i++){ctx.beginPath();ctx.moveTo(530+i*26,738);ctx.lineTo(530+i*26,768);ctx.stroke()}
+  ctx.fillStyle="#22262b";ctx.fillRect(330,734,150,30);
+  // water tank
+  g=ctx.createLinearGradient(612,0,668,0);g.addColorStop(0,"#5d636a");g.addColorStop(.4,"#d8dbe0");g.addColorStop(1,"#4b5056");
+  ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(612,590,54,108,10);ctx.fill();
+  // pedestals
+  ctx.fillStyle="#2b2f35";
+  ctx.beginPath();ctx.moveTo(60,698);ctx.lineTo(80,612);ctx.lineTo(128,612);ctx.lineTo(140,698);ctx.fill();
+  ctx.beginPath();ctx.moveTo(560,698);ctx.lineTo(580,560);ctx.lineTo(620,560);ctx.lineTo(610,698);ctx.fill();
+  // ladder
+  ctx.strokeStyle="#9aa0a7";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(150,698);ctx.lineTo(196,520);ctx.moveTo(176,698);ctx.lineTo(222,520);ctx.stroke();
+  ctx.lineWidth=3;for(let i=1;i<8;i++){const y=698-i*22,k=i*22/178*46;ctx.beginPath();ctx.moveTo(150+k,y);ctx.lineTo(176+k,y);ctx.stroke()}
+
+  // DRUM
+  ctx.save();ctx.translate(DRUM_C[0],DRUM_C[1]);ctx.rotate(DRUM_A);
+  drumPath();
+  g=ctx.createLinearGradient(0,-140,0,140);g.addColorStop(0,"#f4f1ea");g.addColorStop(.25,"#e3dfd6");g.addColorStop(.62,"#9f9b93");g.addColorStop(1,"#4d4a46");
+  ctx.fillStyle=g;ctx.fill();
+  ctx.save();drumPath();ctx.clip();
+  // spiral stripes, phase-shifted to show rotation (and reversal while discharging)
+  const per=110,off=((dPhase%per)+per)%per;
+  for(let b=-520+off;b<420;b+=per){
+    ctx.beginPath();ctx.moveTo(b,-140);ctx.lineTo(b+46,-140);ctx.lineTo(b+46-150,140);ctx.lineTo(b-150,140);ctx.closePath();
+    const sg=ctx.createLinearGradient(0,-140,0,140);sg.addColorStop(0,"rgba(233,162,59,.95)");sg.addColorStop(.6,"rgba(176,112,30,.95)");sg.addColorStop(1,"rgba(70,44,12,.95)");
+    ctx.fillStyle=sg;ctx.fill();
+  }
+  // brand
+  ctx.font="400 74px Anton, Impact, sans-serif";ctx.textAlign="center";ctx.textBaseline="middle";
+  ctx.lineWidth=8;ctx.strokeStyle="rgba(20,18,15,.85)";ctx.strokeText("WECRETE",40,-8);
+  ctx.fillStyle="#fbf7ef";ctx.fillText("WECRETE",40,-8);
+  // specular
+  const sp=ctx.createLinearGradient(0,-140,0,0);sp.addColorStop(0,"rgba(255,255,255,0)");sp.addColorStop(.45,"rgba(255,255,255,.28)");sp.addColorStop(.6,"rgba(255,255,255,0)");
+  ctx.fillStyle=sp;ctx.fillRect(-300,-140,600,140);
+  ctx.restore();
+  // rings
+  ctx.strokeStyle="rgba(0,0,0,.35)";ctx.lineWidth=3;
+  [-200,-60,120].forEach(u=>{const r=drumR(u);ctx.beginPath();ctx.moveTo(u,-r);ctx.lineTo(u,r);ctx.stroke()});
+  // rear opening
+  ctx.fillStyle="#2c2b29";ctx.beginPath();ctx.ellipse(-280,0,14,50,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#141413";ctx.beginPath();ctx.ellipse(-282,0,8,38,0,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+
+  // hopper + collector
+  const ox=86,oy=534;
+  ctx.fillStyle="#5d636a";ctx.beginPath();ctx.moveTo(ox-46,oy-70);ctx.lineTo(ox+34,oy-70);ctx.lineTo(ox+10,oy-14);ctx.lineTo(ox-14,oy-14);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#3d4147";ctx.fillRect(ox-50,oy-76,88,8);
+  ctx.fillStyle="#4a4f56";ctx.beginPath();ctx.moveTo(ox-16,oy+30);ctx.lineTo(ox+14,oy+30);ctx.lineTo(PIV[0]+12,PIV[1]);ctx.lineTo(PIV[0]-12,PIV[1]);ctx.closePath();ctx.fill();
+
+  // CAB
+  g=ctx.createLinearGradient(0,530,0,700);g.addColorStop(0,"#f6b85a");g.addColorStop(.55,"#e39a2f");g.addColorStop(1,"#9a6116");
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(682,700);ctx.lineTo(682,548);ctx.quadraticCurveTo(682,536,694,536);ctx.lineTo(796,536);ctx.lineTo(866,600);ctx.quadraticCurveTo(902,606,904,622);ctx.lineTo(906,700);ctx.closePath();ctx.fill();
+  // window
+  g=ctx.createLinearGradient(700,550,850,610);g.addColorStop(0,"#1c2a36");g.addColorStop(.5,"#36505f");g.addColorStop(1,"#0f171e");
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(704,552);ctx.lineTo(790,552);ctx.lineTo(842,602);ctx.lineTo(704,602);ctx.closePath();ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.14)";ctx.beginPath();ctx.moveTo(730,552);ctx.lineTo(752,552);ctx.lineTo(726,602);ctx.lineTo(704,602);ctx.closePath();ctx.fill();
+  // door, handle, grille, bumper
+  ctx.strokeStyle="rgba(0,0,0,.35)";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(700,546);ctx.lineTo(700,692);ctx.lineTo(820,692);ctx.lineTo(820,606);ctx.stroke();
+  ctx.fillStyle="#2a2d31";ctx.fillRect(712,618,20,5);
+  ctx.font="400 22px Anton, Impact, sans-serif";ctx.textAlign="left";ctx.fillStyle="#1a140b";ctx.fillText("WECRETE",716,650);
+  ctx.fillStyle="#26292e";ctx.fillRect(890,626,16,58);
+  ctx.fillStyle="#c9cdd2";ctx.beginPath();ctx.roundRect(880,686,40,20,4);ctx.fill();
+  // mirror
+  ctx.strokeStyle="#1d2024";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(800,556);ctx.lineTo(820,520);ctx.stroke();ctx.fillStyle="#1d2024";ctx.fillRect(812,500,10,34);
+  // exhaust
+  g=ctx.createLinearGradient(664,0,678,0);g.addColorStop(0,"#6c7178");g.addColorStop(.5,"#eef0f2");g.addColorStop(1,"#5a5f65");
+  ctx.fillStyle=g;ctx.fillRect(664,498,14,202);
+  // fenders
+  ctx.fillStyle="#141619";
+  ctx.beginPath();ctx.ellipse(205,730,145,30,0,Math.PI,0);ctx.fill();
+  ctx.beginPath();ctx.ellipse(760,730,66,30,0,Math.PI,0);ctx.fill();
+  // mud flap
+  ctx.fillStyle="#0e0f11";ctx.fillRect(22,720,12,70);
+  // wheels
+  wheel(140,768,50,wAng);wheel(270,768,50,wAng);wheel(760,768,50,wAng);
+  // lights
+  ctx.globalCompositeOperation="lighter";
+  let hg=ctx.createRadialGradient(904,650,0,904,650,90);hg.addColorStop(0,"rgba(255,240,205,.95)");hg.addColorStop(.25,"rgba(255,210,140,.35)");hg.addColorStop(1,"rgba(255,180,90,0)");
+  ctx.fillStyle=hg;ctx.fillRect(800,560,200,180);
+  const beam=ctx.createLinearGradient(904,0,1500,0);beam.addColorStop(0,"rgba(255,226,170,.22)");beam.addColorStop(1,"rgba(255,226,170,0)");
+  ctx.fillStyle=beam;ctx.beginPath();ctx.moveTo(904,642);ctx.lineTo(1500,600);ctx.lineTo(1500,800);ctx.lineTo(904,660);ctx.closePath();ctx.fill();
+  const blink=reversing&&frac(tsec*1.6)<.5;
+  const tl=ctx.createRadialGradient(20,690,0,20,690,blink?60:22);tl.addColorStop(0,blink?"rgba(255,170,60,.95)":"rgba(255,60,40,.8)");tl.addColorStop(1,"rgba(255,80,40,0)");
+  ctx.fillStyle=tl;ctx.fillRect(-60,620,160,140);
+  ctx.globalCompositeOperation="source-over";
+  ctx.fillStyle="#ffefc9";ctx.beginPath();ctx.roundRect(898,640,8,18,2);ctx.fill();
+  ctx.fillStyle=blink?"#ffc46b":"#b3261e";ctx.fillRect(14,682,8,16);
+
+  // CHUTE
+  ctx.save();ctx.translate(PIV[0],PIV[1]);ctx.rotate(theta);
+  g=ctx.createLinearGradient(0,-14,0,14);g.addColorStop(0,"#c4c9ce");g.addColorStop(.5,"#7c8288");g.addColorStop(1,"#3b3f44");
+  ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(0,-13,CHUTE_L,26,4);ctx.fill();
+  ctx.fillStyle="#2b2e33";ctx.fillRect(0,-13,CHUTE_L,4);
+  ctx.strokeStyle="rgba(0,0,0,.4)";ctx.lineWidth=2;[80,160].forEach(u=>{ctx.beginPath();ctx.moveTo(u,-13);ctx.lineTo(u,13);ctx.stroke()});
+  if(flow>0.01){ctx.fillStyle="#8d8982";ctx.fillRect(0,-10,CHUTE_L*flow,7);ctx.fillStyle="rgba(255,255,255,.25)";ctx.fillRect(0,-10,CHUTE_L*flow,1.5)}
+  ctx.restore();
+  ctx.fillStyle="#1d2024";ctx.beginPath();ctx.arc(PIV[0],PIV[1],10,0,Math.PI*2);ctx.fill();
+  ctx.restore();
+}
+
+/* ---------- concrete slab model (pure function of progress) ---------- */
+const FL=214,FR=766,BOT=822,FULL=34;
+function slab(p,Lc){
+  const fillK=smooth(.30,.80,p);
+  const A0=34*smooth(.30,.40,p)*(1-.55*smooth(.45,.80,p));
+  const Rr=600*smooth(.30,.66,p);
+  const screedK=clamp((p-.80)/.10);
+  const sxp=lerp(FR+6,FL-6,screedK);
+  const sig=60+150*fillK;
+  return x=>{
+    const mask=clamp((Rr-Math.abs(x-Lc))/30);
+    let m=A0*Math.exp(-((x-Lc)**2)/(2*sig*sig));
+    if(screedK>0){ m = screedK>=1?0: m*(1-smooth(sxp-26,sxp,x)) + 5*Math.exp(-((x-(sxp-12))**2)/60)*Math.sin(Math.PI*screedK); }
+    return BOT-(FULL*fillK+m)*mask;
+  };
+}
+
+function render(now){
+  const tsec=now/1000;
+  cur+= (target-cur)*0.14; if(Math.abs(target-cur)<1e-5)cur=target;
+  const p=cur;
+
+  // scene state
+  const arriveK=clamp(p/.18);
+  const tx=lerp(2350,820,easeOut(arriveK));
+  const wAng=-(2350-tx)/50;
+  const chuteK=smooth(.18,.28,p)-smooth(.93,.99,p);
+  const theta=lerp(-100,-205,chuteK)*Math.PI/180;
+  const flowIn=smooth(.28,.315,p), flowOut=smooth(.765,.80,p);
+  const flow=flowIn*(1-flowOut);
+  const dPhase= p<.28 ? p*1400 : .28*1400-(p-.28)*2200;
+  const zoomK=smooth(.24,.38,p)*(1-smooth(.86,.97,p));
+  S=Math.min(W/1300,H/1080); cam.z=1+.32*zoomK;
+  FX=lerp(1000,650,zoomK); FY=lerp(640,705,zoomK);
+
+  // chute exit + trajectory
+  const ex=tx+PIV[0]+Math.cos(theta)*CHUTE_L, ey=PIV[1]+Math.sin(theta)*CHUTE_L;
+  const dx=Math.cos(theta), dy=Math.sin(theta), v=150, G=900;
+  const traj=(t)=>[ex+dx*v*t, ey+dy*v*t+.5*G*t*t];
+  // landing centre (fixed, using deployed chute) so slab is deterministic
+  const thD=-205*Math.PI/180, exD=820+PIV[0]+Math.cos(thD)*CHUTE_L, eyD=PIV[1]+Math.sin(thD)*CHUTE_L;
+  const tD=(-Math.sin(thD)*v+Math.sqrt((Math.sin(thD)*v)**2+2*G*(800-eyD)))/G;
+  const Lc=exD+Math.cos(thD)*v*tD;
+  const surf=slab(p,Lc);
+  let tl=0; if(flow>0){const yl=surf(Lc); tl=(-dy*v+Math.sqrt((dy*v)**2+2*G*Math.max(1,yl-ey)))/G;}
+
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  // SKY
+  const hy=sy(800);
+  let g=ctx.createLinearGradient(0,0,0,Math.max(hy,1));
+  g.addColorStop(0,"#05070a");g.addColorStop(.45,"#121822");g.addColorStop(.78,"#2f2722");g.addColorStop(.93,"#8a4f27");g.addColorStop(1,"#d88a45");
+  ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  // sun
+  const sunX=sx(1520), sunR=Math.max(W,H)*.55;
+  let rg=ctx.createRadialGradient(sunX,hy,0,sunX,hy,sunR);rg.addColorStop(0,"rgba(255,196,120,.85)");rg.addColorStop(.08,"rgba(255,160,80,.45)");rg.addColorStop(.35,"rgba(200,100,40,.12)");rg.addColorStop(1,"rgba(0,0,0,0)");
+  ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);
+  // stars
+  ctx.fillStyle="rgba(255,255,255,.5)";for(let i=0;i<60;i++){const m=motes[i%70];ctx.globalAlpha=.15+.35*Math.abs(Math.sin(tsec*.6+i));ctx.fillRect(m[0]*W,m[1]*hy*.45,1.2,1.2)}ctx.globalAlpha=1;
+
+  // FAR SKYLINE
+  cam(.35);
+  ctx.fillStyle="#1a1d24";far.forEach(b=>ctx.fillRect(b.x,800-b.h,b.w,b.h));
+  // crane
+  ctx.strokeStyle="#1a1d24";ctx.lineWidth=5;
+  ctx.beginPath();ctx.moveTo(1300,800);ctx.lineTo(1300,380);ctx.moveTo(1322,800);ctx.lineTo(1322,380);ctx.stroke();
+  ctx.lineWidth=2;for(let y=800;y>380;y-=22){ctx.beginPath();ctx.moveTo(1300,y);ctx.lineTo(1322,y-22);ctx.stroke()}
+  ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(1050,388);ctx.lineTo(1640,388);ctx.moveTo(1311,380);ctx.lineTo(1311,340);ctx.lineTo(1050,388);ctx.moveTo(1311,340);ctx.lineTo(1640,388);ctx.stroke();
+  ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(1560,388);ctx.lineTo(1560,470+Math.sin(tsec*.5)*6);ctx.stroke();ctx.fillStyle="#1a1d24";ctx.fillRect(1550,470+Math.sin(tsec*.5)*6,20,14);
+  ctx.globalCompositeOperation="lighter";ctx.fillStyle=frac(tsec*.7)<.5?"rgba(255,60,50,.9)":"rgba(255,60,50,.2)";ctx.beginPath();ctx.arc(1311,336,4,0,Math.PI*2);ctx.fill();ctx.globalCompositeOperation="source-over";
+  // NEAR SKYLINE
+  cam(.6);
+  near.forEach(b=>{ctx.fillStyle="#0f1217";ctx.fillRect(b.x,806-b.h,b.w,b.h);ctx.fillStyle="rgba(255,190,110,.55)";b.win.forEach(([wx,wy])=>ctx.fillRect(b.x+wx,806-b.h+wy,5,7))});
+  // haze
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  g=ctx.createLinearGradient(0,hy-120,0,hy+30);g.addColorStop(0,"rgba(216,138,69,0)");g.addColorStop(1,"rgba(216,138,69,.22)");
+  ctx.fillStyle=g;ctx.fillRect(0,hy-120,W,150);
+
+  // WORLD
+  cam(1);
+  g=ctx.createLinearGradient(0,812,0,1200);g.addColorStop(0,"#3a332c");g.addColorStop(.08,"#26221e");g.addColorStop(1,"#0b0a09");
+  ctx.fillStyle=g;ctx.fillRect(-3000,812,8000,1400);
+  ctx.fillStyle="rgba(216,138,69,.25)";ctx.fillRect(-3000,812,8000,2);
+  gravel.forEach(([x,y,r,c])=>{ctx.fillStyle=c>.5?"rgba(120,108,95,.35)":"rgba(0,0,0,.35)";ctx.fillRect(x,y,r,r*.6)});
+  // work light
+  ctx.fillStyle="#15171a";ctx.fillRect(96,560,8,262);ctx.fillRect(80,550,40,16);
+  ctx.globalCompositeOperation="lighter";
+  rg=ctx.createRadialGradient(100,566,0,100,566,40);rg.addColorStop(0,"rgba(255,235,190,1)");rg.addColorStop(1,"rgba(255,200,120,0)");ctx.fillStyle=rg;ctx.fillRect(40,510,120,120);
+  g=ctx.createLinearGradient(0,566,0,830);g.addColorStop(0,"rgba(255,215,150,.22)");g.addColorStop(1,"rgba(255,215,150,.04)");
+  ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(86,566);ctx.lineTo(114,566);ctx.lineTo(820,830);ctx.lineTo(60,830);ctx.closePath();ctx.fill();
+  ctx.globalCompositeOperation="source-over";
+
+  // FORMWORK back board
+  ctx.fillStyle="#3b2c1e";ctx.fillRect(FL-14,770,FR-FL+28,52);
+  ctx.fillStyle="rgba(0,0,0,.35)";ctx.fillRect(FL-14,770,FR-FL+28,3);
+  // rebar chairs/mesh (visible until covered)
+  ctx.strokeStyle="#5a3a26";ctx.lineWidth=2.5;ctx.beginPath();ctx.moveTo(FL,808);ctx.lineTo(FR,808);ctx.stroke();
+  for(let x=FL+20;x<FR;x+=38){ctx.beginPath();ctx.moveTo(x,808);ctx.lineTo(x,816);ctx.stroke()}
+
+  // CONCRETE
+  ctx.beginPath();ctx.moveTo(FL,BOT);for(let x=FL;x<=FR;x+=3)ctx.lineTo(x,surf(x));ctx.lineTo(FR,BOT);ctx.closePath();
+  g=ctx.createLinearGradient(0,740,0,BOT);g.addColorStop(0,"#b2aea6");g.addColorStop(.5,"#8e8a83");g.addColorStop(1,"#5f5c57");
+  ctx.fillStyle=g;ctx.fill();
+  ctx.save();ctx.clip();
+  // wet speckle
+  for(let i=0;i<120;i++){const r=splash[i%28],x=FL+frac(r[0]+i*.137)*(FR-FL),y=surf(x)+2+frac(r[1]+i*.31)*20;ctx.fillStyle=i%2?"rgba(255,255,255,.08)":"rgba(0,0,0,.12)";ctx.fillRect(x,y,2,1.4)}
+  // finish sheen
+  const finishK=smooth(.86,.95,p);
+  if(finishK>0){const shx=lerp(FL-200,FR+200,frac(p*6+tsec*.05));const sg=ctx.createLinearGradient(shx-120,0,shx+120,0);sg.addColorStop(0,"rgba(255,255,255,0)");sg.addColorStop(.5,`rgba(255,240,220,${.28*finishK})`);sg.addColorStop(1,"rgba(255,255,255,0)");ctx.fillStyle=sg;ctx.fillRect(FL,740,FR-FL,90)}
+  ctx.restore();
+  ctx.strokeStyle="rgba(255,250,240,.35)";ctx.lineWidth=1.6;ctx.beginPath();let st=false;for(let x=FL;x<=FR;x+=3){const y=surf(x);if(y<BOT-.5){st?ctx.lineTo(x,y):ctx.moveTo(x,y);st=true}else st=false}ctx.stroke();
+
+  // POUR STREAM
+  if(flow>0.002 && tl>0){
+    const head=flowIn, tail=flowOut;               // stream reaches ground as you scroll in, detaches as you scroll out
+    const t0=tl*tail, t1=tl*head, N=30, Lp=[],Rp=[];
+    for(let i=0;i<=N;i++){
+      const t=lerp(t0,t1,i/N),[x,y]=traj(t);
+      const vx=dx*v, vy=dy*v+G*t, l=Math.hypot(vx,vy), nx=-vy/l, ny=vx/l;
+      const u=t/tl, w=(17-6*u)*(.35+.65*flow)+Math.sin(u*14-tsec*9)*1.6;
+      Lp.push([x+nx*w/2,y+ny*w/2]);Rp.push([x-nx*w/2,y-ny*w/2]);
+    }
+    ctx.beginPath();Lp.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));for(let i=Rp.length-1;i>=0;i--)ctx.lineTo(Rp[i][0],Rp[i][1]);ctx.closePath();
+    g=ctx.createLinearGradient(ex-30,ey,ex+30,ey+120);g.addColorStop(0,"#a7a39b");g.addColorStop(.5,"#8a867f");g.addColorStop(1,"#6c6963");
+    ctx.fillStyle=g;ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,.35)";ctx.lineWidth=1.4;ctx.beginPath();Lp.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke();
+    // flying droplets along the stream
+    drops.forEach(([a,b,c],i)=>{
+      const ph=frac(a+p*90+tsec*.35);const t=lerp(t0,t1,ph);if(t<=t0||t>=t1)return;
+      const [x,y]=traj(t);const o=(b-.5)*24*ph;ctx.fillStyle=`rgba(${150+c*40|0},${146+c*40|0},${138+c*40|0},${.9*flow})`;
+      ctx.beginPath();ctx.arc(x+o,y+(c-.5)*6,1.2+c*2.6,0,Math.PI*2);ctx.fill();
+    });
+    // splash at impact
+    if(head>.98){
+      const [lx,ly]=traj(tl);
+      splash.forEach(([a,b,c])=>{
+        const ph=frac(a+p*140+tsec*.7), tt=ph*.45, vx=(b-.5)*260, vy=-(70+c*130);
+        const x=lx+vx*tt, y=ly+vy*tt+.5*G*tt*tt; if(y>surf(Math.min(FR,Math.max(FL,x)))+2)return;
+        ctx.fillStyle=`rgba(170,165,156,${(1-ph)*flow})`;ctx.beginPath();ctx.arc(x,y,1.4+c*2.4,0,Math.PI*2);ctx.fill();
+      });
+      ctx.fillStyle=`rgba(120,116,110,${.6*flow})`;ctx.beginPath();ctx.ellipse(lx,ly+2,22+Math.sin(tsec*8)*2,5,0,0,Math.PI*2);ctx.fill();
+    }
+  }
+
+  // SCREED
+  const screedK=clamp((p-.80)/.10);
+  if(screedK>0&&screedK<1){
+    const a=Math.min(1,Math.sin(Math.PI*screedK)*3);
+    const x=lerp(FR+6,FL-6,screedK),y=BOT-FULL;
+    ctx.globalAlpha=a;ctx.fillStyle="#c9cdd2";ctx.fillRect(x-5,y-8,10,12);
+    ctx.strokeStyle="#9aa0a7";ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(x,y-4);ctx.lineTo(x+150,y-170);ctx.stroke();
+    ctx.fillStyle="#e9a23b";ctx.fillRect(x+140,y-182,26,14);ctx.globalAlpha=1;
+  }
+
+  // FRONT BOARD + stakes
+  g=ctx.createLinearGradient(0,804,0,826);g.addColorStop(0,"#b98b58");g.addColorStop(1,"#6f4f2e");
+  ctx.fillStyle=g;ctx.fillRect(FL-16,804,FR-FL+32,22);
+  ctx.strokeStyle="rgba(60,38,18,.45)";ctx.lineWidth=1;for(let i=0;i<5;i++){ctx.beginPath();ctx.moveTo(FL-16,809+i*3.6);ctx.bezierCurveTo(400,806+i*4,560,812+i*3,FR+16,808+i*3.6);ctx.stroke()}
+  ctx.fillStyle="#5b3f22";[FL-24,(FL+FR)/2,FR+16].forEach(x=>{ctx.beginPath();ctx.moveTo(x,796);ctx.lineTo(x+8,796);ctx.lineTo(x+8,834);ctx.lineTo(x+4,842);ctx.lineTo(x,834);ctx.closePath();ctx.fill()});
+
+  // TRUCK
+  truck(tx,wAng,dPhase,theta,flow,tsec,arriveK<1);
+
+  // exhaust smoke
+  for(let i=0;i<12;i++){
+    const ph=frac(tsec*.32+i/12), eng=arriveK<1?1:.45;
+    const x=tx+671-ph*70+Math.sin(ph*6+i)*10, y=498-ph*170, r=6+ph*46;
+    ctx.fillStyle=`rgba(110,108,112,${(1-ph)*.16*eng})`;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+  }
+  // dust kicked up while reversing
+  if(arriveK<1&&arriveK>0){for(let i=0;i<14;i++){const ph=frac(tsec*.9+i/14);ctx.fillStyle=`rgba(150,128,100,${(1-ph)*.12})`;ctx.beginPath();ctx.arc(tx+140+i*12+ph*90,810-ph*40,8+ph*30,0,Math.PI*2);ctx.fill()}}
+
+  // SCREEN FX
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+  ctx.globalCompositeOperation="lighter";
+  motes.forEach(([a,b,c,d],i)=>{const x=frac(a+tsec*.006*(1+c))*W, y=(b*H+Math.sin(tsec*.4+i)*24);ctx.fillStyle=`rgba(255,200,140,${.05+.12*d})`;ctx.beginPath();ctx.arc(x,y,.6+c*1.8,0,Math.PI*2);ctx.fill()});
+  // anamorphic flare from headlight
+  const hx=sx(tx+904),hyy=sy(650);
+  if(hx>-200&&hx<W+400){const fg=ctx.createLinearGradient(hx-W*.4,0,hx+W*.4,0);fg.addColorStop(0,"rgba(120,170,255,0)");fg.addColorStop(.5,"rgba(160,200,255,.22)");fg.addColorStop(1,"rgba(120,170,255,0)");ctx.fillStyle=fg;ctx.fillRect(hx-W*.4,hyy-1.5,W*.8,3)}
+  ctx.globalCompositeOperation="source-over";
+  // vignette
+  rg=ctx.createRadialGradient(W/2,H*.55,Math.min(W,H)*.25,W/2,H*.55,Math.max(W,H)*.78);rg.addColorStop(0,"rgba(0,0,0,0)");rg.addColorStop(1,"rgba(0,0,0,.72)");
+  ctx.fillStyle=rg;ctx.fillRect(0,0,W,H);
+  // left text scrim for legibility
+  g=ctx.createLinearGradient(0,0,W*.6,0);g.addColorStop(0,"rgba(0,0,0,.35)");g.addColorStop(1,"rgba(0,0,0,0)");ctx.fillStyle=g;ctx.fillRect(0,0,W*.6,H);
+
+  // OVERLAYS
+  chapters.forEach(el=>{
+    const a=+el.dataset.in,b=+el.dataset.out;
+    const o=smooth(a,a+.03,p)*(1-smooth(b-.03,b,p));
+    el.style.opacity=o.toFixed(3);
+    const y=(1-o)*24*(p<(a+b)/2?1:-1);
+    el.style.transform=`translateY(${y}px)`;
+    el.style.visibility=o<.01?"hidden":"visible";
+  });
+  bar.style.transform=`scaleX(${p})`;pct.textContent=String(Math.round(p*100)).padStart(2,"0")+"%";
+  hint.style.opacity=1-smooth(.01,.05,p);
+  hudPoured.textContent=(10*smooth(.30,.80,p)).toFixed(1)+" yd³";
+  hudDrum.textContent=flow>.05?"Discharging":p>.8?"Empty":"Charging";
+  hudStatus.textContent=p<.18?"Reversing":p<.28?"Positioning":p<.80?"Pouring":p<.92?"Screeding":"Complete";
+
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>
