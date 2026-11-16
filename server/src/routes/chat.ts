@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db";
-import { conversations, messages, messageAttachments, messageDeletions, users, reports, readReceiptExclusions, conversationSettings } from "@shared/schema";
+import { conversations, messages, messageAttachments, messageDeletions, users, reports, readReceiptExclusions, conversationSettings, listings, listingImages } from "@shared/schema";
 import { and, desc, eq, inArray, isNull, lt, ne, notInArray, or, sql } from "drizzle-orm";
 import { authenticateToken } from "../middleware/auth";
 import { chatUpload, attachmentTypeFromMime } from "../lib/chatUpload";
@@ -41,6 +41,31 @@ async function attachAttachments(rows: (typeof messages.$inferSelect)[]) {
   }
   return rows.map((r) => ({ ...r, attachments: byMessage.get(r.id) ?? [] }));
 }
+
+// Embeds the shared listing's live card data (title, price, cover image,
+// status) — read fresh on every fetch rather than snapshotted at send time,
+// so a price change or sell-out shows up on the card in the chat too. A
+// removed/deleted listing still comes back (with its status) so the client
+// can render "no longer available" instead of a dead tap target.
+async function attachListingCards<T extends { listingId: string | null }>(rows: T[]) {
+  const listingIds = Array.from(new Set(rows.map((r) => r.listingId).filter((id): id is string => !!id)));
+  if (listingIds.length === 0) return rows.map((r) => ({ ...r, listing: null as ListingCard | null }));
+
+  const [listingRows, imageRows] = await Promise.all([
+    db
+      .select({ id: listings.id, title: listings.title, priceCents: listings.priceCents, condition: listings.condition, status: listings.status, sellerId: listings.sellerId })
+      .from(listings)
+      .where(inArray(listings.id, listingIds)),
+    db.select({ listingId: listingImages.listingId, url: listingImages.url }).from(listingImages).where(inArray(listingImages.listingId, listingIds)).orderBy(listingImages.position),
+  ]);
+  const coverByListing = new Map<string, string>();
+  for (const img of imageRows) if (!coverByListing.has(img.listingId)) coverByListing.set(img.listingId, img.url);
+  const byId = new Map(listingRows.map((l) => [l.id, { ...l, imageUrl: coverByListing.get(l.id) ?? null }]));
+
+  return rows.map((r) => ({ ...r, listing: (r.listingId ? byId.get(r.listingId) : null) ?? null }));
+}
+
+type ListingCard = { id: string; title: string; priceCents: number; condition: string; status: string; sellerId: string; imageUrl: string | null };
 
 // Embeds a lightweight snapshot of the message being replied to, so a
 // reply still renders sensibly even if the original was later deleted (for
@@ -325,7 +350,7 @@ router.get("/conversations/:id/messages", async (req, res) => {
       : { ...r, deliveredAt: r.deliveredAt ?? now, readAt: willMarkRead ? (r.readAt ?? now) : r.readAt },
   );
 
-  const withAttachments = await attachAttachments(patched);
+  const withAttachments = await attachListingCards(await attachAttachments(patched));
   const withReplies = await attachReplyPreviews(withAttachments, meId);
   // Newest-first — matches the client's inverted FlatList directly (index 0
   // renders at the bottom of the screen, i.e. the newest message).
@@ -367,13 +392,19 @@ router.post("/conversations/:id/messages", chatUpload.array("media", 4), async (
   const otherParticipantId = convo.userAId === meId ? convo.userBId : convo.userAId;
   if (await isBlockedEitherWay(meId, otherParticipantId)) return res.status(403).json({ message: "You can't message this user" });
 
-  const bodySchema = z.object({ text: z.string().max(2000).optional(), replyToMessageId: z.string().optional() });
+  const bodySchema = z.object({ text: z.string().max(2000).optional(), replyToMessageId: z.string().optional(), listingId: z.string().optional() });
   const parsed = bodySchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: "Invalid message" });
 
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   const text = parsed.data.text?.trim();
-  if (!text && files.length === 0) return res.status(400).json({ message: "Message can't be empty" });
+  let listingId: string | null = null;
+  if (parsed.data.listingId) {
+    const [listing] = await db.select({ id: listings.id, status: listings.status }).from(listings).where(eq(listings.id, parsed.data.listingId));
+    if (!listing || listing.status === "deleted" || listing.status === "removed") return res.status(404).json({ message: "Listing not found" });
+    listingId = listing.id;
+  }
+  if (!text && files.length === 0 && !listingId) return res.status(400).json({ message: "Message can't be empty" });
 
   let replyToMessageId: string | null = null;
   if (parsed.data.replyToMessageId) {
@@ -381,16 +412,16 @@ router.post("/conversations/:id/messages", chatUpload.array("media", 4), async (
     if (target && target.conversationId === convo.id) replyToMessageId = target.id;
   }
 
-  const [message] = await db.insert(messages).values({ conversationId: convo.id, senderId: meId, text: text || null, replyToMessageId }).returning();
+  const [message] = await db.insert(messages).values({ conversationId: convo.id, senderId: meId, text: text || null, replyToMessageId, listingId }).returning();
   if (files.length > 0) {
     const urls = await Promise.all(files.map((f) => saveUploadedFile(f)));
     await db.insert(messageAttachments).values(urls.map((url, i) => ({ messageId: message.id, url, type: attachmentTypeFromMime(files[i].mimetype), position: i })));
   }
 
-  const preview = text || (files.length > 0 ? (attachmentTypeFromMime(files[0].mimetype) === "video" ? "Sent a video" : "Sent a photo") : "");
+  const preview = text || (files.length > 0 ? (attachmentTypeFromMime(files[0].mimetype) === "video" ? "Sent a video" : "Sent a photo") : "Shared a listing");
   const isRecipientReply = await finalizeOutgoingMessage(convo, meId, req.user!.username, preview);
 
-  const [withAttachments] = await attachAttachments([message]);
+  const [withAttachments] = await attachListingCards(await attachAttachments([message]));
   const [withReply] = await attachReplyPreviews([withAttachments], meId);
   res.status(201).json({ ...withReply, conversationAccepted: isRecipientReply });
 
@@ -453,8 +484,8 @@ router.post("/messages/:id/delete-everyone", async (req, res) => {
   await Promise.all(attachments.map((a) => deleteUploadedFile(a.url)));
   await db.delete(messageAttachments).where(eq(messageAttachments.messageId, message.id));
 
-  const [updated] = await db.update(messages).set({ text: null, deletedForEveryoneAt: new Date() }).where(eq(messages.id, message.id)).returning();
-  res.json({ ...updated, attachments: [] });
+  const [updated] = await db.update(messages).set({ text: null, listingId: null, deletedForEveryoneAt: new Date() }).where(eq(messages.id, message.id)).returning();
+  res.json({ ...updated, attachments: [], listing: null });
 });
 
 // ── Forward ────────────────────────────────────────────────────────────────
@@ -478,17 +509,17 @@ router.post("/messages/:id/forward", async (req, res) => {
   if (await isBlockedEitherWay(meId, targetOtherId)) return res.status(403).json({ message: "You can't message this user" });
 
   const sourceAttachments = await db.select().from(messageAttachments).where(eq(messageAttachments.messageId, source.id));
-  if (!source.text && sourceAttachments.length === 0) return res.status(400).json({ message: "Nothing to forward" });
+  if (!source.text && sourceAttachments.length === 0 && !source.listingId) return res.status(400).json({ message: "Nothing to forward" });
 
-  const [message] = await db.insert(messages).values({ conversationId: target.id, senderId: meId, text: source.text, forwarded: true }).returning();
+  const [message] = await db.insert(messages).values({ conversationId: target.id, senderId: meId, text: source.text, listingId: source.listingId, forwarded: true }).returning();
   if (sourceAttachments.length > 0) {
     await db.insert(messageAttachments).values(sourceAttachments.map((a) => ({ messageId: message.id, url: a.url, type: a.type, position: a.position })));
   }
 
-  const preview = source.text || (sourceAttachments.length > 0 ? (sourceAttachments[0].type === "video" ? "Sent a video" : "Sent a photo") : "");
+  const preview = source.text || (sourceAttachments.length > 0 ? (sourceAttachments[0].type === "video" ? "Sent a video" : "Sent a photo") : source.listingId ? "Shared a listing" : "");
   const isRecipientReply = await finalizeOutgoingMessage(target, meId, req.user!.username, preview);
 
-  const [withAttachments] = await attachAttachments([message]);
+  const [withAttachments] = await attachListingCards(await attachAttachments([message]));
   res.status(201).json({ ...withAttachments, replyTo: null, conversationAccepted: isRecipientReply });
 });
 

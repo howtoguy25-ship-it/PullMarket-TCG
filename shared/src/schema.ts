@@ -867,6 +867,10 @@ export const messages = pgTable(
     // /messages/:id/forward) rather than typed fresh — purely cosmetic, so
     // the recipient's bubble can show a small "Forwarded" label.
     forwarded: boolean("forwarded").notNull().default(false),
+    // A listing shared into the chat (e.g. "Message seller" from a listing
+    // page) — rendered as a tappable product card in the bubble. Set null
+    // if the listing row is ever hard-deleted, so the card just disappears.
+    listingId: varchar("listing_id").references(() => listings.id, { onDelete: "set null" }),
     // "Delete for everyone" (sender-only, within 24h — enforced in the
     // route, not here): text/attachments are cleared and this is stamped,
     // so every participant's client renders "This message was deleted"
